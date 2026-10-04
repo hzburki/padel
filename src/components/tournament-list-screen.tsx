@@ -113,6 +113,15 @@ function Hero({ howItWorks, children }: { howItWorks: "open" | "collapsible"; ch
 
         {children && <div className="mt-6">{children}</div>}
       </div>
+      {/* A quiet credit tucked into the corner of the court. */}
+      <a
+        href="https://hzburki.com"
+        target="_blank"
+        rel="noopener"
+        className="absolute right-5 bottom-1 py-1 text-[0.6875rem] text-primary-foreground/45"
+      >
+        hzburki.com
+      </a>
     </div>
   )
 }
@@ -169,27 +178,16 @@ function PlayingNow({ tournament, onOpen }: { tournament: Tournament; onOpen: ()
 function HowItWorks() {
   const steps = ["Add your players and courts", "Enter scores courtside", "Share the final standings"]
   return (
-    <>
-      <ol className="space-y-2.5">
-        {steps.map((step, i) => (
-          <li key={step} className="flex items-center gap-3">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/15 text-sm font-bold">
-              {i + 1}
-            </span>
-            <span className="font-medium">{step}</span>
-          </li>
-        ))}
-      </ol>
-      {/* A quiet credit, only seen by people who open the steps. */}
-      <a
-        href="https://hzburki.com"
-        target="_blank"
-        rel="noopener"
-        className="mt-4 inline-block py-1 text-xs text-primary-foreground/50"
-      >
-        hzburki.com
-      </a>
-    </>
+    <ol className="space-y-2.5">
+      {steps.map((step, i) => (
+        <li key={step} className="flex items-center gap-3">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/15 text-sm font-bold">
+            {i + 1}
+          </span>
+          <span className="font-medium">{step}</span>
+        </li>
+      ))}
+    </ol>
   )
 }
 
