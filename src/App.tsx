@@ -1,3 +1,4 @@
+import { useCenterFocusedField } from "@/components/center-focused-field"
 import { NewTournamentScreen } from "@/components/new-tournament-screen"
 import { StackNavigator } from "@/components/stack-navigator"
 import { TournamentListScreen } from "@/components/tournament-list-screen"
@@ -19,5 +20,6 @@ function render(route: Route) {
 }
 
 export default function App() {
+  useCenterFocusedField()
   return <StackNavigator initial={HOME} render={render} />
 }

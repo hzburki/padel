@@ -136,6 +136,11 @@
     overflow: hidden;
     overscroll-behavior: none;
   }
+  /* Only the part of the screen the keyboard doesn't cover (see
+     center-focused-field.ts). */
+  #root {
+    height: var(--app-height, 100%);
+  }
   body {
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
@@ -146,4 +151,12 @@
   textarea {
     user-select: text;
   }
+}
+
+/* While typing, give scroll areas room at the bottom so the field being
+   typed into can always scroll up to the middle of the screen. Unlayered so
+   it wins over the padding utilities. */
+html[data-typing] main > div,
+html[data-typing] [role="dialog"] > :last-child {
+  padding-bottom: calc(var(--app-height, 100dvh) * 0.45);
 }
