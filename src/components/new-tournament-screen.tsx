@@ -397,11 +397,11 @@ function RoundsWarning({
       <p className="mt-3 text-2xl type-display">{title}</p>
       <p className="mt-1 text-muted-foreground">{message}</p>
 
-      <Button size="lg" className="mt-5" onClick={onAccept}>
-        {acceptLabel}
-      </Button>
-      <Button variant="ghost" className="mt-1 h-12 w-full text-base font-semibold" onClick={onUseSuggested}>
+      <Button size="lg" className="mt-5" onClick={onUseSuggested}>
         Use {suggested} rounds, everyone plays {suggestedGames}
+      </Button>
+      <Button variant="ghost" className="mt-1 h-12 w-full text-base font-medium text-muted-foreground" onClick={onAccept}>
+        {acceptLabel}
       </Button>
 
       {details ? (
