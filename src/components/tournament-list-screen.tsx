@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Download, Plus } from "lucide-react"
+import { ChevronDown, ChevronRight, MonitorDown, Plus, Smartphone } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
@@ -7,7 +7,7 @@ import { listTournaments } from "@/lib/storage"
 import { currentRoundIndex, unscoredMatchCount } from "@/lib/tournament"
 import type { Tournament } from "@/lib/types"
 import { CourtLines } from "./court-lines"
-import { canInstall, InstallBanner, InstallHelp, useInstallPrompt } from "./install-banner"
+import { canInstall, InstallBanner, InstallHelp, isPhone, useInstallPrompt } from "./install-banner"
 import { Screen } from "./screen"
 import { Sheet } from "./sheet"
 import { useIsTopScreen, useNav } from "./stack-navigator"
@@ -108,11 +108,15 @@ function Hero({
       {onInstall && (
         <button
           type="button"
-          aria-label="Install the app"
           onClick={onInstall}
-          className="absolute top-[calc(env(safe-area-inset-top)+1.5rem)] right-4 z-10 flex size-11 items-center justify-center rounded-full bg-white/10 text-primary-foreground active:bg-white/20"
+          className="absolute top-[calc(env(safe-area-inset-top)+1.5rem)] right-4 z-10 flex h-11 items-center gap-1.5 rounded-full bg-white/10 pr-4 pl-3 text-[0.9375rem] text-primary-foreground type-label active:bg-white/20"
         >
-          <Download className="size-5" strokeWidth={2.5} />
+          {isPhone() ? (
+            <Smartphone className="size-5" strokeWidth={2.5} />
+          ) : (
+            <MonitorDown className="size-5" strokeWidth={2.5} />
+          )}
+          Install
         </button>
       )}
       <div className="relative">

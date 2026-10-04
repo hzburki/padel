@@ -104,6 +104,13 @@ export function canInstall(): boolean {
   return "onbeforeinstallprompt" in window && !standalone
 }
 
+// Only asked where canInstall() is true, so this is always a Chromium
+// browser, which says outright whether it's on a phone.
+export function isPhone(): boolean {
+  const ua = navigator as Navigator & { userAgentData?: { mobile: boolean } }
+  return ua.userAgentData?.mobile ?? /Android|Mobi/.test(navigator.userAgent)
+}
+
 // For when the browser supports installing but isn't offering the dialog
 // right now: its own menu still can.
 export function InstallHelp({ onClose }: { onClose: () => void }) {
