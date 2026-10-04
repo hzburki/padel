@@ -4,9 +4,10 @@ export interface StandingRow {
   playerId: PlayerId
   rank: number // 1-based; fully tied players share a rank (1, 2, 2, 4)
   played: number
-  points: number // points scored by the player's teams
+  points: number // points used for ranking; includes `bonus` in final standings
+  bonus: number // points added for games a player didn't get to play (final only)
   conceded: number
-  diff: number // points - conceded
+  diff: number // (scored - conceded), scaled the same way as points
   wins: number
   draws: number
   losses: number
@@ -14,12 +15,21 @@ export interface StandingRow {
 
 // Rank players on scored matches only. Order: points, then point difference,
 // then head-to-head among the players still tied, then wins.
-export function computeStandings(players: PlayerId[], rounds: Round[]): StandingRow[] {
+//
+// In final standings, a player who played fewer games than the most anyone
+// played has their points (and difference) scaled up in proportion:
+// 12 points from 4 games, when others played 5, counts as 15. Mid-tournament
+// nobody is scaled — the others may simply not have played their extra game yet.
+export function computeStandings(
+  players: PlayerId[],
+  rounds: Round[],
+  { final = false }: { final?: boolean } = {},
+): StandingRow[] {
   const scored = rounds.flatMap((r) => r.matches).filter((m) => m.score !== null)
   const rows = new Map<PlayerId, StandingRow>(
     players.map((id) => [
       id,
-      { playerId: id, rank: 0, played: 0, points: 0, conceded: 0, diff: 0, wins: 0, draws: 0, losses: 0 },
+      { playerId: id, rank: 0, played: 0, points: 0, bonus: 0, conceded: 0, diff: 0, wins: 0, draws: 0, losses: 0 },
     ]),
   )
 
@@ -41,6 +51,18 @@ export function computeStandings(players: PlayerId[], rounds: Round[]): Standing
     }
   }
   for (const row of rows.values()) row.diff = row.points - row.conceded
+
+  if (final) {
+    const mostPlayed = Math.max(0, ...[...rows.values()].map((r) => r.played))
+    for (const row of rows.values()) {
+      if (row.played === 0 || row.played === mostPlayed) continue
+      const factor = mostPlayed / row.played
+      const scaled = round2(row.points * factor)
+      row.bonus = round2(scaled - row.points)
+      row.points = scaled
+      row.diff = round2(row.diff * factor)
+    }
+  }
 
   // Group by points + diff; inside each group, head-to-head decides.
   const byPointsAndDiff = [...rows.values()].sort((x, y) => y.points - x.points || y.diff - x.diff)
@@ -94,4 +116,9 @@ function headToHead(tied: PlayerId[], matches: Match[]): Map<PlayerId, number> {
     }
   }
   return result
+}
+
+// Two decimals is plenty for display and keeps float noise out of ties.
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
 }

@@ -98,4 +98,52 @@ describe("computeStandings", () => {
     const rows = computeStandings(ids(5), [])
     expect(rows.map((r) => r.rank)).toEqual([1, 1, 1, 1, 1])
   })
+
+  describe("final standings when some players played fewer games", () => {
+    // 5 players, 2 rounds: p4 and p5 each sit out once, everyone else plays twice.
+    const rounds: Round[] = [
+      { matches: [match("p1 p2", 10, 6, "p3 p4")], benched: ["p5"] },
+      { matches: [match("p5 p1", 8, 8, "p2 p3")], benched: ["p4"] },
+    ]
+    const byId = (rows: ReturnType<typeof computeStandings>) => Object.fromEntries(rows.map((r) => [r.playerId, r]))
+
+    it("scales up their points in proportion to the points they did score", () => {
+      const rows = byId(computeStandings(ids(5), rounds, { final: true }))
+      expect(rows.p4.points).toBe(12) // 6 from 1 game, others played 2
+      expect(rows.p4.bonus).toBe(6)
+      expect(rows.p5.points).toBe(16) // 8 from 1 game
+    })
+
+    it("scales their point difference the same way", () => {
+      const rows = byId(computeStandings(ids(5), rounds, { final: true }))
+      expect(rows.p4.diff).toBe(-8) // -4 from 1 game, doubled
+    })
+
+    it("leaves players who played the most games alone", () => {
+      const rows = byId(computeStandings(ids(5), rounds, { final: true }))
+      expect(rows.p1.points).toBe(18)
+      expect(rows.p1.bonus).toBe(0)
+    })
+
+    it("uses the scaled points for ranking", () => {
+      const ranked = order(computeStandings(ids(5), rounds, { final: true }))
+      expect(ranked.indexOf("p5")).toBeLessThan(ranked.indexOf("p3")) // 16 vs 14
+    })
+
+    it("does not scale anyone in live standings during the tournament", () => {
+      const rows = byId(computeStandings(ids(5), rounds))
+      expect(rows.p4.points).toBe(6)
+      expect(rows.p4.bonus).toBe(0)
+    })
+
+    it("keeps a fractional result to two decimals", () => {
+      // p4: 7 points from 2 games when others played 3 → 10.5
+      const r: Round[] = [
+        { matches: [match("p1 p2", 9, 7, "p3 p4")], benched: ["p5"] },
+        { matches: [match("p1 p5", 16, 0, "p2 p4")], benched: ["p3"] },
+        { matches: [match("p1 p2", 8, 8, "p3 p5")], benched: ["p4"] },
+      ]
+      expect(byId(computeStandings(ids(5), r, { final: true })).p4.points).toBe(10.5)
+    })
+  })
 })
