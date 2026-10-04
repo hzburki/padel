@@ -31,7 +31,8 @@ export function TournamentListScreen() {
       title="Padel"
       bare
       footer={
-        <Button variant="ball" size="lg" onClick={() => nav.push({ name: "new" })}>
+        // With a tournament on, Continue is the lime action and this steps back.
+        <Button variant={playing ? "default" : "ball"} size="lg" onClick={() => nav.push({ name: "new" })}>
           <Plus className="size-5" strokeWidth={2.5} />
           New tournament
         </Button>
@@ -45,11 +46,11 @@ export function TournamentListScreen() {
       {tournaments?.length === 0 && <FirstTournament />}
 
       {others.length > 0 && (
-        <section className="mt-6">
-          <h2 className="mb-2 px-1 text-sm font-semibold text-muted-foreground">
+        <section className="mt-8">
+          <h2 className="mb-3 px-1 text-[1.375rem] type-display">
             {playing ? "Other tournaments" : "Tournaments"}
           </h2>
-          <ul className="divide-y overflow-hidden rounded-lg border bg-card">
+          <ul className="divide-y overflow-hidden rounded-3xl bg-card shadow-[inset_0_0_0_1.5px_var(--border)]">
             {others.map((t) => (
               <li key={t.id}>
                 <TournamentRow tournament={t} onOpen={() => open(t)} />
@@ -79,10 +80,10 @@ function Hero({ howItWorks, children }: { howItWorks: "open" | "collapsible"; ch
       <CourtLines />
       <div className="relative">
         <div className="flex items-center gap-2.5">
-          <span className="size-5 rounded-full bg-accent shadow-[inset_-3px_-3px_0_rgba(0,0,0,0.12)]" aria-hidden />
-          <h1 className="text-[2.125rem] leading-none font-bold tracking-tight">Padel</h1>
+          <span className="size-7 rounded-full bg-accent shadow-[inset_-4px_-4px_0_rgba(0,0,0,0.12)]" aria-hidden />
+          <h1 className="text-[3.25rem] leading-none type-display">Padel</h1>
         </div>
-        <p className="mt-2 text-primary-foreground/75">{greeting()}. Ready for a game?</p>
+        <p className="mt-2 text-lg text-primary-foreground/75">{greeting()}. Ready for a game?</p>
 
         {howItWorks === "collapsible" && (
           <button
@@ -142,15 +143,25 @@ function PlayingNow({ tournament, onOpen }: { tournament: Tournament; onOpen: ()
     <button
       type="button"
       onClick={onOpen}
-      className="block w-full rounded-xl bg-card p-4 text-left text-card-foreground shadow-lg shadow-black/10 active:scale-[0.99]"
+      className="block w-full rounded-3xl bg-card p-5 text-left text-card-foreground shadow-lg shadow-black/10 active:scale-[0.99]"
     >
-      <span className="rounded-sm bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground">
+      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
         Playing now
       </span>
-      <p className="mt-2.5 truncate text-xl font-bold">{tournament.name}</p>
-      <p className="text-sm text-muted-foreground">
-        {allScored ? "Every round played" : `Round ${current + 1} of ${total}`}
-      </p>
+      <div className="mt-3 flex items-end gap-3">
+        <p className="min-w-0 flex-1 truncate text-[1.75rem] type-display">{tournament.name}</p>
+        {/* Scoreboard-style round counter. */}
+        <p className="shrink-0 text-primary type-display" aria-label={allScored ? "Every round played" : `Round ${current + 1} of ${total}`}>
+          {allScored ? (
+            <span className="text-base">All played</span>
+          ) : (
+            <>
+              <span className="text-[1.75rem]">{current + 1}</span>
+              <span className="text-lg text-muted-foreground">/{total}</span>
+            </>
+          )}
+        </p>
+      </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
         <div className="h-full rounded-full bg-primary" style={{ width: `${(current / total) * 100}%` }} />
       </div>
@@ -166,7 +177,7 @@ function PlayingNow({ tournament, onOpen }: { tournament: Tournament; onOpen: ()
             <span className="text-muted-foreground">No scores yet</span>
           )}
         </p>
-        <span className="flex h-10 shrink-0 items-center gap-1 rounded-md bg-primary pr-3 pl-4 text-sm font-semibold text-primary-foreground">
+        <span className="flex h-11 shrink-0 items-center gap-1 rounded-xl bg-accent pr-3 pl-4 text-accent-foreground shadow-[inset_0_-3px_0_rgb(14_34_64/0.16)] type-label">
           Continue
           <ChevronRight className="size-4" strokeWidth={2.5} />
         </span>
@@ -210,15 +221,15 @@ function FirstTournament() {
 function TournamentRow({ tournament, onOpen }: { tournament: Tournament; onOpen: () => void }) {
   const date = new Date(tournament.createdAt)
   return (
-    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 px-3 py-3 text-left active:bg-muted">
-      <span className="flex size-12 shrink-0 flex-col items-center justify-center rounded-md bg-secondary leading-none">
-        <span className="text-lg font-bold">{date.getDate()}</span>
+    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 px-3.5 py-3.5 text-left active:bg-muted">
+      <span className="flex size-13 shrink-0 flex-col items-center justify-center rounded-2xl bg-secondary leading-none">
+        <span className="text-2xl type-display">{date.getDate()}</span>
         <span className="mt-0.5 text-[0.6875rem] font-medium text-muted-foreground">
           {date.toLocaleDateString(undefined, { month: "short" })}
         </span>
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-semibold">{tournament.name}</span>
+        <span className="block truncate text-lg type-label">{tournament.name}</span>
         <span className="block truncate text-sm text-muted-foreground">
           <Status tournament={tournament} />
         </span>
