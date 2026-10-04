@@ -15,6 +15,19 @@ const REST_ROW_MIN = 48 // below this the names stop being readable in a chat
 const REST_ROW_MAX = 72
 const FOOTER = 130
 const PAD = 80
+const NAME_X = PAD + 110
+// Played, won, drawn, lost: narrow columns sitting left of the points.
+const STATS = [
+  ["P", "played"],
+  ["W", "wins"],
+  ["D", "draws"],
+  ["L", "losses"],
+] as const
+const STAT_W = 68
+const STATS_RIGHT = W - PAD - 190 // leaves room for a big points number
+const statX = (i: number) => STATS_RIGHT - (STATS.length - 1 - i) * STAT_W // right edge of column i
+const NAME_MAX = statX(0) - STAT_W - 16 - NAME_X
+const MUTED = "rgba(255,255,255,0.72)"
 const BLUE = "#1d4f91"
 const BALL = "#dceb3a"
 const INK = "#0e2240"
@@ -51,16 +64,24 @@ export async function renderShareCard(
   ctx.fillStyle = "#ffffff"
   ctx.font = `700 72px ${FONT}`
   ctx.fillText(fit(ctx, tournament.name, W - 2 * PAD), PAD, 160)
-  ctx.fillStyle = "rgba(255,255,255,0.72)"
+  ctx.fillStyle = MUTED
   ctx.font = `400 34px ${FONT}`
   const date = new Date(tournament.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })
   ctx.fillText(`Americano, ${tournament.players.length} players, ${date}`, PAD, 215)
 
-  // Column label for the numbers
+  // Column labels for the numbers
   ctx.textAlign = "right"
   ctx.font = `400 28px ${FONT}`
   ctx.fillText("Points", W - PAD, 300)
+  STATS.forEach(([label], i) => ctx.fillText(label, statX(i), 300))
   ctx.textAlign = "left"
+
+  const drawStats = (row: StandingRow, cy: number, size: number) => {
+    ctx.textAlign = "right"
+    ctx.fillStyle = MUTED
+    ctx.font = `400 ${size}px ${FONT}`
+    STATS.forEach(([, key], i) => ctx.fillText(String(row[key]), statX(i), cy))
+  }
 
   // Top three, large
   let y = PODIUM_TOP
@@ -79,13 +100,14 @@ export async function renderShareCard(
 
     ctx.textAlign = "right"
     ctx.fillStyle = "#ffffff"
-    ctx.font = `700 64px ${FONT}`
+    ctx.font = `700 60px ${FONT}`
     ctx.fillText(formatPoints(row.points), W - PAD, cy + 2)
-    const pointsWidth = ctx.measureText(formatPoints(row.points)).width
+    drawStats(row, cy + 2, 36)
 
     ctx.textAlign = "left"
-    ctx.font = `700 54px ${FONT}`
-    ctx.fillText(fit(ctx, nameOf.get(row.playerId) ?? "", W - 2 * PAD - 110 - pointsWidth - 30), PAD + 110, cy + 2)
+    ctx.fillStyle = "#ffffff"
+    ctx.font = `700 48px ${FONT}`
+    ctx.fillText(fit(ctx, nameOf.get(row.playerId) ?? "", NAME_MAX), NAME_X, cy + 2)
     y += h
   }
 
@@ -107,9 +129,11 @@ export async function renderShareCard(
       ctx.textAlign = "right"
       ctx.fillStyle = "#ffffff"
       ctx.fillText(formatPoints(row.points), W - PAD, cy)
+      drawStats(row, cy, size)
       ctx.textAlign = "left"
+      ctx.fillStyle = "#ffffff"
       ctx.font = `400 ${size}px ${FONT}`
-      ctx.fillText(fit(ctx, nameOf.get(row.playerId) ?? "", W - 2 * PAD - 260), PAD + 110, cy)
+      ctx.fillText(fit(ctx, nameOf.get(row.playerId) ?? "", NAME_MAX), NAME_X, cy)
       y += rowH
     }
   }
