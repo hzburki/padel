@@ -78,6 +78,11 @@ export async function deleteTournament(id: string): Promise<void> {
 
 // Ask the browser not to evict our data under storage pressure. Safari in
 // particular may otherwise clear a site's storage after a period of disuse.
+// Best effort: never throws (it's missing on plain-http pages).
 export async function requestPersistentStorage(): Promise<boolean> {
-  return (await navigator.storage?.persist?.()) ?? false
+  try {
+    return (await navigator.storage?.persist?.()) ?? false
+  } catch {
+    return false
+  }
 }

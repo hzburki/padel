@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { gamesSplit, suggestedRoundCount } from "@/lib/americano"
 import { courtsInPlay } from "@/lib/bench"
 import { MAX_TARGET, MIN_TARGET } from "@/lib/scoring"
+import { randomId } from "@/lib/ids"
 import { requestPersistentStorage, saveTournament } from "@/lib/storage"
 import {
   cleanPlayerNames,
@@ -33,6 +34,7 @@ export function NewTournamentScreen() {
   const [roundsChosen, setRoundsChosen] = useState<number | null>(null) // null: follow the suggestion
   const [starting, setStarting] = useState(false)
   const [warnUneven, setWarnUneven] = useState(false)
+  const [startFailed, setStartFailed] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const draftRef = useRef<HTMLInputElement>(null)
 
@@ -62,14 +64,21 @@ export function NewTournamentScreen() {
   const start = () => {
     if (problems.length > 0 || starting) return
     setWarnUneven(false)
+    setStartFailed(false)
     setStarting(true)
     requestPersistentStorage()
     // Let the button repaint before the schedule search, which can take a
     // moment with many players.
     setTimeout(async () => {
-      const tournament = createTournament(input, { now: Date.now(), newId: () => crypto.randomUUID() })
-      await saveTournament(tournament)
-      nav.replace({ name: "tournament", id: tournament.id })
+      try {
+        const tournament = createTournament(input, { now: Date.now(), newId: randomId })
+        await saveTournament(tournament)
+        nav.replace({ name: "tournament", id: tournament.id })
+      } catch {
+        // Never leave the button spinning: say so and let them try again.
+        setStarting(false)
+        setStartFailed(true)
+      }
     }, 30)
   }
 
@@ -81,6 +90,11 @@ export function NewTournamentScreen() {
       title="New tournament"
       footer={
         <div className="space-y-2">
+          {startFailed && (
+            <p className="text-center text-sm text-destructive">
+              The tournament couldn't be saved on this phone. Try again.
+            </p>
+          )}
           {problems.length > 0 && names.length > 0 && (
             <p className="text-center text-sm text-muted-foreground">{problems[0]}</p>
           )}
