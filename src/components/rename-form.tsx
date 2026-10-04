@@ -35,7 +35,6 @@ export function RenameForm({
         value={name}
         onChange={(e) => setName(e.target.value)}
         autoComplete="off"
-        className="h-12 rounded-md bg-card px-3.5"
       />
 
       <p className="mt-5 mb-2 px-1 text-sm font-semibold text-muted-foreground">Players</p>
@@ -54,13 +53,12 @@ export function RenameForm({
             onChange={(e) => setPlayerNames((all) => all.map((x, j) => (j === i ? e.target.value : x)))}
             autoComplete="off"
             autoCapitalize="words"
-            className="h-12 rounded-md bg-card px-3.5"
           />
         ))}
       </div>
 
       {problems.length > 0 && <p className="mt-4 text-center text-sm text-muted-foreground">{problems[0]}</p>}
-      <Button type="submit" size="lg" className="mt-4 h-14 w-full rounded-md text-base font-semibold" disabled={problems.length > 0}>
+      <Button type="submit" size="lg" className="mt-4" disabled={problems.length > 0}>
         Save names
       </Button>
     </form>

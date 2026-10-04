@@ -116,15 +116,14 @@ export function TournamentScreen({ id }: { id: string }) {
   const shownMatch = shown && tournament.rounds[shown.round]?.matches.find((m) => m.court === shown.court)
 
   const footer = tournament.finished ? (
-    <Button size="lg" className="h-14 w-full rounded-md text-base font-semibold" disabled={!image} onClick={share}>
+    <Button variant="ball" size="lg" disabled={!image} onClick={share}>
       <Share className="size-5" />
       Share results
     </Button>
   ) : tab === "standings" || unscored === 0 ? (
     <Button
       size="lg"
-      variant={unscored === 0 ? "default" : "secondary"}
-      className="h-14 w-full rounded-md text-base font-semibold"
+      variant={unscored === 0 ? "ball" : "secondary"}
       onClick={() => setConfirm("finish")}
     >
       Finish tournament
@@ -251,10 +250,10 @@ export function TournamentScreen({ id }: { id: string }) {
           {unscored > 0 &&
             ` ${unscored} ${unscored === 1 ? "match still has" : "matches still have"} no score; anyone left with fewer games gets their points scaled up.`}
         </p>
-        <Button size="lg" className="mt-5 h-14 w-full rounded-md text-base font-semibold" onClick={finish}>
+        <Button size="lg" className="mt-5" onClick={finish}>
           Finish tournament
         </Button>
-        <Button variant="ghost" className="mt-1 h-12 w-full" onClick={() => setConfirm(null)}>
+        <Button variant="ghost" className="mt-1 h-12 w-full text-base font-semibold" onClick={() => setConfirm(null)}>
           Keep playing
         </Button>
       </Sheet>
@@ -277,10 +276,10 @@ export function TournamentScreen({ id }: { id: string }) {
       <Sheet open={confirm === "delete"} onClose={() => setConfirm(null)}>
         <p className="text-lg font-semibold">Delete {tournament.name}?</p>
         <p className="mt-1 text-muted-foreground">The schedule and every score will be removed from this phone.</p>
-        <Button variant="destructive" size="lg" className="mt-5 h-14 w-full rounded-md text-base font-semibold" onClick={remove}>
+        <Button variant="destructive" size="lg" className="mt-5" onClick={remove}>
           Delete tournament
         </Button>
-        <Button variant="ghost" className="mt-1 h-12 w-full" onClick={() => setConfirm(null)}>
+        <Button variant="ghost" className="mt-1 h-12 w-full text-base font-semibold" onClick={() => setConfirm(null)}>
           Cancel
         </Button>
       </Sheet>

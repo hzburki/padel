@@ -104,8 +104,8 @@ export function NewTournamentScreen() {
             <p className="text-center text-sm text-muted-foreground">{problems[0]}</p>
           )}
           <Button
+            variant="ball"
             size="lg"
-            className="h-14 w-full rounded-md text-base font-semibold"
             disabled={problems.length > 0 || starting}
             onClick={() => (split.playersWithFewer > 0 && !unevenAccepted ? setWarnUneven("start") : start())}
           >
@@ -118,7 +118,6 @@ export function NewTournamentScreen() {
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="h-12 rounded-md bg-card px-3.5"
           autoComplete="off"
         />
       </Section>
@@ -156,7 +155,7 @@ export function NewTournamentScreen() {
             enterKeyHint="next"
             autoComplete="off"
             autoCapitalize="words"
-            className="h-12 flex-1 rounded-md bg-card px-3.5"
+            className="flex-1"
           />
           <Button
             type="submit"
@@ -283,7 +282,7 @@ export function NewTournamentScreen() {
         <Button
           variant="destructive"
           size="lg"
-          className="mt-5 h-14 w-full rounded-md text-base font-semibold"
+          className="mt-5"
           onClick={() => {
             setConfirmDiscard(false)
             nav.back({ force: true })
@@ -291,7 +290,7 @@ export function NewTournamentScreen() {
         >
           Discard
         </Button>
-        <Button variant="ghost" className="mt-1 h-12 w-full" onClick={() => setConfirmDiscard(false)}>
+        <Button variant="ghost" className="mt-1 h-12 w-full text-base font-semibold" onClick={() => setConfirmDiscard(false)}>
           Keep editing
         </Button>
       </Sheet>
@@ -352,10 +351,10 @@ function UnevenWarning({
       </p>
       <p className="mt-1 text-muted-foreground">Their points get scaled up at the end to keep it fair.</p>
 
-      <Button size="lg" className="mt-5 h-14 w-full rounded-md text-base font-semibold" onClick={onAccept}>
+      <Button size="lg" className="mt-5" onClick={onAccept}>
         {acceptLabel}
       </Button>
-      <Button variant="ghost" className="mt-1 h-12 w-full" onClick={onUseSuggested}>
+      <Button variant="ghost" className="mt-1 h-12 w-full text-base font-semibold" onClick={onUseSuggested}>
         Use {suggested} rounds, everyone plays {suggestedGames}
       </Button>
 

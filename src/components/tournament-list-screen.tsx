@@ -31,7 +31,7 @@ export function TournamentListScreen() {
       title="Padel"
       bare
       footer={
-        <Button size="lg" className="h-14 w-full rounded-md text-base font-semibold" onClick={() => nav.push({ name: "new" })}>
+        <Button variant="ball" size="lg" onClick={() => nav.push({ name: "new" })}>
           <Plus className="size-5" strokeWidth={2.5} />
           New tournament
         </Button>
