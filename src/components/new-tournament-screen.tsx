@@ -122,26 +122,26 @@ export function NewTournamentScreen() {
         />
       </Section>
 
-      <Section title={names.length === 0 ? "Players" : `Players (${names.length})`}>
+      <Section title="Players" count={names.length > 0 ? names.length : undefined}>
         {players.length > 0 && (
-          <ul className="mb-2 divide-y overflow-hidden rounded-lg border bg-card">
+          <ul className="mb-3 flex flex-wrap gap-2">
             {players.map((p, i) => (
-              <li key={i} className="flex items-center pl-3.5">
-                <span className="min-w-0 flex-1 truncate py-3">{p}</span>
+              <li key={i} className="flex h-11 max-w-full items-center rounded-full bg-card pl-4 shadow-[inset_0_0_0_1.5px_var(--border)]">
+                <span className="min-w-0 truncate font-semibold">{p}</span>
                 <button
                   type="button"
                   aria-label={`Remove ${p}`}
                   onClick={() => setPlayers((all) => all.filter((_, j) => j !== i))}
-                  className="flex size-12 items-center justify-center text-muted-foreground active:text-destructive"
+                  className="flex h-11 w-10 shrink-0 items-center justify-center rounded-r-full text-muted-foreground active:text-destructive"
                 >
-                  <X className="size-5" />
+                  <X className="size-4" strokeWidth={2.5} />
                 </button>
               </li>
             ))}
           </ul>
         )}
         <form
-          className="flex gap-2"
+          className="relative"
           onSubmit={(e) => {
             e.preventDefault()
             addDraft()
@@ -155,17 +155,16 @@ export function NewTournamentScreen() {
             enterKeyHint="next"
             autoComplete="off"
             autoCapitalize="words"
-            className="flex-1"
+            className="pr-16"
           />
-          <Button
+          <button
             type="submit"
-            variant="secondary"
             aria-label="Add player"
-            className="size-12 rounded-md"
             disabled={draft.trim() === ""}
+            className="absolute top-1.5 right-1.5 flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-colors active:scale-95 disabled:bg-secondary disabled:text-primary/40"
           >
-            <Plus className="size-5" />
-          </Button>
+            <Plus className="size-5" strokeWidth={2.75} />
+          </button>
         </form>
       </Section>
 
@@ -178,7 +177,7 @@ export function NewTournamentScreen() {
             setCourts(n)
             setRoundsChosen(null) // courts change the ideal round count, so follow it again
           }}
-          format={(n) => `${n} ${n === 1 ? "court" : "courts"}`}
+          unit={(n) => (n === 1 ? "court" : "courts")}
         />
         {names.length >= MIN_PLAYERS && (
           <Hint>
@@ -189,7 +188,13 @@ export function NewTournamentScreen() {
       </Section>
 
       <Section title="Scoring">
-        <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
+        {/* Navy track, lime thumb that slides to the chosen mode. */}
+        <div className="relative grid grid-cols-2 rounded-2xl bg-foreground p-1.5">
+          <span
+            aria-hidden
+            className="absolute inset-y-1.5 left-1.5 w-[calc(50%-0.375rem)] rounded-xl bg-accent shadow-[inset_0_-3px_0_rgb(14_34_64/0.16)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
+            style={{ transform: scoringMode === "firstTo" ? "translateX(100%)" : undefined }}
+          />
           {(
             [
               ["total", "Total points"],
@@ -201,19 +206,19 @@ export function NewTournamentScreen() {
               type="button"
               aria-pressed={scoringMode === mode}
               onClick={() => setScoringMode(mode)}
-              className="h-11 rounded-sm font-medium text-muted-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-sm"
+              className="relative h-12 text-[1.0625rem] text-primary-foreground/70 transition-colors type-label aria-pressed:text-accent-foreground"
             >
               {label}
             </button>
           ))}
         </div>
-        <div className="mt-3">
+        <div className="mt-2">
           <Stepper
             value={target}
             min={MIN_TARGET}
             max={MAX_TARGET}
             onChange={setTarget}
-            format={(n) => `${n} points`}
+            unit={() => "points a game"}
             onValueTap={() => setPickTarget(true)}
           />
         </div>
@@ -233,7 +238,7 @@ export function NewTournamentScreen() {
             setRoundsChosen(n)
             if (!unevenAccepted && gamesSplit(names.length, usedCourts, n).playersWithFewer > 0) setWarnUneven("rounds")
           }}
-          format={(n) => `${n} ${n === 1 ? "round" : "rounds"}`}
+          unit={(n) => (n === 1 ? "round" : "rounds")}
         />
         {/* Only speak up when the count isn't the suggested one. */}
         {names.length >= MIN_PLAYERS && roundCount !== suggested && (
@@ -264,8 +269,8 @@ export function NewTournamentScreen() {
                 setTarget(n)
                 setPickTarget(false)
               }}
-              className={`h-12 rounded-md text-lg font-semibold active:scale-95 ${
-                n === target ? "bg-primary text-primary-foreground" : "border bg-card"
+              className={`h-14 rounded-xl text-[1.75rem] type-display active:scale-95 ${
+                n === target ? "bg-primary text-primary-foreground" : "bg-card shadow-[inset_0_0_0_1.5px_var(--border)]"
               }`}
             >
               {n}
@@ -387,10 +392,13 @@ function UnevenWarning({
   )
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
   return (
-    <section className="mt-6 first:mt-2">
-      <h2 className="mb-2 px-1 text-sm font-semibold text-muted-foreground">{title}</h2>
+    <section className="mt-8 first:mt-3">
+      <h2 className="mb-3 flex items-baseline gap-2 px-1 text-[1.375rem] type-display">
+        {title}
+        {count !== undefined && <span className="text-primary">{count}</span>}
+      </h2>
       {children}
     </section>
   )
@@ -400,41 +408,61 @@ function Hint({ children }: { children: ReactNode }) {
   return <p className="mt-2 px-1 text-sm text-muted-foreground">{children}</p>
 }
 
+// A setting with a big number in the middle: minus on the left, plus (the
+// usual move) filled on the right.
 function Stepper({
   value,
   min,
   max,
   onChange,
-  format,
+  unit,
   onValueTap,
 }: {
   value: number
   min: number
   max: number
   onChange: (n: number) => void
-  format: (n: number) => string
+  unit: (n: number) => string
   onValueTap?: () => void // makes the value itself a button (e.g. to open a picker)
 }) {
-  const button = "flex size-12 items-center justify-center rounded-sm text-primary active:bg-muted disabled:text-muted-foreground/40"
+  const step =
+    "flex size-14 shrink-0 items-center justify-center rounded-2xl transition-transform active:scale-90 disabled:bg-transparent disabled:text-muted-foreground/30 disabled:shadow-[inset_0_0_0_1.5px_var(--border)]"
+  const Value = onValueTap ? "button" : "div"
   return (
-    <div className="flex items-center rounded-md border bg-card p-1">
-      <button type="button" aria-label="Fewer" className={button} disabled={value <= min} onClick={() => onChange(value - 1)}>
-        <Minus className="size-5" strokeWidth={2.5} />
+    <div className="flex items-center gap-2 rounded-3xl bg-card p-2 shadow-[inset_0_0_0_1.5px_var(--border)]">
+      <button
+        type="button"
+        aria-label="Fewer"
+        className={`${step} bg-secondary text-primary`}
+        disabled={value <= min}
+        onClick={() => onChange(value - 1)}
+      >
+        <Minus className="size-6" strokeWidth={2.75} />
       </button>
-      {onValueTap ? (
-        <button
-          type="button"
-          onClick={onValueTap}
-          className="flex h-12 flex-1 items-center justify-center gap-1 rounded-sm text-lg font-semibold active:bg-muted"
+      <Value
+        {...(onValueTap ? { type: "button" as const, onClick: onValueTap } : {})}
+        className={`flex min-w-0 flex-1 flex-col items-center rounded-2xl py-1 ${onValueTap ? "active:bg-muted" : ""}`}
+      >
+        {/* Re-keyed so each change gives the number a small kick. */}
+        <span
+          key={value}
+          className="text-[3.5rem] leading-[0.9] type-display animate-in duration-200 zoom-in-90 motion-reduce:animate-none"
         >
-          {format(value)}
-          <ChevronDown className="size-4 text-muted-foreground" strokeWidth={2.5} />
-        </button>
-      ) : (
-        <span className="flex-1 text-center text-lg font-semibold">{format(value)}</span>
-      )}
-      <button type="button" aria-label="More" className={button} disabled={value >= max} onClick={() => onChange(value + 1)}>
-        <Plus className="size-5" strokeWidth={2.5} />
+          {value}
+        </span>
+        <span className="mt-0.5 flex items-center gap-0.5 text-sm font-medium text-muted-foreground">
+          {unit(value)}
+          {onValueTap && <ChevronDown className="size-3.5" strokeWidth={2.75} />}
+        </span>
+      </Value>
+      <button
+        type="button"
+        aria-label="More"
+        className={`${step} bg-primary text-primary-foreground`}
+        disabled={value >= max}
+        onClick={() => onChange(value + 1)}
+      >
+        <Plus className="size-6" strokeWidth={2.75} />
       </button>
     </div>
   )

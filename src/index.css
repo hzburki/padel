@@ -163,6 +163,12 @@
   line-height: 1.05;
 }
 
+/* The same voice a little wider, for tap-target labels. */
+@utility type-label {
+  font-weight: 700;
+  font-stretch: 86%;
+}
+
 /* While typing, give scroll areas room at the bottom so the field being
    typed into can always scroll up to the middle of the screen. Unlayered so
    it wins over the padding utilities. */
