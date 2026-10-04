@@ -29,7 +29,7 @@ export interface Match {
 
 export interface Round {
   matches: Match[]
-  benched: PlayerId[] // who sat out this round; empty when playerCount % 4 === 0
+  benched: PlayerId[] // who sat out this round; everyone not on a court
 }
 
 export interface Tournament {
@@ -39,6 +39,7 @@ export interface Tournament {
   createdAt: number // epoch ms
   scoringMode: ScoringMode
   target: number // 8–32
+  courts: number // courts available; rounds use min(courts, floor(players / 4))
   players: Player[]
   // Every round is generated at creation; scores fill in as they are played.
   rounds: Round[]

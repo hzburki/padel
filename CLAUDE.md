@@ -77,13 +77,15 @@ players**, not teams — teams exist only for the duration of one round.
   easiest bug to ship here.
 - Standings rank by total points scored. Tiebreakers in order: point difference (scored − conceded), then
   head-to-head, then wins.
-- Any number of players from 4 up, no upper bound. A match is always 4 players. Courts in play per round is
-  `floor(playerCount / 4)`; any leftover 1–3 players sit out that round. 4 players is the minimum
-  tournament: one court, nobody sits. Never assume `playerCount % 4 === 0`.
-- **Nobody sits out unless the maths forces it** — that only happens when `playerCount % 4 !== 0`. When it
-  is forced, bench the players with the **most** games played so far, ties broken randomly. The rule to
-  hold after every round is `max(gamesPlayed) - min(gamesPlayed) <= 1`. This is a game between friends:
-  everyone gets the same court time and the same chance to enjoy it.
+- Any number of players from 4 up, no upper bound. A match is always 4 players. The organiser sets the
+  **number of courts** available at setup (1 or more). Courts in play per round is
+  `min(courts, floor(playerCount / 4))`; everyone else sits out that round. 9 players on 2 courts: two
+  matches at once, one player sits. 12 players on 2 courts: four sit. 4 players is the minimum tournament:
+  one court, nobody sits. Never assume `playerCount % 4 === 0` or that every player fits on a court.
+- **Nobody sits out unless the maths forces it** — players beyond `4 × courts in play` sit, nobody else.
+  Bench the players with the **most** games played so far, ties broken randomly. The rule to hold after
+  every round is `max(gamesPlayed) - min(gamesPlayed) <= 1`. This is a game between friends: everyone gets
+  the same court time and the same chance to enjoy it.
 - Pairings are *fixed up front*. The full schedule is generated before round 1, rotating partners so that,
   as far as the player count allows, everyone partners with everyone else once and faces everyone. The
   schedule does not react to results.
@@ -134,7 +136,7 @@ change to the shape of a stored tournament. These are the changes that are expen
 
 ## Persistence
 
-A tournament is the unit of persistence: players, point target, scoring mode, the rounds played so
+A tournament is the unit of persistence: players, number of courts, point target, scoring mode, the rounds played so
 far, their scores, and the sit-out history. Persist after every score entry — the phone will be backgrounded, locked, and
 reloaded mid-tournament, and losing a round's scores is the worst failure mode this app has. Schema changes
 need a migration path for tournaments already saved in a user's browser; version the stored shape from the

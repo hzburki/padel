@@ -15,15 +15,21 @@ export function countGamesPlayed(players: PlayerId[], rounds: Round[]): Map<Play
   return games
 }
 
-// Who sits out the next round. Only the leftover players beyond a multiple of
-// 4 sit, and they are the ones with the most games so far, ties broken at
-// random. Repeating this every round keeps max(games) - min(games) <= 1.
+// How many matches run at once: limited by courts and by players.
+export function courtsInPlay(playerCount: number, courts: number): number {
+  return Math.min(courts, Math.floor(playerCount / 4))
+}
+
+// Who sits out the next round. Only players who don't fit on a court sit,
+// and they are the ones with the most games so far, ties broken at random.
+// Repeating this every round keeps max(games) - min(games) <= 1.
 export function pickBench(
   players: PlayerId[],
   gamesPlayed: Map<PlayerId, number>,
+  courts: number,
   rng: Rng = Math.random,
 ): PlayerId[] {
-  const benchSize = players.length % 4
+  const benchSize = players.length - 4 * courtsInPlay(players.length, courts)
   if (benchSize === 0) return []
 
   // Shuffle first so the stable sort leaves tied players in random order.
