@@ -34,7 +34,11 @@ export function NewTournamentScreen() {
   const [scoringMode, setScoringMode] = useState<ScoringMode>("total")
   const [roundsChosen, setRoundsChosen] = useState<number | null>(null) // null: follow the suggestion
   const [starting, setStarting] = useState(false)
-  const [warnRounds, setWarnRounds] = useState(false) // asked once per tap of Start
+  // The off-suggestion rounds warning: where it was opened from, and whether
+  // it has been shown yet. It shows once per setup — as soon as the rounds
+  // move off the suggestion, or on Start if they got there another way.
+  const [warnRounds, setWarnRounds] = useState<"rounds" | "start" | null>(null)
+  const [roundsWarned, setRoundsWarned] = useState(false)
   const [startFailed, setStartFailed] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [pickTarget, setPickTarget] = useState(false)
@@ -74,7 +78,7 @@ export function NewTournamentScreen() {
 
   const start = () => {
     if (problems.length > 0 || starting) return
-    setWarnRounds(false)
+    setWarnRounds(null)
     setStartFailed(false)
     setStarting(true)
     requestPersistentStorage()
@@ -113,7 +117,12 @@ export function NewTournamentScreen() {
             variant="ball"
             size="lg"
             disabled={problems.length > 0 || starting}
-            onClick={() => (roundsOff ? setWarnRounds(true) : start())}
+            onClick={() => {
+              if (roundsOff && !roundsWarned) {
+                setRoundsWarned(true)
+                setWarnRounds("start")
+              } else start()
+            }}
           >
             {starting ? "Making the schedule…" : "Start tournament"}
           </Button>
@@ -240,7 +249,13 @@ export function NewTournamentScreen() {
           value={roundCount}
           min={1}
           max={MAX_ROUNDS}
-          onChange={setRoundsChosen}
+          onChange={(n) => {
+            setRoundsChosen(n)
+            if (!roundsWarned && names.length >= MIN_PLAYERS && n !== suggested) {
+              setRoundsWarned(true)
+              setWarnRounds("rounds")
+            }
+          }}
           unit={(n) => (n === 1 ? "round" : "rounds")}
         />
         {/* Only speak up when the count isn't the suggested one. */}
@@ -303,7 +318,7 @@ export function NewTournamentScreen() {
         </Button>
       </Sheet>
 
-      <Sheet open={warnRounds && roundsOff !== null} onClose={() => setWarnRounds(false)}>
+      <Sheet open={warnRounds !== null && roundsOff !== null} onClose={() => setWarnRounds(null)}>
         {roundsOff && (
           <RoundsWarning
             off={roundsOff}
@@ -315,9 +330,10 @@ export function NewTournamentScreen() {
             suggestedGames={gamesSplit(names.length, usedCourts, suggested).fewer}
             onUseSuggested={() => {
               setRoundsChosen(null)
-              setWarnRounds(false)
+              setWarnRounds(null)
             }}
-            onStart={start}
+            onAccept={warnRounds === "start" ? start : () => setWarnRounds(null)}
+            acceptLabel={`${warnRounds === "start" ? "Start with" : "Keep"} ${roundCount} rounds`}
           />
         )}
       </Sheet>
@@ -327,7 +343,7 @@ export function NewTournamentScreen() {
 
 type RoundsOff = "uneven" | "fewer" | "more"
 
-// Asked on Start when the round count isn't the suggested one: a short
+// Shown once when the round count leaves the suggested one: a short
 // warning, with the numbers behind it one tap away.
 function RoundsWarning({
   off,
@@ -338,7 +354,8 @@ function RoundsWarning({
   suggested,
   suggestedGames,
   onUseSuggested,
-  onStart,
+  onAccept,
+  acceptLabel,
 }: {
   off: RoundsOff
   playerCount: number
@@ -348,7 +365,8 @@ function RoundsWarning({
   suggested: number
   suggestedGames: number
   onUseSuggested: () => void
-  onStart: () => void
+  onAccept: () => void
+  acceptLabel: string
 }) {
   const [details, setDetails] = useState(false)
   const { fewer, more: others, playersWithFewer: n } = split
@@ -379,8 +397,8 @@ function RoundsWarning({
       <p className="mt-3 text-2xl type-display">{title}</p>
       <p className="mt-1 text-muted-foreground">{message}</p>
 
-      <Button size="lg" className="mt-5" onClick={onStart}>
-        Start with {roundCount} rounds
+      <Button size="lg" className="mt-5" onClick={onAccept}>
+        {acceptLabel}
       </Button>
       <Button variant="ghost" className="mt-1 h-12 w-full text-base font-semibold" onClick={onUseSuggested}>
         Use {suggested} rounds, everyone plays {suggestedGames}
