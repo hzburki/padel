@@ -175,7 +175,10 @@ export function NewTournamentScreen() {
           value={usedCourts}
           min={1}
           max={courtLimit}
-          onChange={setCourts}
+          onChange={(n) => {
+            setCourts(n)
+            setRoundsChosen(null) // courts change the ideal round count, so follow it again
+          }}
           format={(n) => `${n} ${n === 1 ? "court" : "courts"}`}
         />
         {names.length >= MIN_PLAYERS && (
@@ -233,21 +236,17 @@ export function NewTournamentScreen() {
           }}
           format={(n) => `${n} ${n === 1 ? "round" : "rounds"}`}
         />
-        {names.length >= MIN_PLAYERS && (
+        {/* Only speak up when the count isn't the suggested one. */}
+        {names.length >= MIN_PLAYERS && roundCount !== suggested && (
           <Hint>
             {split.playersWithFewer > 0
-              ? `${split.playersWithFewer} ${split.playersWithFewer === 1 ? "player plays" : "players play"} ${split.fewer} ${split.fewer === 1 ? "match" : "matches"}, the others ${split.more}.`
-              : roundCount >= suggested
-                ? `Everyone plays ${split.fewer} matches and partners everyone at least once.`
-                : `Everyone plays ${split.fewer} matches, but some pairs won't partner up.`}
-            {roundsChosen !== null && roundsChosen !== suggested && (
-              <>
-                {" "}
-                <button type="button" className="font-medium text-primary" onClick={() => setRoundsChosen(null)}>
-                  Use {suggested}
-                </button>
-              </>
-            )}
+              ? `${split.playersWithFewer} ${split.playersWithFewer === 1 ? "player plays" : "players play"} one match fewer.`
+              : roundCount < suggested
+                ? "Some pairs won't get to partner up."
+                : "Some pairs will partner up twice."}{" "}
+            <button type="button" className="font-medium text-primary" onClick={() => setRoundsChosen(null)}>
+              Use {suggested} rounds
+            </button>
           </Hint>
         )}
       </Section>
