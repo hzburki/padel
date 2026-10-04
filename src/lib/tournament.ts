@@ -34,15 +34,8 @@ export function setupProblems(input: SetupInput): string[] {
     const missing = MIN_PLAYERS - names.length
     problems.push(`Add ${missing} more player${missing === 1 ? "" : "s"}. A match needs 4.`)
   }
-  const seen = new Set<string>()
-  for (const name of names) {
-    const k = name.toLowerCase()
-    if (seen.has(k)) {
-      problems.push(`Two players are called ${name}. Give them different names.`)
-      break
-    }
-    seen.add(k)
-  }
+  const duplicate = duplicateName(names)
+  if (duplicate) problems.push(`Two players are called ${duplicate}. Give them different names.`)
   if (!Number.isInteger(input.courts) || input.courts < 1 || input.courts > maxCourts(names.length)) {
     const max = maxCourts(names.length)
     problems.push(max === 1 ? "Use 1 court. 8 players are needed for 2." : `Pick between 1 and ${max} courts.`)
@@ -54,6 +47,17 @@ export function setupProblems(input: SetupInput): string[] {
     problems.push(`Pick between 1 and ${MAX_ROUNDS} rounds.`)
   }
   return problems
+}
+
+// The first name that appears twice, ignoring case; null if all differ.
+function duplicateName(names: string[]): string | null {
+  const seen = new Set<string>()
+  for (const name of names) {
+    const k = name.toLowerCase()
+    if (seen.has(k)) return name
+    seen.add(k)
+  }
+  return null
 }
 
 export interface CreateDeps {
