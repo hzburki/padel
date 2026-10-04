@@ -59,7 +59,8 @@ export function Screen({
       )}
 
       <main className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain">
-        <div className="mx-auto max-w-md px-4 pb-6">{children}</div>
+        {/* Bare screens fill the height, so something can sit at the very end. */}
+        <div className={`mx-auto max-w-md px-4 pb-6 ${bare ? "flex min-h-full flex-col" : ""}`}>{children}</div>
       </main>
 
       {footer && (

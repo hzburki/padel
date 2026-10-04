@@ -58,6 +58,13 @@ export function TournamentListScreen() {
           </ul>
         </section>
       )}
+
+      {/* A quiet credit, only seen at the very end of the page. */}
+      <p className="mt-auto pt-12 text-center text-xs text-muted-foreground/70">
+        <a href="https://hzburki.com" target="_blank" rel="noopener" className="py-2">
+          hzburki.com
+        </a>
+      </p>
     </Screen>
   )
 }
