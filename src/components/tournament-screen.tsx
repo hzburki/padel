@@ -1,4 +1,4 @@
-import { ChevronDown, Ellipsis, Pencil, Share, Trash2 } from "lucide-react"
+import { ChevronDown, Ellipsis, Pencil, Repeat, Share, Trash2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
@@ -115,11 +115,28 @@ export function TournamentScreen({ id }: { id: string }) {
 
   const shownMatch = shown && tournament.rounds[shown.round]?.matches.find((m) => m.court === shown.court)
 
+  const playAgain = () =>
+    nav.push({
+      name: "new",
+      from: {
+        playerNames: tournament.players.map((p) => p.name),
+        courts: tournament.courts,
+        target: tournament.target,
+        scoringMode: tournament.scoringMode,
+      },
+    })
+
   const footer = tournament.finished ? (
-    <Button variant="ball" size="lg" disabled={!image} onClick={share}>
-      <Share className="size-5" />
-      Share results
-    </Button>
+    <div className="space-y-2">
+      <Button variant="ball" size="lg" disabled={!image} onClick={share}>
+        <Share className="size-5" />
+        Share results
+      </Button>
+      <Button variant="secondary" size="lg" onClick={playAgain}>
+        <Repeat className="size-5" />
+        Play again, same players
+      </Button>
+    </div>
   ) : tab === "standings" || unscored === 0 ? (
     <Button
       size="lg"

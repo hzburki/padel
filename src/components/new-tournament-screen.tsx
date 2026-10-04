@@ -1,6 +1,6 @@
 import { ChevronDown, Minus, Plus, TriangleAlert, X } from "lucide-react"
 import { useRef, useState, type ReactNode } from "react"
-import type { Route } from "@/App"
+import type { PreviousSetup, Route } from "@/App"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { gamesSplit, suggestedRoundCount, type GamesSplit } from "@/lib/americano"
@@ -24,14 +24,14 @@ import { Sheet } from "./sheet"
 import { useBackHandler, useNav } from "./stack-navigator"
 
 
-export function NewTournamentScreen() {
+export function NewTournamentScreen({ from }: { from?: PreviousSetup }) {
   const nav = useNav<Route>()
   const [name, setName] = useState(() => defaultTournamentName(new Date()))
-  const [players, setPlayers] = useState<string[]>([])
+  const [players, setPlayers] = useState<string[]>(from?.playerNames ?? [])
   const [draft, setDraft] = useState("")
-  const [courts, setCourts] = useState(1)
-  const [target, setTarget] = useState(16)
-  const [scoringMode, setScoringMode] = useState<ScoringMode>("total")
+  const [courts, setCourts] = useState(from?.courts ?? 1)
+  const [target, setTarget] = useState(from?.target ?? 16)
+  const [scoringMode, setScoringMode] = useState<ScoringMode>(from?.scoringMode ?? "total")
   const [roundsChosen, setRoundsChosen] = useState<number | null>(null) // null: follow the suggestion
   const [starting, setStarting] = useState(false)
   // The off-suggestion rounds warning: where it was opened from, and whether
@@ -65,7 +65,8 @@ export function NewTournamentScreen() {
           : "more"
 
   // Leaving with players entered asks first, whichever way back is triggered.
-  const dirty = names.length > 0 && !starting
+  // Players carried over from the last tournament don't count until changed.
+  const dirty = names.join("\n") !== (from?.playerNames ?? []).join("\n") && names.length > 0 && !starting
   useBackHandler(dirty, () => setConfirmDiscard(true))
 
   const addDraft = () => {
