@@ -3,7 +3,7 @@ import { useRef, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { gamesSplit, suggestedRoundCount } from "@/lib/americano"
+import { gamesSplit, suggestedRoundCount, type GamesSplit } from "@/lib/americano"
 import { courtsInPlay } from "@/lib/bench"
 import { MAX_TARGET, MIN_TARGET } from "@/lib/scoring"
 import { randomId } from "@/lib/ids"
@@ -33,7 +33,11 @@ export function NewTournamentScreen() {
   const [scoringMode, setScoringMode] = useState<ScoringMode>("total")
   const [roundsChosen, setRoundsChosen] = useState<number | null>(null) // null: follow the suggestion
   const [starting, setStarting] = useState(false)
-  const [warnUneven, setWarnUneven] = useState(false)
+  // The uneven-matches warning: where it was opened from, and whether the
+  // organiser has already accepted uneven matches for this tournament (then
+  // it never shows again on this screen).
+  const [warnUneven, setWarnUneven] = useState<"rounds" | "start" | null>(null)
+  const [unevenAccepted, setUnevenAccepted] = useState(false)
   const [startFailed, setStartFailed] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [pickTarget, setPickTarget] = useState(false)
@@ -64,7 +68,7 @@ export function NewTournamentScreen() {
 
   const start = () => {
     if (problems.length > 0 || starting) return
-    setWarnUneven(false)
+    setWarnUneven(null)
     setStartFailed(false)
     setStarting(true)
     requestPersistentStorage()
@@ -103,7 +107,7 @@ export function NewTournamentScreen() {
             size="lg"
             className="h-14 w-full rounded-md text-base font-semibold"
             disabled={problems.length > 0 || starting}
-            onClick={() => (split.playersWithFewer > 0 ? setWarnUneven(true) : start())}
+            onClick={() => (split.playersWithFewer > 0 && !unevenAccepted ? setWarnUneven("start") : start())}
           >
             {starting ? "Making the schedule…" : "Start tournament"}
           </Button>
@@ -223,7 +227,10 @@ export function NewTournamentScreen() {
           value={roundCount}
           min={1}
           max={MAX_ROUNDS}
-          onChange={setRoundsChosen}
+          onChange={(n) => {
+            setRoundsChosen(n)
+            if (!unevenAccepted && gamesSplit(names.length, usedCourts, n).playersWithFewer > 0) setWarnUneven("rounds")
+          }}
           format={(n) => `${n} ${n === 1 ? "round" : "rounds"}`}
         />
         {names.length >= MIN_PLAYERS && (
@@ -290,28 +297,84 @@ export function NewTournamentScreen() {
         </Button>
       </Sheet>
 
-      <Sheet open={warnUneven} onClose={() => setWarnUneven(false)}>
-        <p className="text-lg font-semibold">Some players will play fewer matches</p>
-        <p className="mt-1 text-muted-foreground">
-          With {roundCount} rounds, {split.playersWithFewer} {split.playersWithFewer === 1 ? "player plays" : "players play"}{" "}
-          {split.fewer} {split.fewer === 1 ? "match" : "matches"} while the others play {split.more}. To keep it fair,
-          their final points will be scaled up to match.
-        </p>
-        <Button
-          size="lg"
-          className="mt-5 h-14 w-full rounded-md text-base font-semibold"
-          onClick={() => {
+      <Sheet open={warnUneven !== null} onClose={() => setWarnUneven(null)}>
+        <UnevenWarning
+          roundCount={roundCount}
+          split={split}
+          suggested={suggested}
+          suggestedGames={gamesSplit(names.length, usedCourts, suggested).fewer}
+          onUseSuggested={() => {
             setRoundsChosen(null)
-            setWarnUneven(false)
+            setWarnUneven(null)
           }}
-        >
-          Use {suggested} rounds, everyone plays {gamesSplit(names.length, usedCourts, suggested).fewer}
-        </Button>
-        <Button variant="ghost" className="mt-1 h-12 w-full" onClick={start}>
-          Start with {roundCount} rounds anyway
-        </Button>
+          onAccept={() => {
+            setUnevenAccepted(true)
+            if (warnUneven === "start") start()
+            else setWarnUneven(null)
+          }}
+          acceptLabel={warnUneven === "start" ? `Start with ${roundCount} rounds` : `Keep ${roundCount} rounds`}
+        />
       </Sheet>
     </Screen>
+  )
+}
+
+// Spells out what uneven matches mean, with a worked example of the scaling.
+function UnevenWarning({
+  roundCount,
+  split,
+  suggested,
+  suggestedGames,
+  onUseSuggested,
+  onAccept,
+  acceptLabel,
+}: {
+  roundCount: number
+  split: GamesSplit
+  suggested: number
+  suggestedGames: number
+  onUseSuggested: () => void
+  onAccept: () => void
+  acceptLabel: string
+}) {
+  const others = split.more
+  const fewer = split.fewer
+  const n = split.playersWithFewer
+  const examplePoints = fewer * 10
+  const scaled = Math.round((examplePoints * others) / fewer)
+  const matches = (k: number) => `${k} ${k === 1 ? "match" : "matches"}`
+
+  return (
+    <div>
+      <p className="text-lg font-semibold">Not everyone will play the same number of matches</p>
+      <p className="mt-1 text-muted-foreground">With {roundCount} rounds, the sit-outs don't come out even:</p>
+      <div className="mt-3 overflow-hidden rounded-lg border bg-card">
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="text-muted-foreground">
+            {n} {n === 1 ? "player" : "players"}
+          </span>
+          <span className="font-semibold">{matches(fewer)}</span>
+        </div>
+        <div className="flex items-center justify-between border-t px-4 py-3">
+          <span className="text-muted-foreground">Everyone else</span>
+          <span className="font-semibold">{matches(others)}</span>
+        </div>
+      </div>
+      <p className="mt-4 font-medium">What happens to their points</p>
+      <p className="mt-1 text-muted-foreground">
+        At the end, players with fewer matches get their points scaled up, as if they had played {others}. For example,{" "}
+        {examplePoints} points from {matches(fewer)} counts as {scaled}.
+      </p>
+      <p className="mt-3 text-muted-foreground">
+        You won't be asked again for this tournament.
+      </p>
+      <Button size="lg" className="mt-5 h-14 w-full rounded-md text-base font-semibold" onClick={onAccept}>
+        {acceptLabel}
+      </Button>
+      <Button variant="ghost" className="mt-1 h-12 w-full" onClick={onUseSuggested}>
+        Use {suggested} rounds instead, everyone plays {suggestedGames}
+      </Button>
+    </div>
   )
 }
 
