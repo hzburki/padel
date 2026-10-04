@@ -58,13 +58,6 @@ export function TournamentListScreen() {
           </ul>
         </section>
       )}
-
-      {/* A quiet credit, only seen at the very end of the page. */}
-      <p className="mt-auto pt-12 text-center text-xs text-muted-foreground/70">
-        <a href="https://hzburki.com" target="_blank" rel="noopener" className="py-2">
-          hzburki.com
-        </a>
-      </p>
     </Screen>
   )
 }
@@ -111,7 +104,7 @@ function Hero({ howItWorks, children }: { howItWorks: "open" | "collapsible"; ch
           className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
           style={{ gridTemplateRows: showSteps ? "1fr" : "0fr" }}
         >
-          <div className="min-h-0 overflow-hidden" aria-hidden={!showSteps}>
+          <div className="min-h-0 overflow-hidden" inert={!showSteps}>
             <div className={howItWorks === "open" ? "pt-6" : "pt-3"}>
               <HowItWorks />
             </div>
@@ -176,16 +169,27 @@ function PlayingNow({ tournament, onOpen }: { tournament: Tournament; onOpen: ()
 function HowItWorks() {
   const steps = ["Add your players and courts", "Enter scores courtside", "Share the final standings"]
   return (
-    <ol className="space-y-2.5">
-      {steps.map((step, i) => (
-        <li key={step} className="flex items-center gap-3">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/15 text-sm font-bold">
-            {i + 1}
-          </span>
-          <span className="font-medium">{step}</span>
-        </li>
-      ))}
-    </ol>
+    <>
+      <ol className="space-y-2.5">
+        {steps.map((step, i) => (
+          <li key={step} className="flex items-center gap-3">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/15 text-sm font-bold">
+              {i + 1}
+            </span>
+            <span className="font-medium">{step}</span>
+          </li>
+        ))}
+      </ol>
+      {/* A quiet credit, only seen by people who open the steps. */}
+      <a
+        href="https://hzburki.com"
+        target="_blank"
+        rel="noopener"
+        className="mt-4 inline-block py-1 text-xs text-primary-foreground/50"
+      >
+        hzburki.com
+      </a>
+    </>
   )
 }
 
