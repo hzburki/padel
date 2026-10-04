@@ -17,6 +17,7 @@ const PAGES = {
       "Use it to run padel games with friends. That's it.",
       "It comes with no promises. If the schedule pairs you with your worst partner twice, that's padel.",
       "Arguments about who won are settled on court, not here.",
+      "The developer isn't responsible for wrong or mismatched scores, or for anyone's wins or losses caused by errors or bugs in the app.",
     ],
   },
 } as const;
