@@ -258,10 +258,14 @@ export function TournamentScreen({ id }: { id: string }) {
           {unscored > 0 &&
             ` ${unscored} ${unscored === 1 ? "match still has" : "matches still have"} no score; anyone left with fewer games gets their points scaled up.`}
         </p>
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirm(null)}>
-            Keep playing
-          </Button>
+        {/* With every match scored there's nothing left to keep playing; the
+            sheet still closes by dragging down, tapping outside or going back. */}
+        <div className={`mt-5 grid gap-2 ${unscored > 0 ? "grid-cols-2" : ""}`}>
+          {unscored > 0 && (
+            <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirm(null)}>
+              Keep playing
+            </Button>
+          )}
           <Button size="lg" className="px-3" onClick={finish}>
             Finish
           </Button>
