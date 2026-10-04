@@ -1,12 +1,44 @@
 import { countGamesPlayed, courtsInPlay, pickBench, shuffle, type Rng } from "./bench"
 import type { Match, PlayerId, Round } from "./types"
 
-// Rounds needed for everyone to partner everyone else once: every pair of
-// players needs one partnership, and each match makes two.
+// The suggested number of rounds: enough for everyone to partner everyone
+// else once, rounded up so that everyone ends on the same number of games.
 export function suggestedRoundCount(playerCount: number, courts: number): number {
   const pairs = (playerCount * (playerCount - 1)) / 2
   const perRound = 2 * courtsInPlay(playerCount, courts)
-  return Math.ceil(pairs / perRound)
+  const rotation = Math.ceil(pairs / perRound)
+  const cycle = equalGamesCycle(playerCount, courts)
+  return Math.ceil(rotation / cycle) * cycle
+}
+
+// Fewest rounds after which everyone has played the same number of games.
+// Each round fills 4 × courts-in-play places; games come out equal once the
+// total number of places is a multiple of the player count.
+export function equalGamesCycle(playerCount: number, courts: number): number {
+  const places = 4 * courtsInPlay(playerCount, courts)
+  return playerCount / gcd(playerCount, places)
+}
+
+export interface GamesSplit {
+  fewer: number // games for the players who play less
+  more: number // games for everyone else
+  playersWithFewer: number // 0 when everyone plays the same number of games
+}
+
+// How many games each player gets over a schedule of this length. Because
+// the bench always picks whoever has the most games, nobody is ever more
+// than one game behind.
+export function gamesSplit(playerCount: number, courts: number, roundCount: number): GamesSplit {
+  const places = roundCount * 4 * courtsInPlay(playerCount, courts)
+  const fewer = Math.floor(places / playerCount)
+  const extra = places % playerCount
+  return extra === 0
+    ? { fewer, more: fewer, playersWithFewer: 0 }
+    : { fewer, more: fewer + 1, playersWithFewer: playerCount - extra }
+}
+
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b)
 }
 
 // The whole Americano schedule, made before round 1. Each round benches whoever

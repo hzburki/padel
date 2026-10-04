@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { generateSchedule, suggestedRoundCount } from "./americano"
+import { equalGamesCycle, gamesSplit, generateSchedule, suggestedRoundCount } from "./americano"
 import { countGamesPlayed, type Rng } from "./bench"
 import type { PlayerId, Round } from "./types"
 
@@ -44,6 +44,55 @@ describe("suggestedRoundCount", () => {
   it("suggests more rounds when there are fewer courts for the same players", () => {
     expect(suggestedRoundCount(16, 4)).toBe(15)
     expect(suggestedRoundCount(16, 2)).toBe(30)
+  })
+
+  it("rounds 6 players on 1 court up from 8 to 9 rounds so everyone plays 6 games", () => {
+    expect(suggestedRoundCount(6, 1)).toBe(9)
+    expect(gamesSplit(6, 1, 9)).toEqual({ fewer: 6, more: 6, playersWithFewer: 0 })
+  })
+
+  it("rounds 7 players on 1 court up from 11 to 14 rounds so everyone plays 8 games", () => {
+    expect(suggestedRoundCount(7, 1)).toBe(14)
+  })
+
+  it("always suggests a count where everyone plays the same number of games, for 4 to 24 players", () => {
+    for (let n = 4; n <= 24; n++) {
+      for (let courts = 1; courts <= 6; courts++) {
+        expect(gamesSplit(n, courts, suggestedRoundCount(n, courts)).playersWithFewer).toBe(0)
+      }
+    }
+  })
+})
+
+describe("equalGamesCycle", () => {
+  it("is 1 round when every player is on a court each round", () => {
+    expect(equalGamesCycle(8, 2)).toBe(1)
+  })
+
+  it("is 5 rounds for 5 players on 1 court, one sit-out each", () => {
+    expect(equalGamesCycle(5, 1)).toBe(5)
+  })
+
+  it("is 3 rounds for 12 players on 2 courts", () => {
+    expect(equalGamesCycle(12, 2)).toBe(3)
+  })
+})
+
+describe("gamesSplit", () => {
+  it("says everyone plays the same when the rounds come out even", () => {
+    expect(gamesSplit(9, 2, 9)).toEqual({ fewer: 8, more: 8, playersWithFewer: 0 })
+  })
+
+  it("says how many players get one game fewer when they don't", () => {
+    // 9 players, 2 courts, 4 rounds: 32 places, so 5 play 4 games and 4 play 3.
+    expect(gamesSplit(9, 2, 4)).toEqual({ fewer: 3, more: 4, playersWithFewer: 4 })
+  })
+
+  it("matches what the generated schedule actually gives each player", () => {
+    const players = ids(9)
+    const counts = [...countGamesPlayed(players, generateSchedule(players, 2, 4, seededRng(2))).values()]
+    expect(counts.filter((c) => c === 3)).toHaveLength(4)
+    expect(counts.filter((c) => c === 4)).toHaveLength(5)
   })
 })
 
