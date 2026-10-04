@@ -16,7 +16,14 @@ export interface SetupInput {
 }
 
 export function cleanPlayerNames(names: string[]): string[] {
-  return names.map((n) => n.trim()).filter((n) => n !== "")
+  return names.map(cleanPlayerName).filter((n) => n !== "")
+}
+
+// Trimmed, first letter upper case ("ana" → "Ana"); the rest is left as
+// typed, so "McKay" or "de Vries" keep their own casing after the first letter.
+export function cleanPlayerName(name: string): string {
+  const n = name.trim()
+  return n.charAt(0).toLocaleUpperCase() + n.slice(1)
 }
 
 // More courts than players can fill would only sit empty.
@@ -140,7 +147,7 @@ export function renameTournament(tournament: Tournament, name: string, playerNam
     name: name.trim(),
     players: tournament.finished
       ? tournament.players
-      : tournament.players.map((p, i) => ({ ...p, name: playerNames[i]?.trim() || p.name })),
+      : tournament.players.map((p, i) => ({ ...p, name: cleanPlayerName(playerNames[i] ?? "") || p.name })),
   }
 }
 

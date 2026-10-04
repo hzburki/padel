@@ -9,6 +9,7 @@ import { MAX_TARGET, MIN_TARGET } from "@/lib/scoring"
 import { randomId } from "@/lib/ids"
 import { requestPersistentStorage, saveTournament } from "@/lib/storage"
 import {
+  cleanPlayerName,
   cleanPlayerNames,
   createTournament,
   defaultTournamentName,
@@ -64,7 +65,7 @@ export function NewTournamentScreen() {
   useBackHandler(dirty, () => setConfirmDiscard(true))
 
   const addDraft = () => {
-    const n = draft.trim()
+    const n = cleanPlayerName(draft)
     if (n === "") return
     setPlayers((p) => [...p, n])
     setDraft("")

@@ -31,6 +31,16 @@ describe("cleanPlayerNames", () => {
   it("trims names and drops empty rows", () => {
     expect(cleanPlayerNames([" Ana ", "", "  ", "Ben"])).toEqual(["Ana", "Ben"])
   })
+
+  it("makes the first letter upper case and leaves the rest as typed", () => {
+    expect(cleanPlayerNames(["ana", "  ben", "mcKay", "élodie", "de Vries"])).toEqual([
+      "Ana",
+      "Ben",
+      "McKay",
+      "Élodie",
+      "De Vries",
+    ])
+  })
 })
 
 describe("maxCourts", () => {
@@ -58,7 +68,7 @@ describe("setupProblems", () => {
 
   it("rejects two players with the same name, ignoring case and spaces", () => {
     const problems = setupProblems({ ...valid, playerNames: ["Ana", "Ben", "Cai", " ana"] })
-    expect(problems).toEqual(["Two players are called ana. Give them different names."])
+    expect(problems).toEqual(["Two players are called Ana. Give them different names."])
   })
 
   it("rejects more courts than the players can fill", () => {
@@ -173,6 +183,10 @@ describe("renaming", () => {
 
   it("trims spaces from new names", () => {
     expect(renameTournament(t, "  Club night ", [" Anna ", ...names.slice(1)]).players[0].name).toBe("Anna")
+  })
+
+  it("makes the first letter of a renamed player upper case", () => {
+    expect(renameTournament(t, t.name, ["anna", ...names.slice(1)]).players[0].name).toBe("Anna")
   })
 
   it("rejects a blank tournament name", () => {
