@@ -4,7 +4,7 @@ import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
 import { computeStandings, winners } from "@/lib/standings"
 import { deleteTournament, loadTournament, saveTournament } from "@/lib/storage"
-import { currentRoundIndex, renameTournament, setScore, unscoredMatchCount } from "@/lib/tournament"
+import { currentRoundIndex, previousSetup, renameTournament, setScore, unscoredMatchCount } from "@/lib/tournament"
 import type { Match, PlayerId, Score, Tournament } from "@/lib/types"
 import { Screen } from "./screen"
 import { ScoreEntry } from "./score-entry"
@@ -115,16 +115,7 @@ export function TournamentScreen({ id }: { id: string }) {
 
   const shownMatch = shown && tournament.rounds[shown.round]?.matches.find((m) => m.court === shown.court)
 
-  const playAgain = () =>
-    nav.push({
-      name: "new",
-      from: {
-        playerNames: tournament.players.map((p) => p.name),
-        courts: tournament.courts,
-        target: tournament.target,
-        scoringMode: tournament.scoringMode,
-      },
-    })
+  const playAgain = () => nav.push({ name: "new", from: previousSetup(tournament) })
 
   const footer = tournament.finished ? (
     <div className="grid grid-cols-2 gap-2">

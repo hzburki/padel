@@ -5,6 +5,7 @@ import {
   currentRoundIndex,
   defaultTournamentName,
   maxCourts,
+  previousSetup,
   renameProblems,
   renameTournament,
   setScore,
@@ -114,6 +115,27 @@ describe("createTournament", () => {
   it("generates the whole schedule up front with the chosen number of rounds", () => {
     expect(t.rounds).toHaveLength(5)
     expect(t.rounds.every((r) => r.matches.length === 1 && r.benched.length === 1)).toBe(true)
+  })
+})
+
+describe("previousSetup", () => {
+  it("carries over the players' names, the courts, the target and the scoring mode, in order", () => {
+    const t = createTournament(
+      {
+        ...valid,
+        playerNames: [...valid.playerNames, "Fay", "Gus", "Hal"],
+        courts: 2,
+        target: 21,
+        scoringMode: "firstTo",
+      },
+      { now: 1000, newId: counter() },
+    )
+    expect(previousSetup(t)).toEqual({
+      playerNames: ["Ana", "Ben", "Cai", "Dee", "Eli", "Fay", "Gus", "Hal"],
+      courts: 2,
+      target: 21,
+      scoringMode: "firstTo",
+    })
   })
 })
 

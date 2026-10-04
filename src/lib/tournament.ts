@@ -96,6 +96,24 @@ export function createTournament(input: SetupInput, { now, newId, rng }: CreateD
   }
 }
 
+// What a new tournament starts from when the same group plays again: the
+// people and the settings, not the schedule or the scores.
+export interface PreviousSetup {
+  playerNames: string[]
+  courts: number
+  target: number
+  scoringMode: ScoringMode
+}
+
+export function previousSetup(tournament: Tournament): PreviousSetup {
+  return {
+    playerNames: tournament.players.map((p) => p.name),
+    courts: tournament.courts,
+    target: tournament.target,
+    scoringMode: tournament.scoringMode,
+  }
+}
+
 // The first round that still has a match without a score; equals
 // rounds.length once every match is scored.
 export function currentRoundIndex(tournament: Tournament): number {

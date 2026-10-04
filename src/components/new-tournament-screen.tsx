@@ -1,6 +1,6 @@
 import { ChevronDown, Minus, Plus, TriangleAlert, X } from "lucide-react"
 import { useRef, useState, type ReactNode } from "react"
-import type { PreviousSetup, Route } from "@/App"
+import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { gamesSplit, suggestedRoundCount, type GamesSplit } from "@/lib/americano"
@@ -16,6 +16,7 @@ import {
   MAX_ROUNDS,
   maxCourts,
   MIN_PLAYERS,
+  type PreviousSetup,
   setupProblems,
 } from "@/lib/tournament"
 import type { ScoringMode } from "@/lib/types"
