@@ -318,7 +318,7 @@ export function NewTournamentScreen() {
   )
 }
 
-// Spells out what uneven matches mean, with a worked example of the scaling.
+// Short warning about uneven matches; the full explanation is one tap away.
 function UnevenWarning({
   roundCount,
   split,
@@ -336,43 +336,54 @@ function UnevenWarning({
   onAccept: () => void
   acceptLabel: string
 }) {
-  const others = split.more
-  const fewer = split.fewer
-  const n = split.playersWithFewer
+  const [details, setDetails] = useState(false)
+  const { fewer, more: others, playersWithFewer: n } = split
   const examplePoints = fewer * 10
   const scaled = Math.round((examplePoints * others) / fewer)
   const matches = (k: number) => `${k} ${k === 1 ? "match" : "matches"}`
 
   return (
-    <div>
-      <p className="text-lg font-semibold">Not everyone will play the same number of matches</p>
-      <p className="mt-1 text-muted-foreground">With {roundCount} rounds, the sit-outs don't come out even:</p>
-      <div className="mt-3 overflow-hidden rounded-lg border bg-card">
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-muted-foreground">
-            {n} {n === 1 ? "player" : "players"}
-          </span>
-          <span className="font-semibold">{matches(fewer)}</span>
-        </div>
-        <div className="flex items-center justify-between border-t px-4 py-3">
-          <span className="text-muted-foreground">Everyone else</span>
-          <span className="font-semibold">{matches(others)}</span>
-        </div>
+    <div className="text-center">
+      <div className="text-5xl" aria-hidden>
+        ⚠️
       </div>
-      <p className="mt-4 font-medium">What happens to their points</p>
-      <p className="mt-1 text-muted-foreground">
-        At the end, players with fewer matches get their points scaled up, as if they had played {others}. For example,{" "}
-        {examplePoints} points from {matches(fewer)} counts as {scaled}.
+      <p className="mt-3 text-lg font-semibold">
+        {n} {n === 1 ? "player" : "players"} will play one match fewer
       </p>
-      <p className="mt-3 text-muted-foreground">
-        You won't be asked again for this tournament.
-      </p>
+      <p className="mt-1 text-muted-foreground">Their points get scaled up at the end to keep it fair.</p>
+
       <Button size="lg" className="mt-5 h-14 w-full rounded-md text-base font-semibold" onClick={onAccept}>
         {acceptLabel}
       </Button>
       <Button variant="ghost" className="mt-1 h-12 w-full" onClick={onUseSuggested}>
-        Use {suggested} rounds instead, everyone plays {suggestedGames}
+        Use {suggested} rounds, everyone plays {suggestedGames}
       </Button>
+
+      {details ? (
+        <div className="mt-3 text-left">
+          <div className="overflow-hidden rounded-lg border bg-card">
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="text-muted-foreground">
+                {n} {n === 1 ? "player" : "players"}
+              </span>
+              <span className="font-semibold">{matches(fewer)}</span>
+            </div>
+            <div className="flex items-center justify-between border-t px-4 py-3">
+              <span className="text-muted-foreground">Everyone else</span>
+              <span className="font-semibold">{matches(others)}</span>
+            </div>
+          </div>
+          <p className="mt-3 text-sm text-muted-foreground">
+            With {roundCount} rounds the sit-outs don't come out even. At the end, players with fewer matches get their
+            points scaled up as if they had played {others}: {examplePoints} points from {matches(fewer)} counts as{" "}
+            {scaled}. You won't be asked again for this tournament.
+          </p>
+        </div>
+      ) : (
+        <button type="button" className="mt-2 py-2 text-sm font-medium text-primary" onClick={() => setDetails(true)}>
+          See details
+        </button>
+      )}
     </div>
   )
 }
