@@ -1,4 +1,4 @@
-import { Screen } from "./screen"
+import { Screen } from "./screen";
 
 const PAGES = {
   privacy: {
@@ -19,11 +19,11 @@ const PAGES = {
       "Arguments about who won are settled on court, not here.",
     ],
   },
-} as const
+} as const;
 
 // A tongue-in-cheek page in place of the usual legal text.
 export function LegalScreen({ page }: { page: keyof typeof PAGES }) {
-  const { title, lead, points } = PAGES[page]
+  const { title, lead, points } = PAGES[page];
   return (
     <Screen title={title}>
       <p className="mt-3 text-2xl type-display">{lead}</p>
@@ -32,7 +32,6 @@ export function LegalScreen({ page }: { page: keyof typeof PAGES }) {
           <li key={p}>{p}</li>
         ))}
       </ul>
-      <p className="mt-8 text-sm text-muted-foreground/70">It's a joke :P</p>
     </Screen>
-  )
+  );
 }
