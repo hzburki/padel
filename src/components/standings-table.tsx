@@ -25,10 +25,17 @@ export function StandingsTable({ rows, nameOf }: { rows: StandingRow[]; nameOf: 
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[1.0625rem] type-label">{nameOf.get(row.playerId)}</span>
-              <span className="text-xs text-muted-foreground">
-                {row.wins} won, {row.draws > 0 ? `${row.draws} drawn, ` : ""}
-                {row.losses} lost
-                {row.bonus > 0 && `, +${formatPoints(row.bonus)} for fewer games`}
+              <span className="mt-1 flex flex-wrap items-center gap-1 text-[0.8125rem] leading-snug type-label">
+                <span className="rounded-full bg-emerald-100 px-1.5 text-emerald-700">{row.wins}W</span>
+                {row.draws > 0 && (
+                  <span className="rounded-full bg-muted px-1.5 text-muted-foreground">{row.draws}D</span>
+                )}
+                <span className="rounded-full bg-destructive/10 px-1.5 text-destructive">{row.losses}L</span>
+                {row.bonus > 0 && (
+                  <span className="text-xs font-normal text-muted-foreground">
+                    +{formatPoints(row.bonus)} for fewer games
+                  </span>
+                )}
               </span>
             </span>
             <span className="w-8 text-right text-muted-foreground">{row.played}</span>
