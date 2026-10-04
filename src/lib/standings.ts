@@ -127,3 +127,15 @@ function round2(n: number): number {
 export function formatPoints(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1)
 }
+
+// Everyone sharing first place (more than one on a tie). Nobody wins
+// a tournament where no game was scored.
+export function winners(rows: StandingRow[]): PlayerId[] {
+  return rows.filter((r) => r.rank === 1 && r.played > 0).map((r) => r.playerId)
+}
+
+// "Ana", "Ana and Ben", "Ana, Ben and Cai".
+export function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ""
+  return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`
+}

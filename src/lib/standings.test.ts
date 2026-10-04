@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { computeStandings, formatPoints } from "./standings"
+import { computeStandings, formatPoints, joinNames, winners } from "./standings"
 import type { Match, PlayerId, Round } from "./types"
 
 const ids = (n: number): PlayerId[] => Array.from({ length: n }, (_, i) => `p${i + 1}`)
@@ -153,5 +153,29 @@ describe("formatPoints", () => {
     expect(formatPoints(16)).toBe("16")
     expect(formatPoints(10.5)).toBe("10.5")
     expect(formatPoints(13.33)).toBe("13.3")
+  })
+})
+
+describe("winners", () => {
+  it("is the player in first place", () => {
+    const rows = computeStandings(ids(4), [round(match("p1 p2", 6, 2, "p3 p4")), round(match("p1 p3", 5, 3, "p2 p4"))])
+    expect(winners(rows)).toEqual(["p1"])
+  })
+
+  it("is everyone sharing first place on a tie", () => {
+    const rows = computeStandings(ids(4), [round(match("p1 p2", 6, 2, "p3 p4"))])
+    expect(winners(rows).sort()).toEqual(["p1", "p2"])
+  })
+
+  it("is nobody when no game was scored", () => {
+    expect(winners(computeStandings(ids(4), []))).toEqual([])
+  })
+})
+
+describe("joinNames", () => {
+  it("joins names the way you'd say them", () => {
+    expect(joinNames(["Ana"])).toBe("Ana")
+    expect(joinNames(["Ana", "Ben"])).toBe("Ana and Ben")
+    expect(joinNames(["Ana", "Ben", "Cai"])).toBe("Ana, Ben and Cai")
   })
 })
