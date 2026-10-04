@@ -19,9 +19,8 @@ export function Sheet({
   const backdrop = useRef<HTMLDivElement>(null)
   const drag = useRef<{ y: number; dy: number } | null>(null)
 
-  useEffect(() => {
-    if (open) setMounted(true)
-  }, [open])
+  // Mount as soon as it opens; unmount only after the slide-out finishes.
+  if (open && !mounted) setMounted(true)
 
   // Slide in once mounted; slide out before unmounting.
   useEffect(() => {
