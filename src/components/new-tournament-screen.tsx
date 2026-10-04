@@ -1,4 +1,4 @@
-import { Minus, Plus, X } from "lucide-react"
+import { ChevronDown, Minus, Plus, X } from "lucide-react"
 import { useRef, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
@@ -36,6 +36,7 @@ export function NewTournamentScreen() {
   const [warnUneven, setWarnUneven] = useState(false)
   const [startFailed, setStartFailed] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [pickTarget, setPickTarget] = useState(false)
   const draftRef = useRef<HTMLInputElement>(null)
 
   // The typed-but-not-added name still counts, so nobody gets lost.
@@ -201,7 +202,14 @@ export function NewTournamentScreen() {
           ))}
         </div>
         <div className="mt-3">
-          <Stepper value={target} min={MIN_TARGET} max={MAX_TARGET} onChange={setTarget} format={(n) => `${n} points`} />
+          <Stepper
+            value={target}
+            min={MIN_TARGET}
+            max={MAX_TARGET}
+            onChange={setTarget}
+            format={(n) => `${n} points`}
+            onValueTap={() => setPickTarget(true)}
+          />
         </div>
         <Hint>
           {scoringMode === "total"
@@ -236,6 +244,30 @@ export function NewTournamentScreen() {
           </Hint>
         )}
       </Section>
+
+      <Sheet open={pickTarget} onClose={() => setPickTarget(false)}>
+        <p className="px-1 text-lg font-semibold">Points per game</p>
+        <p className="mb-3 px-1 text-sm text-muted-foreground">
+          {scoringMode === "total" ? "The two scores add up to this." : "The first team to reach this wins."}
+        </p>
+        <div className="grid grid-cols-5 gap-1.5">
+          {Array.from({ length: MAX_TARGET - MIN_TARGET + 1 }, (_, i) => MIN_TARGET + i).map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => {
+                setTarget(n)
+                setPickTarget(false)
+              }}
+              className={`h-12 rounded-md text-lg font-semibold active:scale-95 ${
+                n === target ? "bg-primary text-primary-foreground" : "border bg-card"
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </Sheet>
 
       <Sheet open={confirmDiscard} onClose={() => setConfirmDiscard(false)}>
         <p className="text-lg font-semibold">Discard this tournament?</p>
@@ -302,12 +334,14 @@ function Stepper({
   max,
   onChange,
   format,
+  onValueTap,
 }: {
   value: number
   min: number
   max: number
   onChange: (n: number) => void
   format: (n: number) => string
+  onValueTap?: () => void // makes the value itself a button (e.g. to open a picker)
 }) {
   const button = "flex size-12 items-center justify-center rounded-sm text-primary active:bg-muted disabled:text-muted-foreground/40"
   return (
@@ -315,7 +349,18 @@ function Stepper({
       <button type="button" aria-label="Fewer" className={button} disabled={value <= min} onClick={() => onChange(value - 1)}>
         <Minus className="size-5" strokeWidth={2.5} />
       </button>
-      <span className="flex-1 text-center text-lg font-semibold">{format(value)}</span>
+      {onValueTap ? (
+        <button
+          type="button"
+          onClick={onValueTap}
+          className="flex h-12 flex-1 items-center justify-center gap-1 rounded-sm text-lg font-semibold active:bg-muted"
+        >
+          {format(value)}
+          <ChevronDown className="size-4 text-muted-foreground" strokeWidth={2.5} />
+        </button>
+      ) : (
+        <span className="flex-1 text-center text-lg font-semibold">{format(value)}</span>
+      )}
       <button type="button" aria-label="More" className={button} disabled={value >= max} onClick={() => onChange(value + 1)}>
         <Plus className="size-5" strokeWidth={2.5} />
       </button>
