@@ -59,7 +59,7 @@ export function ScoreEntry({
       <p className="px-1 text-sm text-muted-foreground">Court {match.court}</p>
 
       {mode === "firstTo" && <Step n={1} done={winner !== null}>Who won? Tap the team that reached {target}</Step>}
-      <div className="mt-2 overflow-hidden rounded-lg border bg-card">
+      <div className="mt-3 overflow-hidden rounded-3xl border-[1.5px] bg-card">
         {(["a", "b"] as const).map((s) => {
           const active = mode === "total" ? side === s : winner !== null && side === s
           const won = winner === s
@@ -71,7 +71,7 @@ export function ScoreEntry({
               className={`flex w-full items-center gap-3 px-4 py-3 text-left not-first:border-t ${active ? "bg-secondary" : ""}`}
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold">{teamName(s)}</span>
+                <span className="block truncate text-lg type-label">{teamName(s)}</span>
                 {mode === "firstTo" && (
                   <span className={`text-sm ${won ? "font-medium text-primary" : "text-muted-foreground"}`}>
                     {won ? `Won, ${target} points` : winner === null ? `Tap to give them ${target}` : "Lost"}
@@ -80,12 +80,12 @@ export function ScoreEntry({
               </span>
               {mode === "firstTo" && winner === null ? (
                 // Before a winner is picked: show what tapping does.
-                <span className="flex h-12 min-w-14 items-center justify-center rounded-md border-2 border-dashed border-primary/40 px-2 text-xl font-bold text-primary/70">
+                <span className="flex h-16 min-w-18 items-center justify-center rounded-2xl border-2 border-dashed border-primary/40 px-2 text-[2rem] text-primary/70 type-display">
                   {target}
                 </span>
               ) : (
                 <span
-                  className={`flex h-12 min-w-14 items-center justify-center rounded-md px-2 text-3xl font-bold ${
+                  className={`flex h-16 min-w-18 items-center justify-center rounded-2xl px-2 text-[2.75rem] type-display ${
                     active ? "bg-primary text-primary-foreground" : won ? "bg-accent text-accent-foreground" : "bg-muted"
                   }`}
                 >
@@ -102,17 +102,19 @@ export function ScoreEntry({
           {winner === null ? "Then the other team's points" : `Points for ${teamName(side)}`}
         </Step>
       ) : (
-        <p className="mt-4 mb-2 px-1 text-sm text-muted-foreground">Points for {teamName(side)}</p>
+        <p className="mt-5 mb-2.5 px-1 text-sm font-medium text-muted-foreground">Points for {teamName(side)}</p>
       )}
-      <div className="grid grid-cols-6 gap-1.5">
+      <div className="grid grid-cols-6 gap-2">
         {Array.from({ length: max + 1 }, (_, n) => (
           <button
             key={n}
             type="button"
             disabled={gridDisabled}
             onClick={() => pick(n)}
-            className={`h-12 rounded-md text-lg font-semibold active:scale-95 disabled:opacity-30 ${
-              score[side] === n && !gridDisabled ? "bg-primary text-primary-foreground" : "bg-card border"
+            className={`h-14 rounded-xl text-[1.75rem] type-display active:scale-95 disabled:opacity-30 ${
+              score[side] === n && !gridDisabled
+                ? "bg-primary text-primary-foreground"
+                : "bg-card shadow-[inset_0_0_0_1.5px_var(--border)]"
             }`}
           >
             {n}

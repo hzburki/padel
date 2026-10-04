@@ -165,10 +165,10 @@ export function TournamentScreen({ id }: { id: string }) {
           }}
         />
       ) : (
-        <div className="pt-2">
+        <div className="pt-4">
           {tournament.finished && (
             <div className="mb-6">
-              <div className="min-h-48 overflow-hidden rounded-lg bg-primary">
+              <div className="min-h-48 overflow-hidden rounded-3xl bg-primary">
                 {image && <img src={image.previewUrl} alt="Top three" className="block w-full" />}
               </div>
               {/* The card can fill a small screen; make it obvious there's more below. */}
@@ -182,7 +182,7 @@ export function TournamentScreen({ id }: { id: string }) {
               </button>
             </div>
           )}
-          <h2 ref={fullStandings} className="mb-2 scroll-mt-2 px-1 text-sm font-semibold text-muted-foreground">
+          <h2 ref={fullStandings} className="mb-3 scroll-mt-2 px-1 text-[1.375rem] type-display">
             {tournament.finished ? "Full standings" : "Standings so far"}
           </h2>
           <StandingsTable
@@ -211,7 +211,7 @@ export function TournamentScreen({ id }: { id: string }) {
       </Sheet>
 
       <Sheet open={confirm === "menu"} onClose={() => setConfirm(null)}>
-        <div className="divide-y overflow-hidden rounded-lg border bg-card">
+        <div className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
           <button
             type="button"
             onClick={() => setConfirm("rename")}
@@ -287,9 +287,17 @@ export function TournamentScreen({ id }: { id: string }) {
   )
 }
 
+// Underline tabs, so they don't look like the scoring switch on setup.
 function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   return (
-    <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
+    <div className="relative grid grid-cols-2 shadow-[inset_0_-1.5px_0_var(--border)]">
+      <span
+        aria-hidden
+        className="absolute bottom-0 left-0 flex h-1 w-1/2 justify-center transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
+        style={{ transform: tab === "standings" ? "translateX(100%)" : undefined }}
+      >
+        <span className="h-full w-16 rounded-full bg-foreground" />
+      </span>
       {(
         [
           ["rounds", "Rounds"],
@@ -301,7 +309,7 @@ function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
           type="button"
           aria-pressed={tab === value}
           onClick={() => onChange(value)}
-          className="h-10 rounded-sm font-medium text-muted-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-sm"
+          className="h-12 text-lg text-muted-foreground transition-colors type-label aria-pressed:text-foreground"
         >
           {label}
         </button>
@@ -331,18 +339,20 @@ function RoundsList({
   }, [])
 
   return (
-    <ol className="space-y-5 pt-2">
+    <ol className="space-y-7 pt-4">
       {tournament.rounds.map((round, r) => (
         <li key={r} ref={r === current ? currentRef : undefined} className="scroll-mt-2">
-          <div className="mb-2 flex items-center gap-2 px-1">
-            <h2 className="text-sm font-semibold text-muted-foreground">Round {r + 1}</h2>
+          <div className="mb-2.5 flex items-center gap-2.5 px-1">
+            <h2 className={`text-[1.375rem] type-display ${r === current ? "" : "text-muted-foreground"}`}>Round {r + 1}</h2>
             {r === current && (
-              <span className="rounded-sm bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground">
-                Playing now
-              </span>
+              <span className="rounded-full bg-accent px-2.5 py-1 text-xs font-bold text-accent-foreground">Playing now</span>
             )}
           </div>
-          <div className="divide-y overflow-hidden rounded-lg border bg-card">
+          <div
+            className={`divide-y overflow-hidden rounded-3xl bg-card ${
+              r === current ? "border-2 border-foreground" : "border-[1.5px]"
+            }`}
+          >
             {round.matches.map((m) => (
               <MatchRow
                 key={m.court}
@@ -383,36 +393,41 @@ function MatchRow({
   return (
     <Row
       {...(onTap ? { type: "button" as const, onClick: onTap } : {})}
-      className={`flex w-full items-center gap-3 px-4 py-3 text-left ${onTap ? "active:bg-muted" : ""}`}
+      className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${onTap ? "active:bg-muted" : ""}`}
     >
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
+      <span
+        className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground type-display"
+        aria-label={`Court ${match.court}`}
+      >
         {match.court}
       </span>
       <span className="min-w-0 flex-1 text-[0.9375rem] leading-snug">
-        <span className={`block truncate ${aWon ? "font-semibold" : s ? "text-muted-foreground" : ""}`}>
+        <span className={`block truncate ${aWon ? "font-bold" : s ? "text-muted-foreground" : "font-medium"}`}>
           {team(match.teamA)}
         </span>
-        <span className={`block truncate ${bWon ? "font-semibold" : "text-muted-foreground"}`}>
+        <span className={`block truncate ${bWon ? "font-bold" : "text-muted-foreground"}`}>
           {team(match.teamB)}
         </span>
       </span>
       {s ? (
         <>
-          <span className="flex shrink-0 flex-col items-end text-lg leading-snug font-bold">
+          <span className="flex shrink-0 flex-col items-end text-[1.625rem] leading-[1.1] type-display">
             <span className={aWon ? "" : "text-muted-foreground"}>{s.a}</span>
             <span className={bWon ? "" : "text-muted-foreground"}>{s.b}</span>
           </span>
           {/* Saved scores stay editable until the tournament is finished. */}
           {onTap && (
-            <span className="-mr-1 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
+            <span className="-mr-1 flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
               <Pencil className="size-4" aria-label="Edit score" />
             </span>
           )}
         </>
       ) : onTap ? (
         <span
-          className={`shrink-0 rounded-md px-3 py-1.5 text-sm font-semibold ${
-            current ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+          className={`flex h-11 shrink-0 items-center rounded-xl px-4 type-label ${
+            current
+              ? "bg-accent text-accent-foreground shadow-[inset_0_-3px_0_rgb(14_34_64/0.16)]"
+              : "bg-secondary text-primary/70"
           }`}
         >
           Score
