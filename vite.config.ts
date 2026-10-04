@@ -1,3 +1,4 @@
+import basicSsl from '@vitejs/plugin-basic-ssl'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
@@ -8,6 +9,9 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    // `npm run dev:https`: a self-signed https dev server, so a phone on the
+    // same Wi-Fi gets a secure page (needed for the share sheet).
+    process.env.HTTPS ? basicSsl() : null,
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
