@@ -4,6 +4,8 @@ import {
   createTournament,
   currentRoundIndex,
   maxCourts,
+  renameProblems,
+  renameTournament,
   setScore,
   setupProblems,
   unscoredMatchCount,
@@ -149,5 +151,57 @@ describe("unscoredMatchCount", () => {
     const t = createTournament({ ...valid, roundCount: 3 }, { now: 0, newId: counter() })
     expect(unscoredMatchCount(t)).toBe(3)
     expect(unscoredMatchCount(setScore(t, 0, 1, { a: 10, b: 6 }))).toBe(2)
+  })
+})
+
+describe("renaming", () => {
+  const t = createTournament({ ...valid, roundCount: 2 }, { now: 0, newId: counter() })
+  const names = t.players.map((p) => p.name) // Ana, Ben, Cai, Dee, Eli
+
+  it("changes the tournament name and player names", () => {
+    const next = renameTournament(t, "Club night", ["Anna", ...names.slice(1)])
+    expect(next.name).toBe("Club night")
+    expect(next.players[0].name).toBe("Anna")
+  })
+
+  it("keeps player ids, so the schedule and scores stay with the same people", () => {
+    const next = renameTournament(t, t.name, ["Anna", ...names.slice(1)])
+    expect(next.players.map((p) => p.id)).toEqual(t.players.map((p) => p.id))
+    expect(next.rounds).toBe(t.rounds)
+  })
+
+  it("trims spaces from new names", () => {
+    expect(renameTournament(t, "  Club night ", [" Anna ", ...names.slice(1)]).players[0].name).toBe("Anna")
+  })
+
+  it("rejects a blank tournament name", () => {
+    expect(renameProblems(t, " ", names)).toEqual(["Give the tournament a name."])
+  })
+
+  it("rejects a blank player name", () => {
+    expect(renameProblems(t, t.name, ["", ...names.slice(1)])).toEqual(["Every player needs a name."])
+  })
+
+  it("rejects two players with the same name", () => {
+    expect(renameProblems(t, t.name, ["Ben", ...names.slice(1)])).toEqual([
+      "Two players are called Ben. Give them different names.",
+    ])
+  })
+
+  describe("once the tournament is finished", () => {
+    const finished = { ...t, finished: true }
+
+    it("still lets the tournament name change", () => {
+      expect(renameTournament(finished, "Club night", names).name).toBe("Club night")
+    })
+
+    it("keeps player names as they were", () => {
+      const next = renameTournament(finished, finished.name, ["Anna", ...names.slice(1)])
+      expect(next.players[0].name).toBe("Ana")
+    })
+
+    it("doesn't complain about player names it will ignore", () => {
+      expect(renameProblems(finished, finished.name, ["", "", "", "", ""])).toEqual([])
+    })
   })
 })

@@ -117,3 +117,29 @@ export function setScore(
 export function unscoredMatchCount(tournament: Tournament): number {
   return tournament.rounds.flatMap((r) => r.matches).filter((m) => m.score === null).length
 }
+
+// What stops a rename from being saved. `playerNames` is in the same order
+// as tournament.players. Once finished, player names are fixed and ignored.
+export function renameProblems(tournament: Tournament, name: string, playerNames: string[]): string[] {
+  const problems: string[] = []
+  if (name.trim() === "") problems.push("Give the tournament a name.")
+  if (tournament.finished) return problems
+  const names = playerNames.map((n) => n.trim())
+  if (names.some((n) => n === "")) problems.push("Every player needs a name.")
+  const duplicate = duplicateName(names.filter((n) => n !== ""))
+  if (duplicate) problems.push(`Two players are called ${duplicate}. Give them different names.`)
+  return problems
+}
+
+// A copy with new names. Only names change: player ids stay the same, so
+// the schedule and every score still point at the right people. Once the
+// tournament is finished only its own name can change.
+export function renameTournament(tournament: Tournament, name: string, playerNames: string[]): Tournament {
+  return {
+    ...tournament,
+    name: name.trim(),
+    players: tournament.finished
+      ? tournament.players
+      : tournament.players.map((p, i) => ({ ...p, name: playerNames[i]?.trim() || p.name })),
+  }
+}
