@@ -7,6 +7,7 @@ import { listTournaments } from "@/lib/storage"
 import { currentRoundIndex, unscoredMatchCount } from "@/lib/tournament"
 import type { Tournament } from "@/lib/types"
 import { CourtLines } from "./court-lines"
+import { InstallBanner } from "./install-banner"
 import { Screen } from "./screen"
 import { useIsTopScreen, useNav } from "./stack-navigator"
 
@@ -42,6 +43,8 @@ export function TournamentListScreen() {
       <Hero howItWorks={tournaments?.length === 0 ? "open" : "collapsible"}>
         {playing && <PlayingNow tournament={playing} onOpen={() => open(playing)} />}
       </Hero>
+
+      <InstallBanner />
 
       {tournaments?.length === 0 && <FirstTournament />}
 
