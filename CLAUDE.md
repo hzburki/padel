@@ -15,12 +15,6 @@ This is about answers to the user in chat, not code or comments.
   enough.
 - No filler openers or closing summaries.
 
-## Status
-
-The repository is empty — nothing is scaffolded yet. Everything below describes the intended project and
-stack, not discovered code. Once the app exists, replace the "Scaffolding" section with real commands and
-update the architecture notes to match what was actually built.
-
 ## Project
 
 A mobile-first PWA for running casual padel tournaments among friends. Two formats only: **Americano** and
@@ -38,30 +32,31 @@ nice-to-have that falls out of a responsive layout.
 
 ## Stack
 
-- React + Vite (TypeScript)
-- Tailwind CSS
-- shadcn/ui for components — these are copied into the repo (typically `src/components/ui/`), so they are
-  project source, not a dependency. Edit them freely; don't wrap them in another abstraction layer just to
-  change a style.
-- `vite-plugin-pwa` for the service worker / installability
+- React 19 + Vite 8 + TypeScript 6
+- **Tailwind v4** — CSS-first. There is no `tailwind.config.js`; theme tokens live in `src/index.css`
+  under `@theme`. Don't reach for a config file that isn't there.
+- **shadcn/ui**, `radix-nova` preset, Lucide icons, Geist font. Components are copied into
+  `src/components/ui/` — they are project source, not a dependency. Edit them directly rather than
+  wrapping them to change a style. Add more with `npx shadcn@latest add <name>`.
+- **oxlint**, not ESLint — that is what the Vite template ships now.
+- **Vitest** for the pure logic in `src/lib/`.
+- `vite-plugin-pwa` (autoUpdate) for the service worker and manifest.
+- Path alias `@/` → `src/`. TypeScript 6 dropped `baseUrl`, so `paths` are relative to the tsconfig; the
+  same alias is repeated in `vite.config.ts`.
 
-## Scaffolding
-
-Not yet run. The intended sequence:
+## Commands
 
 ```bash
-npm create vite@latest . -- --template react-ts
-npm install
-npx shadcn@latest init          # sets up Tailwind, CSS vars, and the @/* path alias
-npx shadcn@latest add button card dialog   # add components as needed, one at a time
-npm install -D vite-plugin-pwa
+npm run dev          # dev server
+npm run build        # tsc -b && vite build
+npm run preview      # serve the build — the only way to exercise the service worker
+npm run lint         # oxlint
+npm test             # vitest run
+npm run test:watch
+
+npx vitest run src/lib/formats/americano.test.ts   # one file
+npx vitest run -t "benches the player"             # one test by name
 ```
-
-shadcn requires the `@/*` path alias in both `tsconfig.json` and `vite.config.ts` — `init` writes it, but
-verify both after running it.
-
-Once scaffolded, the standard commands are `npm run dev`, `npm run build`, `npm run preview`. Add a test
-runner (Vitest pairs with Vite) and record the single-test invocation here when you do.
 
 ## Domain: how the two formats differ
 
