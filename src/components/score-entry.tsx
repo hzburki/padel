@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { isValidScore } from "@/lib/scoring"
 import type { Match, Score, ScoringMode } from "@/lib/types"
@@ -58,9 +58,11 @@ export function ScoreEntry({
       <p className="px-1 text-lg font-semibold">{match.score ? "Edit score" : "Enter score"}</p>
       <p className="px-1 text-sm text-muted-foreground">Court {match.court}</p>
 
+      {mode === "firstTo" && <Step n={1} done={winner !== null}>Who won? Tap the team that reached {target}</Step>}
       <div className="mt-2 overflow-hidden rounded-2xl border bg-card">
         {(["a", "b"] as const).map((s) => {
           const active = mode === "total" ? side === s : winner !== null && side === s
+          const won = winner === s
           return (
             <button
               key={s}
@@ -71,30 +73,37 @@ export function ScoreEntry({
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{teamName(s)}</span>
                 {mode === "firstTo" && (
-                  <span className="text-sm text-muted-foreground">
-                    {winner === s ? `Reached ${target}` : winner === null ? `Tap if they reached ${target}` : " "}
+                  <span className={`text-sm ${won ? "font-medium text-primary" : "text-muted-foreground"}`}>
+                    {won ? `Won, ${target} points` : winner === null ? `Tap to give them ${target}` : "Lost"}
                   </span>
                 )}
               </span>
-              <span
-                className={`flex h-12 min-w-14 items-center justify-center rounded-xl px-2 text-3xl font-bold ${
-                  active ? "bg-primary text-primary-foreground" : "bg-muted"
-                }`}
-              >
-                {score[s] ?? "–"}
-              </span>
+              {mode === "firstTo" && winner === null ? (
+                // Before a winner is picked: show what tapping does.
+                <span className="flex h-12 min-w-14 items-center justify-center rounded-xl border-2 border-dashed border-primary/40 px-2 text-xl font-bold text-primary/70">
+                  {target}
+                </span>
+              ) : (
+                <span
+                  className={`flex h-12 min-w-14 items-center justify-center rounded-xl px-2 text-3xl font-bold ${
+                    active ? "bg-primary text-primary-foreground" : won ? "bg-accent text-accent-foreground" : "bg-muted"
+                  }`}
+                >
+                  {score[s] ?? "–"}
+                </span>
+              )}
             </button>
           )
         })}
       </div>
 
-      <p className="mt-4 mb-2 px-1 text-sm text-muted-foreground">
-        {mode === "total"
-          ? `Points for ${teamName(side)}`
-          : winner === null
-            ? `First, tap the team that reached ${target}`
-            : `Points for ${teamName(side)}`}
-      </p>
+      {mode === "firstTo" ? (
+        <Step n={2} done={valid} dim={winner === null}>
+          {winner === null ? "Then the other team's points" : `Points for ${teamName(side)}`}
+        </Step>
+      ) : (
+        <p className="mt-4 mb-2 px-1 text-sm text-muted-foreground">Points for {teamName(side)}</p>
+      )}
       <div className="grid grid-cols-6 gap-1.5">
         {Array.from({ length: max + 1 }, (_, n) => (
           <button
@@ -125,5 +134,21 @@ export function ScoreEntry({
         </Button>
       )}
     </div>
+  )
+}
+
+// Numbered instruction for first-to scoring, ticked off as it's done.
+function Step({ n, done, dim = false, children }: { n: number; done: boolean; dim?: boolean; children: ReactNode }) {
+  return (
+    <p className={`mt-4 mb-2 flex items-center gap-2 px-1 text-sm font-medium ${dim ? "text-muted-foreground/60" : ""}`}>
+      <span
+        className={`flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+          done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+        }`}
+      >
+        {done ? "✓" : n}
+      </span>
+      {children}
+    </p>
   )
 }
