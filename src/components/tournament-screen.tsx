@@ -134,6 +134,9 @@ export function TournamentScreen({ id }: { id: string }) {
   return (
     <Screen
       title={tournament.name}
+      // A tournament always opens straight from home, so back is home; once
+      // it's finished, say so with a home icon.
+      homeButton={tournament.finished}
       toolbar={<Tabs tab={tab} onChange={setTab} />}
       action={
         <button

@@ -1,4 +1,4 @@
-import { ChevronLeft } from "lucide-react"
+import { ChevronLeft, House } from "lucide-react"
 import type { ReactNode } from "react"
 import { useNav } from "./stack-navigator"
 
@@ -8,6 +8,7 @@ export function Screen({
   title,
   large = false,
   bare = false,
+  homeButton = false,
   action,
   toolbar,
   footer,
@@ -16,6 +17,7 @@ export function Screen({
   title: string
   large?: boolean // big left-aligned title
   bare?: boolean // no header at all: the body draws its own (home screen)
+  homeButton?: boolean // show a home icon instead of the back arrow
   action?: ReactNode
   toolbar?: ReactNode // stays put under the title while the body scrolls
   footer?: ReactNode
@@ -33,10 +35,14 @@ export function Screen({
               <button
                 type="button"
                 onClick={() => nav.back()}
-                aria-label="Back"
+                aria-label={homeButton ? "Home" : "Back"}
                 className="-ml-1 flex size-11 shrink-0 items-center justify-center rounded-full text-primary active:bg-muted"
               >
-                <ChevronLeft className="size-7" strokeWidth={2.25} />
+                {homeButton ? (
+                  <House className="size-6" strokeWidth={2.25} />
+                ) : (
+                  <ChevronLeft className="size-7" strokeWidth={2.25} />
+                )}
               </button>
             )}
             {!large && <h1 className="min-w-0 flex-1 truncate px-1 text-lg font-semibold">{title}</h1>}
