@@ -36,9 +36,10 @@ function snoozed(): boolean {
   }
 }
 
-export function InstallBanner() {
+// The browser's install dialog, when it offers one. `install` is null when it
+// doesn't: not Chrome or Edge, already installed, or already used.
+export function useInstallPrompt(): { install: (() => Promise<void>) | null } {
   const [event, setEvent] = useState(deferred)
-  const [hidden, setHidden] = useState(snoozed)
 
   useEffect(() => {
     const update = () => setEvent(deferred)
@@ -49,14 +50,22 @@ export function InstallBanner() {
     }
   }, [])
 
-  if (!event || hidden) return null
-
+  if (!event) return { install: null }
   // Chrome lets each event open its dialog once; after that it's spent.
-  const install = async () => {
-    deferred = null
-    setEvent(null)
-    await event.prompt()
+  return {
+    install: async () => {
+      deferred = null
+      changed()
+      await event.prompt()
+    },
   }
+}
+
+export function InstallBanner() {
+  const { install } = useInstallPrompt()
+  const [hidden, setHidden] = useState(snoozed)
+
+  if (!install || hidden) return null
 
   const notNow = () => {
     try {
