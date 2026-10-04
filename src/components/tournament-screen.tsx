@@ -1,24 +1,61 @@
+import { Share, Trash2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import type { Route } from "@/App"
+import { Button } from "@/components/ui/button"
 import { computeStandings } from "@/lib/standings"
-import { loadTournament, saveTournament } from "@/lib/storage"
-import { currentRoundIndex, setScore } from "@/lib/tournament"
+import { deleteTournament, loadTournament, saveTournament } from "@/lib/storage"
+import { currentRoundIndex, setScore, unscoredMatchCount } from "@/lib/tournament"
 import type { Match, PlayerId, Score, Tournament } from "@/lib/types"
 import { Screen } from "./screen"
 import { ScoreEntry } from "./score-entry"
+import { renderShareCard, shareOrDownload } from "./share-card"
 import { Sheet } from "./sheet"
+import { useNav } from "./stack-navigator"
 import { StandingsTable } from "./standings-table"
 
 type Tab = "rounds" | "standings"
+type Editing = { round: number; court: number }
 
 export function TournamentScreen({ id }: { id: string }) {
+  const nav = useNav<Route>()
   const [tournament, setTournament] = useState<Tournament | null | undefined>(undefined)
-  const [editing, setEditing] = useState<{ round: number; court: number } | null>(null)
+  const [editing, setEditing] = useState<Editing | null>(null)
   const [saveError, setSaveError] = useState(false)
   const [tab, setTab] = useState<Tab>("rounds")
+  const [confirm, setConfirm] = useState<"finish" | "delete" | null>(null)
+  const [image, setImage] = useState<{ blob: Blob; url: string } | null>(null)
+  // The last opened match, kept after closing so the sheet still has
+  // content while it slides away.
+  const [shown, setShown] = useState<Editing | null>(null)
 
   useEffect(() => {
-    loadTournament(id).then(setTournament)
+    loadTournament(id).then((t) => {
+      setTournament(t)
+      if (t?.finished) setTab("standings")
+    })
   }, [id])
+
+  // Render the share image ahead of time, so the Share tap can hand it to
+  // the share sheet immediately (iOS only allows that during the tap).
+  useEffect(() => {
+    if (!tournament?.finished) return
+    let url = ""
+    let cancelled = false
+    const rows = computeStandings(
+      tournament.players.map((p) => p.id),
+      tournament.rounds,
+    )
+    renderShareCard(tournament, rows).then((blob) => {
+      if (cancelled) return
+      url = URL.createObjectURL(blob)
+      setImage({ blob, url })
+    })
+    return () => {
+      cancelled = true
+      if (url) URL.revokeObjectURL(url)
+      setImage(null)
+    }
+  }, [tournament])
 
   if (tournament === undefined) return <Screen title="">{null}</Screen>
   if (tournament === null) {
@@ -31,6 +68,7 @@ export function TournamentScreen({ id }: { id: string }) {
 
   const nameOf = new Map(tournament.players.map((p) => [p.id, p.name]))
   const team = (ids: PlayerId[]) => ids.map((i) => nameOf.get(i)).join(" & ")
+  const unscored = unscoredMatchCount(tournament)
 
   // Save straight away: the phone may be locked or the tab killed any moment.
   const update = async (next: Tournament) => {
@@ -49,19 +87,85 @@ export function TournamentScreen({ id }: { id: string }) {
     setEditing(null)
   }
 
-  const editingMatch = editing && tournament.rounds[editing.round].matches.find((m) => m.court === editing.court)
+  const finish = () => {
+    setConfirm(null)
+    setTab("standings")
+    update({ ...tournament, finished: true })
+  }
+
+  const remove = async () => {
+    setConfirm(null)
+    await deleteTournament(tournament.id)
+    nav.back()
+  }
+
+  const share = () => {
+    if (!image) return
+    const filename = `${tournament.name.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "padel"}.png`
+    shareOrDownload(image.blob, filename, tournament.name)
+  }
+
+  const shownMatch = shown && tournament.rounds[shown.round]?.matches.find((m) => m.court === shown.court)
+
+  const footer = tournament.finished ? (
+    <Button size="lg" className="h-14 w-full rounded-2xl text-base" disabled={!image} onClick={share}>
+      <Share className="size-5" />
+      Share results
+    </Button>
+  ) : tab === "standings" || unscored === 0 ? (
+    <Button
+      size="lg"
+      variant={unscored === 0 ? "default" : "secondary"}
+      className="h-14 w-full rounded-2xl text-base"
+      onClick={() => (unscored === 0 ? finish() : setConfirm("finish"))}
+    >
+      Finish tournament
+    </Button>
+  ) : undefined
 
   return (
-    <Screen title={tournament.name} toolbar={<Tabs tab={tab} onChange={setTab} />}>
+    <Screen
+      title={tournament.name}
+      toolbar={<Tabs tab={tab} onChange={setTab} />}
+      action={
+        <button
+          type="button"
+          aria-label="Delete tournament"
+          onClick={() => setConfirm("delete")}
+          className="flex size-11 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
+        >
+          <Trash2 className="size-5" />
+        </button>
+      }
+      footer={footer}
+    >
       {saveError && (
         <p className="mt-2 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
           The last score couldn't be saved on this phone. It's still shown here; enter it again to retry.
         </p>
       )}
       {tab === "rounds" ? (
-        <RoundsList tournament={tournament} team={team} onEdit={(round, court) => setEditing({ round, court })} />
+        <RoundsList tournament={tournament} team={team} onEdit={(round, court) => {
+            setEditing({ round, court })
+            setShown({ round, court })
+          }}
+        />
       ) : (
         <div className="pt-2">
+          {tournament.finished && (
+            <div className="mb-4">
+              <div className="aspect-[4/5] overflow-hidden rounded-2xl bg-primary">
+                {image && <img src={image.url} alt="Final standings card" className="size-full" />}
+              </div>
+              <button
+                type="button"
+                className="mt-2 w-full py-2 text-sm font-medium text-primary"
+                onClick={() => update({ ...tournament, finished: false })}
+              >
+                Reopen tournament
+              </button>
+            </div>
+          )}
           <StandingsTable
             rows={computeStandings(
               tournament.players.map((p) => p.id),
@@ -73,17 +177,41 @@ export function TournamentScreen({ id }: { id: string }) {
       )}
 
       <Sheet open={editing !== null} onClose={() => setEditing(null)}>
-        {editing && editingMatch && (
+        {shown && shownMatch && (
           <ScoreEntry
-            key={`${editing.round}-${editing.court}`}
-            match={editingMatch}
-            teamName={(s) => team(s === "a" ? editingMatch.teamA : editingMatch.teamB)}
+            key={`${shown.round}-${shown.court}`}
+            match={shownMatch}
+            teamName={(s) => team(s === "a" ? shownMatch.teamA : shownMatch.teamB)}
             target={tournament.target}
             mode={tournament.scoringMode}
             onSave={saveScore}
             onClear={() => saveScore(null)}
           />
         )}
+      </Sheet>
+
+      <Sheet open={confirm === "finish"} onClose={() => setConfirm(null)}>
+        <p className="text-lg font-semibold">
+          {unscored} {unscored === 1 ? "match has" : "matches have"} no score
+        </p>
+        <p className="mt-1 text-muted-foreground">Final standings will only count the scores entered so far.</p>
+        <Button size="lg" className="mt-5 h-14 w-full rounded-2xl text-base" onClick={finish}>
+          Finish anyway
+        </Button>
+        <Button variant="ghost" className="mt-1 h-12 w-full" onClick={() => setConfirm(null)}>
+          Keep playing
+        </Button>
+      </Sheet>
+
+      <Sheet open={confirm === "delete"} onClose={() => setConfirm(null)}>
+        <p className="text-lg font-semibold">Delete {tournament.name}?</p>
+        <p className="mt-1 text-muted-foreground">The schedule and every score will be removed from this phone.</p>
+        <Button variant="destructive" size="lg" className="mt-5 h-14 w-full rounded-2xl text-base" onClick={remove}>
+          Delete tournament
+        </Button>
+        <Button variant="ghost" className="mt-1 h-12 w-full" onClick={() => setConfirm(null)}>
+          Cancel
+        </Button>
       </Sheet>
     </Screen>
   )
