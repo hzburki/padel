@@ -24,6 +24,11 @@ you type in the score and the standings update.
 It installs to your home screen like a normal app (it's a PWA). There are no accounts and no server: everything is
 stored on your phone, and it works with no connection at all.
 
+To install it:
+
+- **Chrome or Edge** (Android, Windows, Mac): tap **Install** on the home screen.
+- **iPhone or iPad:** in Safari, tap Share, then **Add to Home Screen**.
+
 ## Features
 
 - **Americano, done right.** Rotating partners, individual scoring, fair sit-outs.
@@ -31,9 +36,12 @@ stored on your phone, and it works with no connection at all.
 - **Two scoring modes:** total points or first to. Any point target from 8 to 32.
 - **Suggested round count** so everyone partners everyone and plays the same number of games. The app warns you if you
   pick a count where some players would get one game fewer.
-- **Live standings** after every score, with clear tiebreakers.
+- **Live standings** after every score, with clear tiebreakers. Each player's wins, draws and losses show as small
+  chips under their name, so the table still fits a small phone.
 - **Shareable results card.** When the tournament ends, share a PNG of the final standings straight to WhatsApp or
   anywhere else, or download it.
+- **Play again with the same group.** From a finished tournament, or straight from the home list, start a new one with
+  the same players, courts, target and scoring mode filled in. Add or remove people before you start.
 - **Saves after every score.** Lock your phone, close the tab, lose signal: nothing is lost.
 - **Several tournaments** kept on the device. Rename the tournament or fix a player's name at any time; delete it when
   you're done.
@@ -73,7 +81,7 @@ game. Pick one mode for the whole tournament:
 
 Players are ranked by **total points scored**. Ties are broken in this order:
 
-1. Point difference (points scored minus points conceded)
+1. Point difference (points scored minus points conceded), the **+/−** column
 2. Head-to-head between the tied players
 3. Wins
 
@@ -90,7 +98,7 @@ npm install
 npm run dev        # start the dev server
 npm test           # run the tests
 npm run build      # build for production into dist/
-npm run preview    # serve the build (needed to try the offline/PWA bits)
+npm run preview    # serve the build (needed to try offline mode and installing)
 ```
 
 Built with React, Vite, TypeScript, Tailwind CSS and shadcn/ui. All tournament rules live in plain functions in
