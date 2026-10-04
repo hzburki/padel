@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useBackHandler } from "./stack-navigator"
 
 const DURATION = 300
 const EASE = "cubic-bezier(0.32, 0.72, 0, 1)"
 
 // A panel that slides up from the bottom, in thumb reach. Close by tapping
-// the dimmed backdrop or dragging the panel down.
+// the dimmed backdrop, dragging the panel down, or going back.
 export function Sheet({
   open,
   onClose,
@@ -18,6 +19,9 @@ export function Sheet({
   const panel = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLDivElement>(null)
   const drag = useRef<{ y: number; dy: number } | null>(null)
+
+  // Any back action (Android back, swipe, Esc, …) closes the sheet first.
+  useBackHandler(open, onClose)
 
   // Mount as soon as it opens; unmount only after the slide-out finishes.
   if (open && !mounted) setMounted(true)

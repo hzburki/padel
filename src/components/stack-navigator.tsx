@@ -26,8 +26,11 @@ interface Entry<R> {
 interface NavApi<R> {
   push: (route: R) => void
   replace: (route: R) => void // swap the top screen, animated like a push
-  back: () => void
+  // Go back one step: closes whatever is open on top (see useBackHandler)
+  // before leaving the screen. `force` leaves the screen regardless.
+  back: (options?: { force?: boolean }) => void
   depth: number
+  registerBackHandler: (onBack: () => void) => () => void
 }
 
 const NavContext = createContext<NavApi<unknown> | null>(null)
@@ -37,6 +40,23 @@ export function useNav<R>(): NavApi<R> {
   const nav = useContext(NavContext)
   if (!nav) throw new Error("useNav must be used inside <StackNavigator>")
   return nav as NavApi<R>
+}
+
+// While `enabled`, a back action — Android back button, browser back, the
+// on-screen back button, an edge swipe or Esc — calls `onBack` instead of
+// leaving the screen. Sheets use it to close themselves; a half-filled form
+// uses it to ask before throwing the input away. The latest one wins.
+export function useBackHandler(enabled: boolean, onBack: () => void) {
+  const nav = useContext(NavContext)
+  const latest = useRef(onBack)
+  useLayoutEffect(() => {
+    latest.current = onBack
+  })
+  const register = nav?.registerBackHandler
+  useEffect(() => {
+    if (!enabled || !register) return
+    return register(() => latest.current())
+  }, [enabled, register])
 }
 
 // True while this screen is the one showing. Lets a screen refresh its data
@@ -100,6 +120,46 @@ export function StackNavigator<R>({
   const pendingEnter = useRef(false) // animate the new top screen in after render
   const skipNextPopAnimation = useRef(false)
 
+  // Back handlers, newest last. While any exist, one extra "guard" history
+  // entry sits on top, so a system back pops the guard instead of the screen.
+  const handlers = useRef<{ onBack: () => void }[]>([])
+  const guard = useRef({ inHistory: false, removing: false, afterRemove: null as (() => void) | null })
+
+  const syncGuard = () => {
+    const g = guard.current
+    if (g.removing) return
+    const wanted = handlers.current.length > 0
+    if (wanted && !g.inHistory) {
+      history.pushState({ stack: stackRef.current, guard: true }, "")
+      g.inHistory = true
+    } else if (!wanted && g.inHistory) {
+      g.removing = true
+      history.back()
+    }
+  }
+
+  // Run a navigation once the guard entry is out of history, so it never
+  // ends up buried under the new screen.
+  const withoutGuard = (fn: () => void) => {
+    const g = guard.current
+    if (!g.inHistory && !g.removing) return fn()
+    g.afterRemove = fn
+    if (!g.removing) {
+      g.removing = true
+      history.back()
+    }
+  }
+
+  const registerBackHandler = useCallback((onBack: () => void) => {
+    const entry = { onBack }
+    handlers.current.push(entry)
+    syncGuard()
+    return () => {
+      handlers.current = handlers.current.filter((h) => h !== entry)
+      syncGuard()
+    }
+  }, [])
+
   // Make sure the current history entry carries the stack (first load).
   useEffect(() => {
     history.replaceState({ ...history.state, stack: stackRef.current }, "")
@@ -135,8 +195,33 @@ export function StackNavigator<R>({
 
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
+      const g = guard.current
+      if (g.removing) {
+        // Our own removal of the guard entry finished.
+        g.removing = false
+        g.inHistory = false
+        const after = g.afterRemove
+        g.afterRemove = null
+        if (after) after()
+        else syncGuard()
+        return
+      }
+      if (g.inHistory) {
+        // A system back popped the guard: hand it to the newest handler, and
+        // put the guard back if something still wants to catch back.
+        g.inHistory = false
+        handlers.current.at(-1)?.onBack()
+        setTimeout(syncGuard, 0)
+        return
+      }
+
       const next = readStack<R>(event.state) ?? [{ key: newKey(), route: initial }]
       const current = stackRef.current
+      if (next.length === current.length && next.at(-1)?.key === current.at(-1)?.key) {
+        // A leftover guard entry (e.g. from before a reload): nothing to show, skip it.
+        history.back()
+        return
+      }
       const goingBack = next.length < current.length
       const animate = goingBack && !skipNextPopAnimation.current && !browserAnimatesBack
       skipNextPopAnimation.current = false
@@ -167,24 +252,38 @@ export function StackNavigator<R>({
 
   const push = useCallback((route: R) => {
     if (busy.current) return
-    const next = [...stackRef.current, { key: newKey(), route }]
-    history.pushState({ stack: next }, "")
-    pendingEnter.current = true
-    setStack(next)
+    withoutGuard(() => {
+      const next = [...stackRef.current, { key: newKey(), route }]
+      history.pushState({ stack: next }, "")
+      pendingEnter.current = true
+      setStack(next)
+    })
   }, [])
 
   const replace = useCallback((route: R) => {
     if (busy.current) return
-    const next = [...stackRef.current.slice(0, -1), { key: newKey(), route }]
-    history.replaceState({ stack: next }, "")
-    pendingEnter.current = true
-    setStack(next)
+    withoutGuard(() => {
+      const next = [...stackRef.current.slice(0, -1), { key: newKey(), route }]
+      history.replaceState({ stack: next }, "")
+      pendingEnter.current = true
+      setStack(next)
+    })
   }, [])
 
-  const back = useCallback(() => {
-    if (busy.current || stackRef.current.length < 2) return
-    history.back()
+  const back = useCallback((options?: { force?: boolean }) => {
+    if (busy.current) return
+    const handler = handlers.current.at(-1)
+    if (handler && !options?.force) return handler.onBack()
+    if (stackRef.current.length < 2) return
+    withoutGuard(() => history.back())
   }, [])
+
+  // Esc on a keyboard means back, like everywhere else.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && back()
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [back])
 
   // Edge swipe: the top screen follows the finger; let go past 40% of the
   // width (or with a quick flick) to go back.
@@ -233,7 +332,11 @@ export function StackNavigator<R>({
     const width = window.innerWidth
     const x = Math.max(0, e.clientX - d.x)
     const progress = x / width
-    const goBack = e.type !== "pointercancel" && (progress > 0.4 || (d.v > 0.5 && x > 30))
+    const released = e.type !== "pointercancel" && (progress > 0.4 || (d.v > 0.5 && x > 30))
+    // If something wants to catch back (e.g. unsaved input), snap the screen
+    // back and let it ask instead of leaving.
+    const handler = released ? handlers.current.at(-1) : undefined
+    const goBack = released && !handler
     const remaining = DURATION * (goBack ? 1 - progress : progress)
 
     if (goBack) {
@@ -256,11 +359,15 @@ export function StackNavigator<R>({
           under.style.transform = ""
         }
         busy.current = false
+        handler?.onBack()
       })
     }
   }
 
-  const api = useMemo(() => ({ push, replace, back, depth: stack.length - 1 }), [push, replace, back, stack.length])
+  const api = useMemo(
+    () => ({ push, replace, back, depth: stack.length - 1, registerBackHandler }),
+    [push, replace, back, stack.length, registerBackHandler],
+  )
 
   return (
     <NavContext.Provider value={api as NavApi<unknown>}>

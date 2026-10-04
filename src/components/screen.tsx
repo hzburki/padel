@@ -29,7 +29,7 @@ export function Screen({
           {canGoBack && (
             <button
               type="button"
-              onClick={nav.back}
+              onClick={() => nav.back()}
               aria-label="Back"
               className="-ml-1 flex size-11 shrink-0 items-center justify-center rounded-full text-primary active:bg-muted"
             >

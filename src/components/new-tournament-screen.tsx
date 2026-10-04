@@ -18,7 +18,7 @@ import {
 import type { ScoringMode } from "@/lib/types"
 import { Screen } from "./screen"
 import { Sheet } from "./sheet"
-import { useNav } from "./stack-navigator"
+import { useBackHandler, useNav } from "./stack-navigator"
 
 const defaultName = () => `${new Date().toLocaleDateString(undefined, { weekday: "long" })} padel`
 
@@ -33,6 +33,7 @@ export function NewTournamentScreen() {
   const [roundsChosen, setRoundsChosen] = useState<number | null>(null) // null: follow the suggestion
   const [starting, setStarting] = useState(false)
   const [warnUneven, setWarnUneven] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
   const draftRef = useRef<HTMLInputElement>(null)
 
   // The typed-but-not-added name still counts, so nobody gets lost.
@@ -45,6 +46,10 @@ export function NewTournamentScreen() {
   const input = { name, playerNames: names, courts: usedCourts, target, scoringMode, roundCount }
   const problems = setupProblems(input)
   const split = gamesSplit(names.length, usedCourts, roundCount)
+
+  // Leaving with players entered asks first, whichever way back is triggered.
+  const dirty = names.length > 0 && !starting
+  useBackHandler(dirty, () => setConfirmDiscard(true))
 
   const addDraft = () => {
     const n = draft.trim()
@@ -217,6 +222,27 @@ export function NewTournamentScreen() {
           </Hint>
         )}
       </Section>
+
+      <Sheet open={confirmDiscard} onClose={() => setConfirmDiscard(false)}>
+        <p className="text-lg font-semibold">Discard this tournament?</p>
+        <p className="mt-1 text-muted-foreground">
+          The {names.length} {names.length === 1 ? "player" : "players"} you added won't be saved.
+        </p>
+        <Button
+          variant="destructive"
+          size="lg"
+          className="mt-5 h-14 w-full rounded-2xl text-base"
+          onClick={() => {
+            setConfirmDiscard(false)
+            nav.back({ force: true })
+          }}
+        >
+          Discard
+        </Button>
+        <Button variant="ghost" className="mt-1 h-12 w-full" onClick={() => setConfirmDiscard(false)}>
+          Keep editing
+        </Button>
+      </Sheet>
 
       <Sheet open={warnUneven} onClose={() => setWarnUneven(false)}>
         <p className="text-lg font-semibold">Some players will play fewer matches</p>
