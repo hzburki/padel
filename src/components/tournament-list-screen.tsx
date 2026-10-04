@@ -59,6 +59,19 @@ export function TournamentListScreen() {
           </ul>
         </section>
       )}
+
+      {/* Quiet links at the very end of the page. */}
+      <nav className="mt-10 flex justify-center gap-1 text-xs text-muted-foreground/70">
+        <button type="button" className="px-2 py-2" onClick={() => nav.push({ name: "legal", page: "terms" })}>
+          Terms
+        </button>
+        <span className="py-2" aria-hidden>
+          ·
+        </span>
+        <button type="button" className="px-2 py-2" onClick={() => nav.push({ name: "legal", page: "privacy" })}>
+          Privacy
+        </button>
+      </nav>
     </Screen>
   )
 }
