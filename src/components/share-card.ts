@@ -10,9 +10,9 @@ const FULL_H = 1350 // 4:5, the shape feeds and chats show best
 const PODIUM_TOP = 330
 const PODIUM_ROW = 124
 const PAD = 80
-const BLUE = "#1d4f91"
-const BALL = "#dceb3a"
-const INK = "#0e2240"
+const GREEN = "#17603f"
+const BALL = "#e3f24b"
+const INK = "#10251b"
 const FONT = '"Geist Variable", system-ui, sans-serif'
 
 // `podiumOnly` draws a shorter card with just the top three — the on-screen
@@ -32,7 +32,7 @@ export async function renderShareCard(
   const ctx = canvas.getContext("2d")!
   const nameOf = new Map(tournament.players.map((p) => [p.id, p.name]))
 
-  ctx.fillStyle = BLUE
+  ctx.fillStyle = GREEN
   ctx.fillRect(0, 0, W, H)
   drawCourt(ctx, H)
 

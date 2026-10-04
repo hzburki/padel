@@ -46,8 +46,8 @@ export function Congrats({
   )
 }
 
-// One burst of court-coloured pieces falling behind the message.
-const COLOURS = ["#dceb3a", "#1d4f91", "#7fa6d8", "#dceb3a"]
+// One burst of turf- and ball-coloured pieces falling behind the message.
+const COLOURS = ["#e3f24b", "#17603f", "#7fbf95", "#e3f24b"]
 
 function Confetti() {
   return (

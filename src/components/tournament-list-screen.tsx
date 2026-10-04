@@ -71,7 +71,7 @@ function greeting(): string {
   return "Good evening"
 }
 
-// Court-blue panel at the top, with faint court lines like the share card.
+// Turf-green panel at the top, with faint court lines like the share card.
 function Hero({ children }: { children: ReactNode }) {
   return (
     <div className="relative -mx-4 overflow-hidden rounded-b-[2rem] bg-primary px-5 pt-[calc(env(safe-area-inset-top)+1.75rem)] pb-6 text-primary-foreground">
