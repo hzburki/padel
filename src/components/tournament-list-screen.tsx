@@ -1,4 +1,4 @@
-import { ChevronRight, Plus } from "lucide-react"
+import { ChevronDown, ChevronRight, Plus } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
@@ -37,12 +37,9 @@ export function TournamentListScreen() {
         </Button>
       }
     >
-      <Hero>
-        {playing ? (
-          <PlayingNow tournament={playing} onOpen={() => open(playing)} />
-        ) : tournaments?.length === 0 ? (
-          <HowItWorks />
-        ) : null}
+      {/* New users always see how it works; everyone else can open it. */}
+      <Hero howItWorks={tournaments?.length === 0 ? "open" : "collapsible"}>
+        {playing && <PlayingNow tournament={playing} onOpen={() => open(playing)} />}
       </Hero>
 
       {tournaments?.length === 0 && <FirstTournament />}
@@ -73,7 +70,10 @@ function greeting(): string {
 }
 
 // Court-blue panel at the top, with faint court lines like the share card.
-function Hero({ children }: { children: ReactNode }) {
+function Hero({ howItWorks, children }: { howItWorks: "open" | "collapsible"; children: ReactNode }) {
+  const [expanded, setExpanded] = useState(false)
+  const showSteps = howItWorks === "open" || expanded
+
   return (
     <div className="relative -mx-4 overflow-hidden rounded-b-2xl bg-primary px-5 pt-[calc(env(safe-area-inset-top)+1.75rem)] pb-6 text-primary-foreground">
       <CourtLines />
@@ -83,6 +83,34 @@ function Hero({ children }: { children: ReactNode }) {
           <h1 className="text-[2.125rem] leading-none font-bold tracking-tight">Padel</h1>
         </div>
         <p className="mt-2 text-primary-foreground/75">{greeting()}. Ready for a game?</p>
+
+        {howItWorks === "collapsible" && (
+          <button
+            type="button"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((e) => !e)}
+            className="mt-3 -ml-1 flex items-center gap-1 rounded-sm px-1 py-1.5 text-sm font-semibold text-primary-foreground/90 active:bg-white/10"
+          >
+            How it works
+            <ChevronDown
+              className={`size-4 transition-transform duration-300 motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`}
+              strokeWidth={2.5}
+            />
+          </button>
+        )}
+        {/* Animating grid rows from 0fr to 1fr grows the panel to the steps'
+            natural height, pushing the rest of the page down. */}
+        <div
+          className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
+          style={{ gridTemplateRows: showSteps ? "1fr" : "0fr" }}
+        >
+          <div className="min-h-0 overflow-hidden" aria-hidden={!showSteps}>
+            <div className={howItWorks === "open" ? "pt-6" : "pt-3"}>
+              <HowItWorks />
+            </div>
+          </div>
+        </div>
+
         {children && <div className="mt-6">{children}</div>}
       </div>
     </div>
