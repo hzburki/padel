@@ -1,14 +1,19 @@
 import { formatPoints, type StandingRow } from "@/lib/standings"
 import type { Tournament } from "@/lib/types"
 
-// The shareable result image: a fixed 4:5 card (fits WhatsApp and feeds),
-// drawn straight onto a canvas. Kept separate from the on-screen standings
+// The shareable result image: a 4:5 card (fits WhatsApp and feeds), drawn
+// straight onto a canvas. It grows taller only when there are too many
+// players to list at a readable size. Kept separate from the on-screen standings
 // on purpose — it has to read well as a small chat thumbnail.
 
 const W = 1080
 const FULL_H = 1350 // 4:5, the shape feeds and chats show best
 const PODIUM_TOP = 330
 const PODIUM_ROW = 124
+const REST_GAP = 34 // divider and spacing between the top three and the rest
+const REST_ROW_MIN = 48 // below this the names stop being readable in a chat
+const REST_ROW_MAX = 72
+const FOOTER = 130
 const PAD = 80
 const BLUE = "#1d4f91"
 const BALL = "#dceb3a"
@@ -23,7 +28,12 @@ export async function renderShareCard(
   rows: StandingRow[],
   { podiumOnly = false }: { podiumOnly?: boolean } = {},
 ): Promise<Blob> {
-  const H = podiumOnly ? PODIUM_TOP + Math.min(3, rows.length) * PODIUM_ROW + 150 : FULL_H
+  const podium = rows.slice(0, 3)
+  const rest = podiumOnly ? [] : rows.slice(3)
+  const restTop = PODIUM_TOP + podium.length * PODIUM_ROW + REST_GAP
+  const H = podiumOnly
+    ? PODIUM_TOP + podium.length * PODIUM_ROW + 150
+    : Math.max(FULL_H, restTop + rest.length * REST_ROW_MIN + FOOTER)
   await Promise.all([document.fonts.load(`700 40px ${FONT}`), document.fonts.load(`400 40px ${FONT}`)])
 
   const canvas = document.createElement("canvas")
@@ -54,7 +64,6 @@ export async function renderShareCard(
 
   // Top three, large
   let y = PODIUM_TOP
-  const podium = rows.slice(0, 3)
   for (const row of podium) {
     const h = PODIUM_ROW
     const cy = y + h / 2
@@ -81,20 +90,15 @@ export async function renderShareCard(
   }
 
   // Everyone else, sized to fit
-  const rest = podiumOnly ? [] : rows.slice(3)
   if (rest.length > 0) {
-    y += 16
     ctx.fillStyle = "rgba(255,255,255,0.2)"
-    ctx.fillRect(PAD, y, W - 2 * PAD, 2)
-    y += 18
-    const bottom = H - 130
-    const rowH = Math.max(40, Math.min(72, (bottom - y) / rest.length))
-    const fits = Math.floor((bottom - y) / rowH)
-    const shown = rest.length > fits ? rest.slice(0, fits - 1) : rest
+    ctx.fillRect(PAD, y + 16, W - 2 * PAD, 2)
+    y = restTop
+    const rowH = Math.min(REST_ROW_MAX, (H - FOOTER - y) / rest.length)
     const size = Math.round(rowH * 0.5)
 
     ctx.textBaseline = "middle"
-    for (const row of shown) {
+    for (const row of rest) {
       const cy = y + rowH / 2
       ctx.fillStyle = "rgba(255,255,255,0.6)"
       ctx.font = `700 ${size}px ${FONT}`
@@ -107,11 +111,6 @@ export async function renderShareCard(
       ctx.font = `400 ${size}px ${FONT}`
       ctx.fillText(fit(ctx, nameOf.get(row.playerId) ?? "", W - 2 * PAD - 260), PAD + 110, cy)
       y += rowH
-    }
-    if (shown.length < rest.length) {
-      ctx.fillStyle = "rgba(255,255,255,0.6)"
-      ctx.font = `400 ${size}px ${FONT}`
-      ctx.fillText(`and ${rest.length - shown.length} more`, PAD + 110, y + rowH / 2)
     }
   }
 
