@@ -1,21 +1,33 @@
-import { formatPoints, type StandingRow } from "@/lib/standings"
+import { formatPoints, winners, type StandingRow } from "@/lib/standings"
 import type { Tournament } from "@/lib/types"
 
-// The shareable result image: a 4:5 card (fits WhatsApp and feeds), drawn
-// straight onto a canvas. It grows taller only when there are too many
-// players to list at a readable size. Kept separate from the on-screen standings
+// The shareable result image: a fixed 4:5 card (fits WhatsApp and feeds),
+// drawn straight onto a canvas. Kept separate from the on-screen standings
 // on purpose — it has to read well as a small chat thumbnail.
 
 const W = 1080
 const FULL_H = 1350 // 4:5, the shape feeds and chats show best
-const PODIUM_TOP = 330
-const PODIUM_ROW = 124
-const REST_GAP = 34 // divider and spacing between the top three and the rest
-const REST_ROW_MIN = 48 // below this the names stop being readable in a chat
-const REST_ROW_MAX = 72
-const FOOTER = 130
-const PAD = 80
-const NAME_X = PAD + 110
+const PAD = 60
+const INSET = 28 // text sits this far inside the winner panel and the table rows
+const BLUE = "#1d4f91"
+const BALL = "#dceb3a"
+const INK = "#0e2240"
+const MUTED = "rgba(255,255,255,0.7)"
+const FAMILY = '"Archivo Variable", sans-serif'
+// The app's scoreboard voice: narrow and heavy for names and numbers.
+const display = (size: number) => `800 condensed ${size}px ${FAMILY}`
+const label = (size: number) => `700 semi-condensed ${size}px ${FAMILY}`
+const body = (size: number) => `500 ${size}px ${FAMILY}`
+
+const TOP = 250 // where the winner panel starts, under the title
+const WINNER_H = 240
+const WINNER_H_SHARED = 170 // a shared first place stacks one panel per winner
+const GAP = 14
+const HEADER_H = 58 // the column labels above the table
+const ROW_MIN = 64 // smaller than this and the names can't be read in a chat
+const ROW_MAX = 100
+const BOTTOM = 60
+
 // Played, won, drawn, lost: narrow columns sitting left of the points.
 const STATS = [
   ["P", "played"],
@@ -23,31 +35,37 @@ const STATS = [
   ["D", "draws"],
   ["L", "losses"],
 ] as const
-const STAT_W = 68
-const STATS_RIGHT = W - PAD - 190 // leaves room for a big points number
+const STAT_W = 72
+const RIGHT = W - PAD - INSET
+const STATS_RIGHT = RIGHT - 170 // leaves room for the points
 const statX = (i: number) => STATS_RIGHT - (STATS.length - 1 - i) * STAT_W // right edge of column i
+const NAME_X = PAD + INSET + 84
 const NAME_MAX = statX(0) - STAT_W - 16 - NAME_X
-const MUTED = "rgba(255,255,255,0.72)"
-const BLUE = "#1d4f91"
-const BALL = "#dceb3a"
-const INK = "#0e2240"
-const FONT = '"Geist Variable", system-ui, sans-serif'
 
 // `podiumOnly` draws a shorter card with just the top three — the on-screen
 // preview, where the table below already lists everyone. The shared image
-// always has every player.
+// lists as many players as fit at a readable size and counts the rest.
 export async function renderShareCard(
   tournament: Tournament,
   rows: StandingRow[],
   { podiumOnly = false }: { podiumOnly?: boolean } = {},
 ): Promise<Blob> {
-  const podium = rows.slice(0, 3)
-  const rest = podiumOnly ? [] : rows.slice(3)
-  const restTop = PODIUM_TOP + podium.length * PODIUM_ROW + REST_GAP
-  const H = podiumOnly
-    ? PODIUM_TOP + podium.length * PODIUM_ROW + 150
-    : Math.max(FULL_H, restTop + rest.length * REST_ROW_MIN + FOOTER)
-  await Promise.all([document.fonts.load(`700 40px ${FONT}`), document.fonts.load(`400 40px ${FONT}`)])
+  await Promise.all([display(40), label(40), body(40)].map((f) => document.fonts.load(f)))
+
+  // Everyone sharing first place gets a panel; the table takes the others.
+  const champions = winners(rows).slice(0, 3)
+  const winnerRows = rows.filter((r) => champions.includes(r.playerId))
+  const others = rows.filter((r) => !champions.includes(r.playerId))
+  const winnerH = winnerRows.length > 1 ? WINNER_H_SHARED : WINNER_H
+  const tableTop = TOP + winnerRows.length * (winnerH + GAP) + HEADER_H
+
+  const listed = podiumOnly ? others.slice(0, Math.max(0, 3 - winnerRows.length)) : others
+  const H = podiumOnly ? tableTop + listed.length * ROW_MAX + BOTTOM : FULL_H
+  const room = H - BOTTOM - tableTop
+  const rowH = Math.max(ROW_MIN, Math.min(ROW_MAX, room / Math.max(1, listed.length)))
+  const fits = Math.floor(room / rowH)
+  // When they don't all fit, the last line says how many are left out.
+  const shown = listed.length > fits ? listed.slice(0, fits - 1) : listed
 
   const canvas = document.createElement("canvas")
   canvas.width = W
@@ -62,91 +80,104 @@ export async function renderShareCard(
   // Title and details
   ctx.textBaseline = "alphabetic"
   ctx.fillStyle = "#ffffff"
-  ctx.font = `700 72px ${FONT}`
-  ctx.fillText(fit(ctx, tournament.name, W - 2 * PAD), PAD, 160)
+  ctx.font = display(92)
+  ctx.fillText(fit(ctx, tournament.name, W - 2 * PAD), PAD, 142)
   ctx.fillStyle = MUTED
-  ctx.font = `400 34px ${FONT}`
+  ctx.font = body(32)
   const date = new Date(tournament.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })
-  ctx.fillText(`Americano, ${tournament.players.length} players, ${date}`, PAD, 215)
+  const mode = tournament.scoringMode === "total" ? `${tournament.target} points per game` : `first to ${tournament.target}`
+  ctx.fillText(`${date}, ${tournament.players.length} players, ${mode}`, PAD, 196)
 
-  // Column labels for the numbers
-  ctx.textAlign = "right"
-  ctx.font = `400 28px ${FONT}`
-  ctx.fillText("Points", W - PAD, 300)
-  STATS.forEach(([label], i) => ctx.fillText(label, statX(i), 300))
-  ctx.textAlign = "left"
-
-  const drawStats = (row: StandingRow, cy: number, size: number) => {
-    ctx.textAlign = "right"
-    ctx.fillStyle = MUTED
-    ctx.font = `400 ${size}px ${FONT}`
-    STATS.forEach(([, key], i) => ctx.fillText(String(row[key]), statX(i), cy))
-  }
-
-  // Top three, large
-  let y = PODIUM_TOP
-  for (const row of podium) {
-    const h = PODIUM_ROW
-    const cy = y + h / 2
+  // The winner: a ball-yellow panel, the one loud thing on the card
+  let y = TOP
+  for (const row of winnerRows) {
+    const big = winnerRows.length === 1
+    ctx.save()
     ctx.beginPath()
-    ctx.arc(PAD + 40, cy, 40, 0, Math.PI * 2)
-    ctx.fillStyle = row.rank === 1 ? BALL : "rgba(255,255,255,0.16)"
+    ctx.roundRect(PAD, y, W - 2 * PAD, winnerH, 36)
+    ctx.clip()
+    ctx.fillStyle = BALL
     ctx.fill()
-    ctx.fillStyle = row.rank === 1 ? INK : "#ffffff"
-    ctx.font = `700 40px ${FONT}`
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillText(String(row.rank), PAD + 40, cy + 2)
+    // the seam of a ball, running off the right edge
+    ctx.strokeStyle = "rgba(14,34,64,0.09)"
+    ctx.lineWidth = 14
+    ctx.beginPath()
+    ctx.arc(W - PAD + 120, y - 190, 420, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.restore()
 
+    ctx.fillStyle = INK
+    ctx.textBaseline = "alphabetic"
     ctx.textAlign = "right"
-    ctx.fillStyle = "#ffffff"
-    ctx.font = `700 60px ${FONT}`
-    ctx.fillText(formatPoints(row.points), W - PAD, cy + 2)
-    drawStats(row, cy + 2, 36)
+    ctx.font = display(big ? 150 : 104)
+    const points = formatPoints(row.points)
+    ctx.fillText(points, RIGHT, y + winnerH - (big ? 76 : 58))
+    const pointsW = ctx.measureText(points).width
+    ctx.font = label(28)
+    ctx.fillText("points", RIGHT, y + winnerH - (big ? 36 : 26))
 
     ctx.textAlign = "left"
-    ctx.fillStyle = "#ffffff"
-    ctx.font = `700 48px ${FONT}`
-    ctx.fillText(fit(ctx, nameOf.get(row.playerId) ?? "", NAME_MAX), NAME_X, cy + 2)
-    y += h
+    const x = PAD + INSET + 8
+    const nameMax = RIGHT - pointsW - 36 - x
+    if (big) {
+      ctx.font = label(30)
+      ctx.fillText("Winner", x, y + 58)
+    }
+    ctx.font = display(big ? 100 : 76)
+    ctx.fillText(fit(ctx, nameOf.get(row.playerId) ?? "", nameMax), x, y + (big ? 152 : 86))
+    ctx.font = body(30)
+    ctx.globalAlpha = 0.75
+    const record = `${row.played} played, ${row.wins} won, ${row.draws} drawn, ${row.losses} lost`
+    ctx.fillText(fit(ctx, record, nameMax), x, y + winnerH - (big ? 36 : 30))
+    ctx.globalAlpha = 1
+    y += winnerH + GAP
   }
 
-  // Everyone else, sized to fit
-  if (rest.length > 0) {
-    ctx.fillStyle = "rgba(255,255,255,0.2)"
-    ctx.fillRect(PAD, y + 16, W - 2 * PAD, 2)
-    y = restTop
-    const rowH = Math.min(REST_ROW_MAX, (H - FOOTER - y) / rest.length)
-    const size = Math.round(rowH * 0.5)
+  // Everyone else: one table, sized to fit
+  if (shown.length > 0) {
+    ctx.textBaseline = "alphabetic"
+    ctx.textAlign = "right"
+    ctx.fillStyle = MUTED
+    ctx.font = label(26)
+    ctx.fillText("Pts", RIGHT, tableTop - 16)
+    STATS.forEach(([text], i) => ctx.fillText(text, statX(i), tableTop - 16))
 
+    const size = Math.round(rowH * 0.5)
+    y = tableTop
     ctx.textBaseline = "middle"
-    for (const row of rest) {
-      const cy = y + rowH / 2
-      ctx.fillStyle = "rgba(255,255,255,0.6)"
-      ctx.font = `700 ${size}px ${FONT}`
+    shown.forEach((row, i) => {
+      const cy = y + rowH / 2 + 2
+      if (i % 2 === 0) {
+        ctx.fillStyle = "rgba(14,34,64,0.32)"
+        ctx.beginPath()
+        ctx.roundRect(PAD, y, W - 2 * PAD, rowH, 18)
+        ctx.fill()
+      }
       ctx.textAlign = "center"
-      ctx.fillText(String(row.rank), PAD + 40, cy)
+      ctx.fillStyle = row.rank <= 3 ? BALL : MUTED
+      ctx.font = display(size)
+      ctx.fillText(String(row.rank), PAD + INSET + 24, cy)
+
       ctx.textAlign = "right"
       ctx.fillStyle = "#ffffff"
-      ctx.fillText(formatPoints(row.points), W - PAD, cy)
-      drawStats(row, cy, size)
+      ctx.font = display(Math.round(size * 1.15))
+      ctx.fillText(formatPoints(row.points), RIGHT, cy)
+      ctx.fillStyle = MUTED
+      ctx.font = body(Math.round(size * 0.85))
+      STATS.forEach(([, key], j) => ctx.fillText(String(row[key]), statX(j), cy))
+
       ctx.textAlign = "left"
       ctx.fillStyle = "#ffffff"
-      ctx.font = `400 ${size}px ${FONT}`
+      ctx.font = label(size)
       ctx.fillText(fit(ctx, nameOf.get(row.playerId) ?? "", NAME_MAX), NAME_X, cy)
       y += rowH
+    })
+    if (shown.length < listed.length) {
+      ctx.fillStyle = MUTED
+      ctx.font = body(Math.round(size * 0.85))
+      ctx.fillText(`and ${listed.length - shown.length} more players`, NAME_X, y + rowH / 2 + 2)
     }
   }
-
-  // Footer
-  ctx.textBaseline = "alphabetic"
-  ctx.textAlign = "left"
-  ctx.fillStyle = "rgba(255,255,255,0.6)"
-  ctx.font = `400 30px ${FONT}`
-  ctx.fillText(podiumOnly ? "Top three" : "Final standings", PAD, H - 64)
-  ctx.textAlign = "right"
-  const mode = tournament.scoringMode === "total" ? `${tournament.target} points per game` : `First to ${tournament.target}`
-  ctx.fillText(mode, W - PAD, H - 64)
 
   return new Promise((resolve, reject) =>
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Couldn't make the image"))), "image/png"),
@@ -161,7 +192,7 @@ function drawCourt(ctx: CanvasRenderingContext2D, H: number) {
   const y = (H - courtH) / 2
   const m = courtH / 20 // pixels per metre
   ctx.save()
-  ctx.strokeStyle = "rgba(255,255,255,0.08)"
+  ctx.strokeStyle = "rgba(255,255,255,0.1)"
   ctx.lineWidth = 6
   ctx.strokeRect(x, y, courtW, courtH)
   ctx.beginPath()
