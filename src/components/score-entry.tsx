@@ -122,20 +122,22 @@ export function ScoreEntry({
         ))}
       </div>
 
-      <Button
-        variant="ball"
-        size="lg"
-        className="mt-4"
-        disabled={!valid}
-        onClick={() => complete && onSave(complete)}
-      >
-        Save score
-      </Button>
-      {match.score && (
-        <Button variant="ghost" className="mt-1 h-12 w-full text-base font-semibold text-destructive" onClick={onClear}>
-          Clear score
+      <div className="mt-4 flex gap-2">
+        {match.score && (
+          <Button variant="ghost" size="lg" className="flex-1 px-3 text-destructive" onClick={onClear}>
+            Clear score
+          </Button>
+        )}
+        <Button
+          variant="ball"
+          size="lg"
+          className="flex-1 px-3"
+          disabled={!valid}
+          onClick={() => complete && onSave(complete)}
+        >
+          Save score
         </Button>
-      )}
+      </div>
     </div>
   )
 }

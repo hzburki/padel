@@ -303,20 +303,22 @@ export function NewTournamentScreen({ from }: { from?: PreviousSetup }) {
         <p className="mt-1 text-muted-foreground">
           The {names.length} {names.length === 1 ? "player" : "players"} you added won't be saved.
         </p>
-        <Button
-          variant="destructive"
-          size="lg"
-          className="mt-5"
-          onClick={() => {
-            setConfirmDiscard(false)
-            nav.back({ force: true })
-          }}
-        >
-          Discard
-        </Button>
-        <Button variant="ghost" className="mt-1 h-12 w-full text-base font-semibold" onClick={() => setConfirmDiscard(false)}>
-          Keep editing
-        </Button>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirmDiscard(false)}>
+            Keep editing
+          </Button>
+          <Button
+            variant="destructive"
+            size="lg"
+            className="px-3"
+            onClick={() => {
+              setConfirmDiscard(false)
+              nav.back({ force: true })
+            }}
+          >
+            Discard
+          </Button>
+        </div>
       </Sheet>
 
       <Sheet open={warnRounds !== null && roundsOff !== null} onClose={() => setWarnRounds(null)}>

@@ -127,14 +127,14 @@ export function TournamentScreen({ id }: { id: string }) {
     })
 
   const footer = tournament.finished ? (
-    <div className="space-y-2">
-      <Button variant="ball" size="lg" disabled={!image} onClick={share}>
-        <Share className="size-5" />
-        Share results
-      </Button>
-      <Button variant="secondary" size="lg" onClick={playAgain}>
+    <div className="grid grid-cols-2 gap-2">
+      <Button variant="secondary" size="lg" className="px-3" onClick={playAgain}>
         <Repeat className="size-5" />
-        Play again, same players
+        Play again
+      </Button>
+      <Button variant="ball" size="lg" className="px-3" disabled={!image} onClick={share}>
+        <Share className="size-5" />
+        Share
       </Button>
     </div>
   ) : tab === "standings" || unscored === 0 ? (
@@ -267,12 +267,14 @@ export function TournamentScreen({ id }: { id: string }) {
           {unscored > 0 &&
             ` ${unscored} ${unscored === 1 ? "match still has" : "matches still have"} no score; anyone left with fewer games gets their points scaled up.`}
         </p>
-        <Button size="lg" className="mt-5" onClick={finish}>
-          Finish tournament
-        </Button>
-        <Button variant="ghost" className="mt-1 h-12 w-full text-base font-semibold" onClick={() => setConfirm(null)}>
-          Keep playing
-        </Button>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirm(null)}>
+            Keep playing
+          </Button>
+          <Button size="lg" className="px-3" onClick={finish}>
+            Finish
+          </Button>
+        </div>
       </Sheet>
 
       <Sheet open={confirm === "congrats"} onClose={() => setConfirm(null)}>
@@ -293,12 +295,14 @@ export function TournamentScreen({ id }: { id: string }) {
       <Sheet open={confirm === "delete"} onClose={() => setConfirm(null)}>
         <p className="text-2xl type-display">Delete {tournament.name}?</p>
         <p className="mt-1 text-muted-foreground">The schedule and every score will be removed from this phone.</p>
-        <Button variant="destructive" size="lg" className="mt-5" onClick={remove}>
-          Delete tournament
-        </Button>
-        <Button variant="ghost" className="mt-1 h-12 w-full text-base font-semibold" onClick={() => setConfirm(null)}>
-          Cancel
-        </Button>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirm(null)}>
+            Cancel
+          </Button>
+          <Button variant="destructive" size="lg" className="px-3" onClick={remove}>
+            Delete
+          </Button>
+        </div>
       </Sheet>
     </Screen>
   )

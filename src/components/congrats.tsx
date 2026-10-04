@@ -35,13 +35,15 @@ export function Congrats({
           </>
         )}
       </div>
-      <Button variant="ball" size="lg" className="relative z-10 mt-6" disabled={!canShare} onClick={onShare}>
-        <Share className="size-5" />
-        Share results
-      </Button>
-      <Button variant="ghost" className="relative z-10 mt-1 h-12 w-full text-base font-semibold" onClick={onClose}>
-        Close
-      </Button>
+      <div className="relative z-10 mt-6 grid grid-cols-2 gap-2">
+        <Button variant="ghost" size="lg" className="px-3" onClick={onClose}>
+          Close
+        </Button>
+        <Button variant="ball" size="lg" className="px-3" disabled={!canShare} onClick={onShare}>
+          <Share className="size-5" />
+          Share
+        </Button>
+      </div>
     </div>
   )
 }
