@@ -3,7 +3,7 @@ import { useRef, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { suggestedRoundCount } from "@/lib/americano"
+import { gamesSplit, suggestedRoundCount } from "@/lib/americano"
 import { courtsInPlay } from "@/lib/bench"
 import { MAX_TARGET, MIN_TARGET } from "@/lib/scoring"
 import { requestPersistentStorage, saveTournament } from "@/lib/storage"
@@ -17,6 +17,7 @@ import {
 } from "@/lib/tournament"
 import type { ScoringMode } from "@/lib/types"
 import { Screen } from "./screen"
+import { Sheet } from "./sheet"
 import { useNav } from "./stack-navigator"
 
 const defaultName = () => `${new Date().toLocaleDateString(undefined, { weekday: "long" })} padel`
@@ -31,6 +32,7 @@ export function NewTournamentScreen() {
   const [scoringMode, setScoringMode] = useState<ScoringMode>("total")
   const [roundsChosen, setRoundsChosen] = useState<number | null>(null) // null: follow the suggestion
   const [starting, setStarting] = useState(false)
+  const [warnUneven, setWarnUneven] = useState(false)
   const draftRef = useRef<HTMLInputElement>(null)
 
   // The typed-but-not-added name still counts, so nobody gets lost.
@@ -42,6 +44,7 @@ export function NewTournamentScreen() {
 
   const input = { name, playerNames: names, courts: usedCourts, target, scoringMode, roundCount }
   const problems = setupProblems(input)
+  const split = gamesSplit(names.length, usedCourts, roundCount)
 
   const addDraft = () => {
     const n = draft.trim()
@@ -53,6 +56,7 @@ export function NewTournamentScreen() {
 
   const start = () => {
     if (problems.length > 0 || starting) return
+    setWarnUneven(false)
     setStarting(true)
     requestPersistentStorage()
     // Let the button repaint before the schedule search, which can take a
@@ -79,7 +83,7 @@ export function NewTournamentScreen() {
             size="lg"
             className="h-14 w-full rounded-2xl text-base"
             disabled={problems.length > 0 || starting}
-            onClick={start}
+            onClick={() => (split.playersWithFewer > 0 ? setWarnUneven(true) : start())}
           >
             {starting ? "Making the schedule…" : "Start tournament"}
           </Button>
@@ -197,9 +201,11 @@ export function NewTournamentScreen() {
         />
         {names.length >= MIN_PLAYERS && (
           <Hint>
-            {roundCount >= suggested
-              ? `Everyone partners everyone at least once in ${suggested} rounds.`
-              : `Everyone partners everyone once in ${suggested} rounds. With ${roundCount}, some pairs won't play together.`}
+            {split.playersWithFewer > 0
+              ? `${split.playersWithFewer} ${split.playersWithFewer === 1 ? "player plays" : "players play"} ${split.fewer} ${split.fewer === 1 ? "match" : "matches"}, the others ${split.more}.`
+              : roundCount >= suggested
+                ? `Everyone plays ${split.fewer} matches and partners everyone at least once.`
+                : `Everyone plays ${split.fewer} matches, but some pairs won't partner up.`}
             {roundsChosen !== null && roundsChosen !== suggested && (
               <>
                 {" "}
@@ -211,6 +217,28 @@ export function NewTournamentScreen() {
           </Hint>
         )}
       </Section>
+
+      <Sheet open={warnUneven} onClose={() => setWarnUneven(false)}>
+        <p className="text-lg font-semibold">Some players will play fewer matches</p>
+        <p className="mt-1 text-muted-foreground">
+          With {roundCount} rounds, {split.playersWithFewer} {split.playersWithFewer === 1 ? "player plays" : "players play"}{" "}
+          {split.fewer} {split.fewer === 1 ? "match" : "matches"} while the others play {split.more}. To keep it fair,
+          their final points will be scaled up to match.
+        </p>
+        <Button
+          size="lg"
+          className="mt-5 h-14 w-full rounded-2xl text-base"
+          onClick={() => {
+            setRoundsChosen(null)
+            setWarnUneven(false)
+          }}
+        >
+          Use {suggested} rounds, everyone plays {gamesSplit(names.length, usedCourts, suggested).fewer}
+        </Button>
+        <Button variant="ghost" className="mt-1 h-12 w-full" onClick={start}>
+          Start with {roundCount} rounds anyway
+        </Button>
+      </Sheet>
     </Screen>
   )
 }

@@ -122,3 +122,8 @@ function headToHead(tied: PlayerId[], matches: Match[]): Map<PlayerId, number> {
 function round2(n: number): number {
   return Math.round(n * 100) / 100
 }
+
+// Whole numbers as they are; scaled points to one decimal (10.5, 13.3).
+export function formatPoints(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1)
+}

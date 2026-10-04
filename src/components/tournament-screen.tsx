@@ -44,6 +44,7 @@ export function TournamentScreen({ id }: { id: string }) {
     const rows = computeStandings(
       tournament.players.map((p) => p.id),
       tournament.rounds,
+      { final: true },
     )
     renderShareCard(tournament, rows).then((blob) => {
       if (cancelled) return
@@ -170,6 +171,7 @@ export function TournamentScreen({ id }: { id: string }) {
             rows={computeStandings(
               tournament.players.map((p) => p.id),
               tournament.rounds,
+              { final: tournament.finished || unscored === 0 },
             )}
             nameOf={nameOf}
           />
@@ -194,7 +196,9 @@ export function TournamentScreen({ id }: { id: string }) {
         <p className="text-lg font-semibold">
           {unscored} {unscored === 1 ? "match has" : "matches have"} no score
         </p>
-        <p className="mt-1 text-muted-foreground">Final standings will only count the scores entered so far.</p>
+        <p className="mt-1 text-muted-foreground">
+          Final standings count the scores entered so far. Anyone left with fewer games gets their points scaled up.
+        </p>
         <Button size="lg" className="mt-5 h-14 w-full rounded-2xl text-base" onClick={finish}>
           Finish anyway
         </Button>

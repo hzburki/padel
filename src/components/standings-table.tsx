@@ -1,4 +1,4 @@
-import type { StandingRow } from "@/lib/standings"
+import { formatPoints, type StandingRow } from "@/lib/standings"
 import type { PlayerId } from "@/lib/types"
 
 // The on-screen standings: a phone-width list, readable at a glance.
@@ -28,13 +28,14 @@ export function StandingsTable({ rows, nameOf }: { rows: StandingRow[]; nameOf: 
               <span className="text-xs text-muted-foreground">
                 {row.wins} won, {row.draws > 0 ? `${row.draws} drawn, ` : ""}
                 {row.losses} lost
+                {row.bonus > 0 && `, +${formatPoints(row.bonus)} for fewer games`}
               </span>
             </span>
             <span className="w-8 text-right text-muted-foreground">{row.played}</span>
             <span className="w-10 text-right text-muted-foreground">
-              {row.diff > 0 ? `+${row.diff}` : row.diff}
+              {row.diff > 0 ? `+${formatPoints(row.diff)}` : formatPoints(row.diff)}
             </span>
-            <span className="w-12 text-right text-lg font-bold">{row.points}</span>
+            <span className="w-12 text-right text-lg font-bold">{formatPoints(row.points)}</span>
           </li>
         ))}
       </ol>

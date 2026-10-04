@@ -1,4 +1,4 @@
-import type { StandingRow } from "@/lib/standings"
+import { formatPoints, type StandingRow } from "@/lib/standings"
 import type { Tournament } from "@/lib/types"
 
 // The shareable result image: a fixed 4:5 card (fits WhatsApp and feeds),
@@ -61,8 +61,8 @@ export async function renderShareCard(tournament: Tournament, rows: StandingRow[
     ctx.textAlign = "right"
     ctx.fillStyle = "#ffffff"
     ctx.font = `700 64px ${FONT}`
-    ctx.fillText(String(row.points), W - PAD, cy + 2)
-    const pointsWidth = ctx.measureText(String(row.points)).width
+    ctx.fillText(formatPoints(row.points), W - PAD, cy + 2)
+    const pointsWidth = ctx.measureText(formatPoints(row.points)).width
 
     ctx.textAlign = "left"
     ctx.font = `700 54px ${FONT}`
@@ -92,7 +92,7 @@ export async function renderShareCard(tournament: Tournament, rows: StandingRow[
       ctx.fillText(String(row.rank), PAD + 40, cy)
       ctx.textAlign = "right"
       ctx.fillStyle = "#ffffff"
-      ctx.fillText(String(row.points), W - PAD, cy)
+      ctx.fillText(formatPoints(row.points), W - PAD, cy)
       ctx.textAlign = "left"
       ctx.font = `400 ${size}px ${FONT}`
       ctx.fillText(fit(ctx, nameOf.get(row.playerId) ?? "", W - 2 * PAD - 260), PAD + 110, cy)

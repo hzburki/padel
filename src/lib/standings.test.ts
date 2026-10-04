@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { computeStandings } from "./standings"
+import { computeStandings, formatPoints } from "./standings"
 import type { Match, PlayerId, Round } from "./types"
 
 const ids = (n: number): PlayerId[] => Array.from({ length: n }, (_, i) => `p${i + 1}`)
@@ -145,5 +145,13 @@ describe("computeStandings", () => {
       ]
       expect(byId(computeStandings(ids(5), r, { final: true })).p4.points).toBe(10.5)
     })
+  })
+})
+
+describe("formatPoints", () => {
+  it("shows whole points without decimals and scaled points to one decimal", () => {
+    expect(formatPoints(16)).toBe("16")
+    expect(formatPoints(10.5)).toBe("10.5")
+    expect(formatPoints(13.33)).toBe("13.3")
   })
 })
