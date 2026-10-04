@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Plus } from "lucide-react"
+import { ChevronDown, ChevronRight, Download, Plus } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
@@ -7,14 +7,17 @@ import { listTournaments } from "@/lib/storage"
 import { currentRoundIndex, unscoredMatchCount } from "@/lib/tournament"
 import type { Tournament } from "@/lib/types"
 import { CourtLines } from "./court-lines"
-import { InstallBanner } from "./install-banner"
+import { InstallBanner, InstallHelp, isInstalled, useInstallPrompt } from "./install-banner"
 import { Screen } from "./screen"
+import { Sheet } from "./sheet"
 import { useIsTopScreen, useNav } from "./stack-navigator"
 
 export function TournamentListScreen() {
   const nav = useNav<Route>()
   const isTop = useIsTopScreen()
   const [tournaments, setTournaments] = useState<Tournament[] | null>(null)
+  const { install } = useInstallPrompt()
+  const [installHelp, setInstallHelp] = useState(false)
 
   // Reload whenever this screen comes back into view, so a tournament just
   // created or scored shows up to date.
@@ -40,7 +43,10 @@ export function TournamentListScreen() {
       }
     >
       {/* New users always see how it works; everyone else can open it. */}
-      <Hero howItWorks={tournaments?.length === 0 ? "open" : "collapsible"}>
+      <Hero
+        howItWorks={tournaments?.length === 0 ? "open" : "collapsible"}
+        onInstall={isInstalled() ? undefined : () => (install ? install() : setInstallHelp(true))}
+      >
         {playing && <PlayingNow tournament={playing} onOpen={() => open(playing)} />}
       </Hero>
 
@@ -75,18 +81,40 @@ export function TournamentListScreen() {
           Privacy
         </button>
       </nav>
+
+      <Sheet open={installHelp} onClose={() => setInstallHelp(false)}>
+        <InstallHelp onClose={() => setInstallHelp(false)} />
+      </Sheet>
     </Screen>
   )
 }
 
 // Court-blue panel at the top, with faint court lines like the share card.
-function Hero({ howItWorks, children }: { howItWorks: "open" | "collapsible"; children: ReactNode }) {
+function Hero({
+  howItWorks,
+  onInstall,
+  children,
+}: {
+  howItWorks: "open" | "collapsible"
+  onInstall?: () => void // missing once the app is installed
+  children: ReactNode
+}) {
   const [expanded, setExpanded] = useState(false)
   const showSteps = howItWorks === "open" || expanded
 
   return (
     <div className="relative -mx-4 overflow-hidden rounded-b-2xl bg-primary px-5 pt-[calc(env(safe-area-inset-top)+1.75rem)] pb-6 text-primary-foreground">
       <CourtLines />
+      {onInstall && (
+        <button
+          type="button"
+          aria-label="Install the app"
+          onClick={onInstall}
+          className="absolute top-[calc(env(safe-area-inset-top)+1.5rem)] right-4 z-10 flex size-11 items-center justify-center rounded-full bg-white/10 text-primary-foreground active:bg-white/20"
+        >
+          <Download className="size-5" strokeWidth={2.5} />
+        </button>
+      )}
       <div className="relative">
         <div className="flex items-center gap-2.5">
           <span className="size-7 rounded-full bg-accent shadow-[inset_-4px_-4px_0_rgba(0,0,0,0.12)]" aria-hidden />

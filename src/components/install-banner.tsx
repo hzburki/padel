@@ -94,3 +94,65 @@ export function InstallBanner() {
     </section>
   )
 }
+
+// Opened from the home screen icon rather than a browser tab.
+export function isInstalled(): boolean {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  )
+}
+
+// Browsers that can install the app but won't let a page open the dialog.
+type HelpPlatform = "ios" | "macSafari" | "other"
+
+function helpPlatform(): HelpPlatform {
+  const ua = navigator.userAgent
+  // iPadOS reports itself as a Mac; touch gives it away.
+  const iPad = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1
+  if (/iPhone|iPad|iPod/.test(ua) || iPad) return "ios"
+  if (/Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Edg|Firefox/.test(ua)) return "macSafari"
+  return "other"
+}
+
+const HELP: Record<HelpPlatform, { title: string; steps: string[] }> = {
+  ios: {
+    title: "Add Padel to your phone",
+    steps: ["Tap the Share button (the square with an arrow).", "Scroll down and tap Add to Home Screen."],
+  },
+  macSafari: {
+    title: "Add Padel to your Mac",
+    steps: ["In the menu bar, open File.", "Choose Add to Dock."],
+  },
+  other: {
+    title: "Install Padel",
+    steps: [
+      "Open your browser's menu.",
+      "Choose Install app or Add to Home screen. If it isn't there, open this page in Chrome, Edge or Safari.",
+    ],
+  },
+}
+
+// How to install by hand, for when there's no dialog to open.
+export function InstallHelp({ onClose }: { onClose: () => void }) {
+  const { title, steps } = HELP[helpPlatform()]
+  return (
+    <div>
+      <p className="text-2xl type-display">{title}</p>
+      <p className="mt-1 text-muted-foreground">It opens like an app and works offline.</p>
+      <ol className="mt-5 space-y-3">
+        {steps.map((step, i) => (
+          <li key={step} className="flex gap-3">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground type-display">
+              {i + 1}
+            </span>
+            <span className="pt-0.5">{step}</span>
+          </li>
+        ))}
+      </ol>
+      <Button size="lg" className="mt-6" onClick={onClose}>
+        Got it
+      </Button>
+    </div>
+  )
+}
