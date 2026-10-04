@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react"
-import { loadTournament } from "@/lib/storage"
-import type { Tournament } from "@/lib/types"
+import { useEffect, useRef, useState } from "react"
+import { loadTournament, saveTournament } from "@/lib/storage"
+import { currentRoundIndex, setScore } from "@/lib/tournament"
+import type { Match, PlayerId, Score, Tournament } from "@/lib/types"
 import { Screen } from "./screen"
+import { ScoreEntry } from "./score-entry"
+import { Sheet } from "./sheet"
 
-// Read-only schedule for now; score entry comes in the next slice.
 export function TournamentScreen({ id }: { id: string }) {
   const [tournament, setTournament] = useState<Tournament | null | undefined>(undefined)
+  const [editing, setEditing] = useState<{ round: number; court: number } | null>(null)
+  const [saveError, setSaveError] = useState(false)
 
   useEffect(() => {
     loadTournament(id).then(setTournament)
@@ -21,35 +25,141 @@ export function TournamentScreen({ id }: { id: string }) {
   }
 
   const nameOf = new Map(tournament.players.map((p) => [p.id, p.name]))
-  const team = (ids: string[]) => ids.map((i) => nameOf.get(i)).join(" & ")
+  const team = (ids: PlayerId[]) => ids.map((i) => nameOf.get(i)).join(" & ")
+
+  // Save straight away: the phone may be locked or the tab killed any moment.
+  const update = async (next: Tournament) => {
+    setTournament(next)
+    try {
+      await saveTournament(next)
+      setSaveError(false)
+    } catch {
+      setSaveError(true)
+    }
+  }
+
+  const saveScore = (score: Score | null) => {
+    if (!editing) return
+    update(setScore(tournament, editing.round, editing.court, score))
+    setEditing(null)
+  }
+
+  const editingMatch = editing && tournament.rounds[editing.round].matches.find((m) => m.court === editing.court)
 
   return (
     <Screen title={tournament.name}>
-      <ol className="space-y-5 pt-2">
-        {tournament.rounds.map((round, r) => (
-          <li key={r}>
-            <h2 className="mb-2 px-1 text-sm font-semibold text-muted-foreground">Round {r + 1}</h2>
-            <div className="divide-y overflow-hidden rounded-2xl border bg-card">
-              {round.matches.map((m) => (
-                <div key={m.court} className="flex items-center gap-3 px-4 py-3">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                    {m.court}
-                  </span>
-                  <div className="min-w-0 flex-1 text-[0.9375rem] leading-snug">
-                    <p className="truncate">{team(m.teamA)}</p>
-                    <p className="truncate text-muted-foreground">v {team(m.teamB)}</p>
-                  </div>
-                </div>
-              ))}
-              {round.benched.length > 0 && (
-                <p className="px-4 py-2.5 text-sm text-muted-foreground">
-                  Sitting out: {round.benched.map((i) => nameOf.get(i)).join(", ")}
-                </p>
-              )}
-            </div>
-          </li>
-        ))}
-      </ol>
+      {saveError && (
+        <p className="mt-2 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          The last score couldn't be saved on this phone. It's still shown here; enter it again to retry.
+        </p>
+      )}
+      <RoundsList tournament={tournament} team={team} onEdit={(round, court) => setEditing({ round, court })} />
+
+      <Sheet open={editing !== null} onClose={() => setEditing(null)}>
+        {editing && editingMatch && (
+          <ScoreEntry
+            key={`${editing.round}-${editing.court}`}
+            match={editingMatch}
+            teamName={(s) => team(s === "a" ? editingMatch.teamA : editingMatch.teamB)}
+            target={tournament.target}
+            mode={tournament.scoringMode}
+            onSave={saveScore}
+            onClear={() => saveScore(null)}
+          />
+        )}
+      </Sheet>
     </Screen>
+  )
+}
+
+function RoundsList({
+  tournament,
+  team,
+  onEdit,
+}: {
+  tournament: Tournament
+  team: (ids: PlayerId[]) => string
+  onEdit: (round: number, court: number) => void
+}) {
+  const current = currentRoundIndex(tournament)
+  const currentRef = useRef<HTMLLIElement>(null)
+  const nameOf = new Map(tournament.players.map((p) => [p.id, p.name]))
+
+  // Open on the round being played, not round 1.
+  useEffect(() => {
+    currentRef.current?.scrollIntoView({ block: "start" })
+  }, [])
+
+  return (
+    <ol className="space-y-5 pt-2">
+      {tournament.rounds.map((round, r) => (
+        <li key={r} ref={r === current ? currentRef : undefined} className="scroll-mt-2">
+          <div className="mb-2 flex items-center gap-2 px-1">
+            <h2 className="text-sm font-semibold text-muted-foreground">Round {r + 1}</h2>
+            {r === current && (
+              <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground">
+                Playing now
+              </span>
+            )}
+          </div>
+          <div className="divide-y overflow-hidden rounded-2xl border bg-card">
+            {round.matches.map((m) => (
+              <MatchRow key={m.court} match={m} team={team} current={r === current} onTap={() => onEdit(r, m.court)} />
+            ))}
+            {round.benched.length > 0 && (
+              <p className="px-4 py-2.5 text-sm text-muted-foreground">
+                Sitting out: {round.benched.map((i) => nameOf.get(i)).join(", ")}
+              </p>
+            )}
+          </div>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+function MatchRow({
+  match,
+  team,
+  current,
+  onTap,
+}: {
+  match: Match
+  team: (ids: PlayerId[]) => string
+  current: boolean
+  onTap: () => void
+}) {
+  const s = match.score
+  const aWon = s !== null && s.a > s.b
+  const bWon = s !== null && s.b > s.a
+
+  return (
+    <button type="button" onClick={onTap} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-muted">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+        {match.court}
+      </span>
+      <span className="min-w-0 flex-1 text-[0.9375rem] leading-snug">
+        <span className={`block truncate ${aWon ? "font-semibold" : s ? "text-muted-foreground" : ""}`}>
+          {team(match.teamA)}
+        </span>
+        <span className={`block truncate ${bWon ? "font-semibold" : "text-muted-foreground"}`}>
+          {team(match.teamB)}
+        </span>
+      </span>
+      {s ? (
+        <span className="flex shrink-0 flex-col items-end text-lg leading-snug font-bold">
+          <span className={aWon ? "" : "text-muted-foreground"}>{s.a}</span>
+          <span className={bWon ? "" : "text-muted-foreground"}>{s.b}</span>
+        </span>
+      ) : (
+        <span
+          className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${
+            current ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+          }`}
+        >
+          Score
+        </span>
+      )}
+    </button>
   )
 }
