@@ -76,13 +76,6 @@ export function TournamentListScreen() {
   )
 }
 
-function greeting(): string {
-  const h = new Date().getHours()
-  if (h < 12) return "Good morning"
-  if (h < 18) return "Good afternoon"
-  return "Good evening"
-}
-
 // Court-blue panel at the top, with faint court lines like the share card.
 function Hero({ howItWorks, children }: { howItWorks: "open" | "collapsible"; children: ReactNode }) {
   const [expanded, setExpanded] = useState(false)
@@ -96,7 +89,7 @@ function Hero({ howItWorks, children }: { howItWorks: "open" | "collapsible"; ch
           <span className="size-7 rounded-full bg-accent shadow-[inset_-4px_-4px_0_rgba(0,0,0,0.12)]" aria-hidden />
           <h1 className="text-[3.25rem] leading-none type-display">Padel</h1>
         </div>
-        <p className="mt-2 text-lg text-primary-foreground/75">{greeting()}. Ready for a game?</p>
+        <p className="mt-2 text-lg text-primary-foreground/75">Hi 👋 Ready for a game?</p>
 
         {howItWorks === "collapsible" && (
           <button
