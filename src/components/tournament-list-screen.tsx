@@ -50,7 +50,7 @@ export function TournamentListScreen() {
           <h2 className="mb-3 px-1 text-[1.375rem] type-display">
             {playing ? "Other tournaments" : "Tournaments"}
           </h2>
-          <ul className="divide-y overflow-hidden rounded-3xl bg-card shadow-[inset_0_0_0_1.5px_var(--border)]">
+          <ul className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
             {others.map((t) => (
               <li key={t.id}>
                 <TournamentRow tournament={t} onOpen={() => open(t)} />
