@@ -1,7 +1,7 @@
 import { generateSchedule } from "./americano"
 import type { Rng } from "./bench"
 import { isValidTarget, MAX_TARGET, MIN_TARGET } from "./scoring"
-import type { ScoringMode, Tournament } from "./types"
+import type { Score, ScoringMode, Tournament } from "./types"
 
 export const MIN_PLAYERS = 4
 export const MAX_ROUNDS = 99
@@ -90,4 +90,26 @@ export function createTournament(input: SetupInput, { now, newId, rng }: CreateD
 export function currentRoundIndex(tournament: Tournament): number {
   const i = tournament.rounds.findIndex((r) => r.matches.some((m) => m.score === null))
   return i === -1 ? tournament.rounds.length : i
+}
+
+// A copy of the tournament with one match's score set (or cleared with null).
+// Matches are found by round and court number.
+export function setScore(
+  tournament: Tournament,
+  roundIndex: number,
+  court: number,
+  score: Score | null,
+): Tournament {
+  return {
+    ...tournament,
+    rounds: tournament.rounds.map((round, r) =>
+      r !== roundIndex
+        ? round
+        : { ...round, matches: round.matches.map((m) => (m.court === court ? { ...m, score } : m)) },
+    ),
+  }
+}
+
+export function unscoredMatchCount(tournament: Tournament): number {
+  return tournament.rounds.flatMap((r) => r.matches).filter((m) => m.score === null).length
 }

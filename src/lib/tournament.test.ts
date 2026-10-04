@@ -4,7 +4,9 @@ import {
   createTournament,
   currentRoundIndex,
   maxCourts,
+  setScore,
   setupProblems,
+  unscoredMatchCount,
   type SetupInput,
 } from "./tournament"
 
@@ -119,5 +121,33 @@ describe("currentRoundIndex", () => {
     const played = structuredClone(t)
     for (const r of played.rounds) for (const m of r.matches) m.score = { a: 8, b: 8 }
     expect(currentRoundIndex(played)).toBe(3)
+  })
+})
+
+describe("setScore", () => {
+  const t = createTournament({ ...valid, roundCount: 2 }, { now: 0, newId: counter() })
+
+  it("sets the score of one match and leaves every other match alone", () => {
+    const next = setScore(t, 1, 1, { a: 9, b: 7 })
+    expect(next.rounds[1].matches[0].score).toEqual({ a: 9, b: 7 })
+    expect(next.rounds[0].matches[0].score).toBeNull()
+  })
+
+  it("does not change the tournament it was given", () => {
+    setScore(t, 0, 1, { a: 9, b: 7 })
+    expect(t.rounds[0].matches[0].score).toBeNull()
+  })
+
+  it("clears a score when given null", () => {
+    const scored = setScore(t, 0, 1, { a: 9, b: 7 })
+    expect(setScore(scored, 0, 1, null).rounds[0].matches[0].score).toBeNull()
+  })
+})
+
+describe("unscoredMatchCount", () => {
+  it("counts the matches still waiting for a score", () => {
+    const t = createTournament({ ...valid, roundCount: 3 }, { now: 0, newId: counter() })
+    expect(unscoredMatchCount(t)).toBe(3)
+    expect(unscoredMatchCount(setScore(t, 0, 1, { a: 10, b: 6 }))).toBe(2)
   })
 })
