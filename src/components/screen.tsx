@@ -7,13 +7,15 @@ import { useNav } from "./stack-navigator"
 export function Screen({
   title,
   large = false,
+  bare = false,
   action,
   toolbar,
   footer,
   children,
 }: {
   title: string
-  large?: boolean // big left-aligned title, for the home screen
+  large?: boolean // big left-aligned title
+  bare?: boolean // no header at all: the body draws its own (home screen)
   action?: ReactNode
   toolbar?: ReactNode // stays put under the title while the body scrolls
   footer?: ReactNode
@@ -24,29 +26,31 @@ export function Screen({
 
   return (
     <div className="flex h-full flex-col">
-      <header className="shrink-0 pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex h-14 max-w-md items-center gap-1 px-2">
-          {canGoBack && (
-            <button
-              type="button"
-              onClick={() => nav.back()}
-              aria-label="Back"
-              className="-ml-1 flex size-11 shrink-0 items-center justify-center rounded-full text-primary active:bg-muted"
-            >
-              <ChevronLeft className="size-7" strokeWidth={2.25} />
-            </button>
+      {!bare && (
+        <header className="shrink-0 pt-[env(safe-area-inset-top)]">
+          <div className="mx-auto flex h-14 max-w-md items-center gap-1 px-2">
+            {canGoBack && (
+              <button
+                type="button"
+                onClick={() => nav.back()}
+                aria-label="Back"
+                className="-ml-1 flex size-11 shrink-0 items-center justify-center rounded-full text-primary active:bg-muted"
+              >
+                <ChevronLeft className="size-7" strokeWidth={2.25} />
+              </button>
+            )}
+            {!large && <h1 className="min-w-0 flex-1 truncate px-1 text-lg font-semibold">{title}</h1>}
+            {large && <div className="flex-1" />}
+            {action}
+          </div>
+          {large && (
+            <h1 className="mx-auto max-w-md px-4 pb-2 text-[2.125rem] leading-tight font-bold tracking-tight">
+              {title}
+            </h1>
           )}
-          {!large && <h1 className="min-w-0 flex-1 truncate px-1 text-lg font-semibold">{title}</h1>}
-          {large && <div className="flex-1" />}
-          {action}
-        </div>
-        {large && (
-          <h1 className="mx-auto max-w-md px-4 pb-2 text-[2.125rem] leading-tight font-bold tracking-tight">
-            {title}
-          </h1>
-        )}
-        {toolbar && <div className="mx-auto max-w-md px-4 pb-3">{toolbar}</div>}
-      </header>
+          {toolbar && <div className="mx-auto max-w-md px-4 pb-3">{toolbar}</div>}
+        </header>
+      )}
 
       <main className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain">
         <div className="mx-auto max-w-md px-4 pb-6">{children}</div>
