@@ -17,8 +17,8 @@ This is about answers to the user in chat, not code or comments.
 
 ## Project
 
-A mobile-first PWA for running casual padel tournaments among friends. Two formats only: **Americano** and
-**Mexicano**. No other padel format (no classic draws, no box leagues) is in scope.
+A mobile-first PWA for running casual padel tournaments among friends. One format only: **Americano**. No
+other padel format (no Mexicano, no classic draws, no box leagues) is in scope.
 
 **Local-only.** There is no backend, no accounts, no sync, no network calls. All tournament state lives in
 the browser (IndexedDB for tournament data; `localStorage` is fine for small UI prefs). This is a hard
@@ -54,16 +54,14 @@ npm run lint         # oxlint
 npm test             # vitest run
 npm run test:watch
 
-npx vitest run src/lib/formats/americano.test.ts   # one file
+npx vitest run src/lib/americano.test.ts           # one file
 npx vitest run -t "benches the player"             # one test by name
 ```
 
-## Domain: how the two formats differ
+## Domain: Americano
 
-This is the core of the app and the part that is easy to get wrong. Both formats score **individual
+This is the core of the app and the part that is easy to get wrong. Americano scores **individual
 players**, not teams — teams exist only for the duration of one round.
-
-**Shared mechanics**
 
 - Players are paired into doubles teams each round; a player's score for a round is the number of points
   *their team* scored.
@@ -86,22 +84,13 @@ players**, not teams — teams exist only for the duration of one round.
   is forced, bench the players with the **most** games played so far, ties broken randomly. The rule to
   hold after every round is `max(gamesPlayed) - min(gamesPlayed) <= 1`. This is a game between friends:
   everyone gets the same court time and the same chance to enjoy it.
-- In Mexicano, never pick the bench by rank. Rank drives the pairings, nothing else — benching by rank
-  would strand the bottom of the table on the sideline for the rest of the tournament.
+- Pairings are *fixed up front*. The full schedule is generated before round 1, rotating partners so that,
+  as far as the player count allows, everyone partners with everyone else once and faces everyone. The
+  schedule does not react to results.
 
-**Americano** — pairings are *fixed up front*. The full schedule is generated before round 1, rotating
-partners so that, as far as the player count allows, everyone partners with everyone else once and faces
-everyone. The schedule does not react to results.
-
-**Mexicano** — pairings are *generated one round at a time from the current standings*. After each round,
-re-rank all players, group them into courts by rank (ranks 1–4 on court 1, 5–8 on court 2, …), and within
-each court pair 1st+4th against 2nd+3rd. Round 1 has no standings yet, so it is seeded randomly or by a
-manual seeding. The scheduler therefore cannot be a pure up-front function — it must be callable after
-every completed round.
-
-Keep the scheduling logic in pure, framework-free modules (e.g. `src/lib/formats/americano.ts`,
-`src/lib/formats/mexicano.ts`) that take players/results and return pairings. They are the highest-value
-thing to unit test; the React layer should only read and render their output.
+Keep the scheduling logic in a pure, framework-free module (`src/lib/americano.ts`) that takes players and
+returns pairings. It is the highest-value thing to unit test; the React layer should only read and render
+its output.
 
 ## Delivering code the user can review
 
@@ -145,7 +134,7 @@ change to the shape of a stored tournament. These are the changes that are expen
 
 ## Persistence
 
-A tournament is the unit of persistence: players, format, point target, scoring mode, the rounds played so
+A tournament is the unit of persistence: players, point target, scoring mode, the rounds played so
 far, their scores, and the sit-out history. Persist after every score entry — the phone will be backgrounded, locked, and
 reloaded mid-tournament, and losing a round's scores is the worst failure mode this app has. Schema changes
 need a migration path for tournaments already saved in a user's browser; version the stored shape from the
