@@ -55,7 +55,8 @@ export function ScoreEntry({
 
   return (
     <div>
-      <p className="px-1 text-sm font-semibold text-muted-foreground">Court {match.court}</p>
+      <p className="px-1 text-lg font-semibold">{match.score ? "Edit score" : "Enter score"}</p>
+      <p className="px-1 text-sm text-muted-foreground">Court {match.court}</p>
 
       <div className="mt-2 overflow-hidden rounded-2xl border bg-card">
         {(["a", "b"] as const).map((s) => {

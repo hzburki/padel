@@ -379,10 +379,18 @@ function MatchRow({
         </span>
       </span>
       {s ? (
-        <span className="flex shrink-0 flex-col items-end text-lg leading-snug font-bold">
-          <span className={aWon ? "" : "text-muted-foreground"}>{s.a}</span>
-          <span className={bWon ? "" : "text-muted-foreground"}>{s.b}</span>
-        </span>
+        <>
+          <span className="flex shrink-0 flex-col items-end text-lg leading-snug font-bold">
+            <span className={aWon ? "" : "text-muted-foreground"}>{s.a}</span>
+            <span className={bWon ? "" : "text-muted-foreground"}>{s.b}</span>
+          </span>
+          {/* Saved scores stay editable until the tournament is finished. */}
+          {onTap && (
+            <span className="-mr-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-primary">
+              <Pencil className="size-4" aria-label="Edit score" />
+            </span>
+          )}
+        </>
       ) : onTap ? (
         <span
           className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${
