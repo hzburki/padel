@@ -7,8 +7,9 @@ import { listTournaments } from "@/lib/storage"
 import { currentRoundIndex, unscoredMatchCount } from "@/lib/tournament"
 import type { Tournament } from "@/lib/types"
 import { CourtLines } from "./court-lines"
-import { InstallBanner, useInstallPrompt } from "./install-banner"
+import { canInstall, InstallBanner, InstallHelp, useInstallPrompt } from "./install-banner"
 import { Screen } from "./screen"
+import { Sheet } from "./sheet"
 import { useIsTopScreen, useNav } from "./stack-navigator"
 
 export function TournamentListScreen() {
@@ -16,6 +17,7 @@ export function TournamentListScreen() {
   const isTop = useIsTopScreen()
   const [tournaments, setTournaments] = useState<Tournament[] | null>(null)
   const { install } = useInstallPrompt()
+  const [installHelp, setInstallHelp] = useState(false)
 
   // Reload whenever this screen comes back into view, so a tournament just
   // created or scored shows up to date.
@@ -43,7 +45,7 @@ export function TournamentListScreen() {
       {/* New users always see how it works; everyone else can open it. */}
       <Hero
         howItWorks={tournaments?.length === 0 ? "open" : "collapsible"}
-        onInstall={install ?? undefined}
+        onInstall={canInstall() ? () => (install ? install() : setInstallHelp(true)) : undefined}
       >
         {playing && <PlayingNow tournament={playing} onOpen={() => open(playing)} />}
       </Hero>
@@ -79,6 +81,10 @@ export function TournamentListScreen() {
           Privacy
         </button>
       </nav>
+
+      <Sheet open={installHelp} onClose={() => setInstallHelp(false)}>
+        <InstallHelp onClose={() => setInstallHelp(false)} />
+      </Sheet>
     </Screen>
   )
 }
@@ -90,7 +96,7 @@ function Hero({
   children,
 }: {
   howItWorks: "open" | "collapsible"
-  onInstall?: () => void // missing where the browser has no install dialog to open
+  onInstall?: () => void // missing where the browser can't install, or already has
   children: ReactNode
 }) {
   const [expanded, setExpanded] = useState(false)

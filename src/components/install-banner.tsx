@@ -95,3 +95,38 @@ export function InstallBanner() {
   )
 }
 
+// Chrome, Edge and other Chromium browsers can install the app; Safari and
+// Firefox can't be asked to. Already installed counts as no.
+export function canInstall(): boolean {
+  const standalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  return "onbeforeinstallprompt" in window && !standalone
+}
+
+// For when the browser supports installing but isn't offering the dialog
+// right now: its own menu still can.
+export function InstallHelp({ onClose }: { onClose: () => void }) {
+  return (
+    <div>
+      <p className="text-2xl type-display">Install Padel</p>
+      <p className="mt-1 text-muted-foreground">It opens like an app and works offline.</p>
+      <ol className="mt-5 space-y-3">
+        {[
+          "Open your browser's menu (⋮).",
+          "Choose Install app or Add to home screen. On a computer, the install icon at the right of the address bar does the same.",
+        ].map((step, i) => (
+          <li key={step} className="flex gap-3">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground type-display">
+              {i + 1}
+            </span>
+            <span className="pt-0.5">{step}</span>
+          </li>
+        ))}
+      </ol>
+      <Button size="lg" className="mt-6" onClick={onClose}>
+        Got it
+      </Button>
+    </div>
+  )
+}
