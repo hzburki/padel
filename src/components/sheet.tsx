@@ -49,7 +49,7 @@ export function Sheet({
     // Fills its screen (not the window), so it shrinks with the keyboard.
     // Stops pointer events so the screen behind doesn't start a back swipe.
     <div className="absolute inset-0 z-50" onPointerDown={(e) => e.stopPropagation()}>
-      <div ref={backdrop} className="absolute inset-0 bg-foreground/40" onClick={onClose} />
+      <div ref={backdrop} className="absolute inset-0 bg-[#0e2240]/40" onClick={onClose} />
       <div
         ref={panel}
         role="dialog"

@@ -389,7 +389,7 @@ export function StackNavigator<R>({
               }}
               // Screens below the top stay mounted (keeping scroll and form
               // state) but hidden until a transition needs them.
-              className={`absolute inset-0 touch-pan-y bg-background ${isTop ? "shadow-[-12px_0_32px_rgba(16,37,27,0.14)]" : "invisible"}`}
+              className={`absolute inset-0 touch-pan-y bg-background ${isTop ? "shadow-[-12px_0_32px_rgba(14,34,64,0.14)]" : "invisible"}`}
               aria-hidden={!isTop}
               inert={!isTop}
             >
