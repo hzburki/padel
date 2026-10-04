@@ -26,7 +26,8 @@ export function TournamentScreen({ id }: { id: string }) {
   const [tab, setTab] = useState<Tab>("rounds")
   // Which sheet (other than score entry) is open.
   const [confirm, setConfirm] = useState<"menu" | "rename" | "finish" | "delete" | "congrats" | null>(null)
-  const [image, setImage] = useState<{ blob: Blob; url: string } | null>(null)
+  // The full card to share, and a top-three preview for the screen.
+  const [image, setImage] = useState<{ blob: Blob; previewUrl: string } | null>(null)
   // The last opened match, kept after closing so the sheet still has
   // content while it slides away.
   const [shown, setShown] = useState<Editing | null>(null)
@@ -49,11 +50,13 @@ export function TournamentScreen({ id }: { id: string }) {
       tournament.rounds,
       { final: true },
     )
-    renderShareCard(tournament, rows).then((blob) => {
-      if (cancelled) return
-      url = URL.createObjectURL(blob)
-      setImage({ blob, url })
-    })
+    Promise.all([renderShareCard(tournament, rows), renderShareCard(tournament, rows, { podiumOnly: true })]).then(
+      ([blob, preview]) => {
+        if (cancelled) return
+        url = URL.createObjectURL(preview)
+        setImage({ blob, previewUrl: url })
+      },
+    )
     return () => {
       cancelled = true
       if (url) URL.revokeObjectURL(url)
@@ -162,8 +165,8 @@ export function TournamentScreen({ id }: { id: string }) {
         <div className="pt-2">
           {tournament.finished && (
             <div className="mb-5">
-              <div className="aspect-[4/5] overflow-hidden rounded-2xl bg-primary">
-                {image && <img src={image.url} alt="Final standings card" className="size-full" />}
+              <div className="min-h-48 overflow-hidden rounded-2xl bg-primary">
+                {image && <img src={image.previewUrl} alt="Top three" className="block w-full" />}
               </div>
             </div>
           )}

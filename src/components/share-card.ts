@@ -6,14 +6,24 @@ import type { Tournament } from "@/lib/types"
 // on purpose — it has to read well as a small chat thumbnail.
 
 const W = 1080
-const H = 1350
+const FULL_H = 1350 // 4:5, the shape feeds and chats show best
+const PODIUM_TOP = 330
+const PODIUM_ROW = 124
 const PAD = 80
 const BLUE = "#1d4f91"
 const BALL = "#dceb3a"
 const INK = "#0e2240"
 const FONT = '"Geist Variable", system-ui, sans-serif'
 
-export async function renderShareCard(tournament: Tournament, rows: StandingRow[]): Promise<Blob> {
+// `podiumOnly` draws a shorter card with just the top three — the on-screen
+// preview, where the table below already lists everyone. The shared image
+// always has every player.
+export async function renderShareCard(
+  tournament: Tournament,
+  rows: StandingRow[],
+  { podiumOnly = false }: { podiumOnly?: boolean } = {},
+): Promise<Blob> {
+  const H = podiumOnly ? PODIUM_TOP + Math.min(3, rows.length) * PODIUM_ROW + 150 : FULL_H
   await Promise.all([document.fonts.load(`700 40px ${FONT}`), document.fonts.load(`400 40px ${FONT}`)])
 
   const canvas = document.createElement("canvas")
@@ -24,7 +34,7 @@ export async function renderShareCard(tournament: Tournament, rows: StandingRow[
 
   ctx.fillStyle = BLUE
   ctx.fillRect(0, 0, W, H)
-  drawCourt(ctx)
+  drawCourt(ctx, H)
 
   // Title and details
   ctx.textBaseline = "alphabetic"
@@ -43,10 +53,10 @@ export async function renderShareCard(tournament: Tournament, rows: StandingRow[
   ctx.textAlign = "left"
 
   // Top three, large
-  let y = 330
+  let y = PODIUM_TOP
   const podium = rows.slice(0, 3)
   for (const row of podium) {
-    const h = 124
+    const h = PODIUM_ROW
     const cy = y + h / 2
     ctx.beginPath()
     ctx.arc(PAD + 40, cy, 40, 0, Math.PI * 2)
@@ -71,7 +81,7 @@ export async function renderShareCard(tournament: Tournament, rows: StandingRow[
   }
 
   // Everyone else, sized to fit
-  const rest = rows.slice(3)
+  const rest = podiumOnly ? [] : rows.slice(3)
   if (rest.length > 0) {
     y += 16
     ctx.fillStyle = "rgba(255,255,255,0.2)"
@@ -110,7 +120,7 @@ export async function renderShareCard(tournament: Tournament, rows: StandingRow[
   ctx.textAlign = "left"
   ctx.fillStyle = "rgba(255,255,255,0.6)"
   ctx.font = `400 30px ${FONT}`
-  ctx.fillText("Final standings", PAD, H - 64)
+  ctx.fillText(podiumOnly ? "Top three" : "Final standings", PAD, H - 64)
   ctx.textAlign = "right"
   const mode = tournament.scoringMode === "total" ? `${tournament.target} points per game` : `First to ${tournament.target}`
   ctx.fillText(mode, W - PAD, H - 64)
@@ -121,7 +131,7 @@ export async function renderShareCard(tournament: Tournament, rows: StandingRow[
 }
 
 // Faint padel court lines behind everything: outer walls, net, service lines.
-function drawCourt(ctx: CanvasRenderingContext2D) {
+function drawCourt(ctx: CanvasRenderingContext2D, H: number) {
   const courtW = 760
   const courtH = courtW * 2 // a court is 10 m by 20 m
   const x = W - courtW * 0.62
