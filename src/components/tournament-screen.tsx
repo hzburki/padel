@@ -1,13 +1,14 @@
-import { Share, Trash2 } from "lucide-react"
+import { Ellipsis, Pencil, Share, Trash2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
 import { computeStandings } from "@/lib/standings"
 import { deleteTournament, loadTournament, saveTournament } from "@/lib/storage"
-import { currentRoundIndex, setScore, unscoredMatchCount } from "@/lib/tournament"
+import { currentRoundIndex, renameTournament, setScore, unscoredMatchCount } from "@/lib/tournament"
 import type { Match, PlayerId, Score, Tournament } from "@/lib/types"
 import { Screen } from "./screen"
 import { ScoreEntry } from "./score-entry"
+import { RenameForm } from "./rename-form"
 import { renderShareCard, shareOrDownload } from "./share-card"
 import { Sheet } from "./sheet"
 import { useNav } from "./stack-navigator"
@@ -22,7 +23,8 @@ export function TournamentScreen({ id }: { id: string }) {
   const [editing, setEditing] = useState<Editing | null>(null)
   const [saveError, setSaveError] = useState(false)
   const [tab, setTab] = useState<Tab>("rounds")
-  const [confirm, setConfirm] = useState<"finish" | "delete" | null>(null)
+  // Which sheet (other than score entry) is open.
+  const [confirm, setConfirm] = useState<"menu" | "rename" | "finish" | "delete" | null>(null)
   const [image, setImage] = useState<{ blob: Blob; url: string } | null>(null)
   // The last opened match, kept after closing so the sheet still has
   // content while it slides away.
@@ -131,11 +133,11 @@ export function TournamentScreen({ id }: { id: string }) {
       action={
         <button
           type="button"
-          aria-label="Delete tournament"
-          onClick={() => setConfirm("delete")}
-          className="flex size-11 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
+          aria-label="More"
+          onClick={() => setConfirm("menu")}
+          className="flex size-11 items-center justify-center rounded-full text-primary active:bg-muted"
         >
-          <Trash2 className="size-5" />
+          <Ellipsis className="size-6" />
         </button>
       }
       footer={footer}
@@ -185,6 +187,39 @@ export function TournamentScreen({ id }: { id: string }) {
             mode={tournament.scoringMode}
             onSave={saveScore}
             onClear={() => saveScore(null)}
+          />
+        )}
+      </Sheet>
+
+      <Sheet open={confirm === "menu"} onClose={() => setConfirm(null)}>
+        <div className="divide-y overflow-hidden rounded-2xl border bg-card">
+          <button
+            type="button"
+            onClick={() => setConfirm("rename")}
+            className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
+          >
+            <Pencil className="size-5 text-primary" />
+            Edit names
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirm("delete")}
+            className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium text-destructive active:bg-muted"
+          >
+            <Trash2 className="size-5" />
+            Delete tournament
+          </button>
+        </div>
+      </Sheet>
+
+      <Sheet open={confirm === "rename"} onClose={() => setConfirm(null)}>
+        {confirm === "rename" && (
+          <RenameForm
+            tournament={tournament}
+            onSave={(name, playerNames) => {
+              setConfirm(null)
+              update(renameTournament(tournament, name, playerNames))
+            }}
           />
         )}
       </Sheet>
