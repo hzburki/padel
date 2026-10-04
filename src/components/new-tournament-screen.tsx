@@ -11,6 +11,7 @@ import { requestPersistentStorage, saveTournament } from "@/lib/storage"
 import {
   cleanPlayerNames,
   createTournament,
+  defaultTournamentName,
   MAX_ROUNDS,
   maxCourts,
   MIN_PLAYERS,
@@ -21,11 +22,10 @@ import { Screen } from "./screen"
 import { Sheet } from "./sheet"
 import { useBackHandler, useNav } from "./stack-navigator"
 
-const defaultName = () => `${new Date().toLocaleDateString(undefined, { weekday: "long" })} padel`
 
 export function NewTournamentScreen() {
   const nav = useNav<Route>()
-  const [name, setName] = useState(defaultName)
+  const [name, setName] = useState(() => defaultTournamentName(new Date()))
   const [players, setPlayers] = useState<string[]>([])
   const [draft, setDraft] = useState("")
   const [courts, setCourts] = useState(1)

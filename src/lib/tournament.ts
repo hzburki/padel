@@ -143,3 +143,9 @@ export function renameTournament(tournament: Tournament, name: string, playerNam
       : tournament.players.map((p, i) => ({ ...p, name: playerNames[i]?.trim() || p.name })),
   }
 }
+
+// The pre-filled name: the day and date it's played, in the phone's
+// language and date order ("Padel, Sunday 4 October").
+export function defaultTournamentName(date: Date, locale?: string): string {
+  return `Padel, ${date.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}`
+}
