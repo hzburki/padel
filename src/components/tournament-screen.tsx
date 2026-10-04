@@ -1,15 +1,20 @@
 import { useEffect, useRef, useState } from "react"
+import { computeStandings } from "@/lib/standings"
 import { loadTournament, saveTournament } from "@/lib/storage"
 import { currentRoundIndex, setScore } from "@/lib/tournament"
 import type { Match, PlayerId, Score, Tournament } from "@/lib/types"
 import { Screen } from "./screen"
 import { ScoreEntry } from "./score-entry"
 import { Sheet } from "./sheet"
+import { StandingsTable } from "./standings-table"
+
+type Tab = "rounds" | "standings"
 
 export function TournamentScreen({ id }: { id: string }) {
   const [tournament, setTournament] = useState<Tournament | null | undefined>(undefined)
   const [editing, setEditing] = useState<{ round: number; court: number } | null>(null)
   const [saveError, setSaveError] = useState(false)
+  const [tab, setTab] = useState<Tab>("rounds")
 
   useEffect(() => {
     loadTournament(id).then(setTournament)
@@ -47,13 +52,25 @@ export function TournamentScreen({ id }: { id: string }) {
   const editingMatch = editing && tournament.rounds[editing.round].matches.find((m) => m.court === editing.court)
 
   return (
-    <Screen title={tournament.name}>
+    <Screen title={tournament.name} toolbar={<Tabs tab={tab} onChange={setTab} />}>
       {saveError && (
         <p className="mt-2 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
           The last score couldn't be saved on this phone. It's still shown here; enter it again to retry.
         </p>
       )}
-      <RoundsList tournament={tournament} team={team} onEdit={(round, court) => setEditing({ round, court })} />
+      {tab === "rounds" ? (
+        <RoundsList tournament={tournament} team={team} onEdit={(round, court) => setEditing({ round, court })} />
+      ) : (
+        <div className="pt-2">
+          <StandingsTable
+            rows={computeStandings(
+              tournament.players.map((p) => p.id),
+              tournament.rounds,
+            )}
+            nameOf={nameOf}
+          />
+        </div>
+      )}
 
       <Sheet open={editing !== null} onClose={() => setEditing(null)}>
         {editing && editingMatch && (
@@ -69,6 +86,29 @@ export function TournamentScreen({ id }: { id: string }) {
         )}
       </Sheet>
     </Screen>
+  )
+}
+
+function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
+      {(
+        [
+          ["rounds", "Rounds"],
+          ["standings", "Standings"],
+        ] as const
+      ).map(([value, label]) => (
+        <button
+          key={value}
+          type="button"
+          aria-pressed={tab === value}
+          onClick={() => onChange(value)}
+          className="h-10 rounded-lg font-medium text-muted-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-sm"
+        >
+          {label}
+        </button>
+      ))}
+    </div>
   )
 }
 

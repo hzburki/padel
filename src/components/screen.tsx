@@ -8,12 +8,14 @@ export function Screen({
   title,
   large = false,
   action,
+  toolbar,
   footer,
   children,
 }: {
   title: string
   large?: boolean // big left-aligned title, for the home screen
   action?: ReactNode
+  toolbar?: ReactNode // stays put under the title while the body scrolls
   footer?: ReactNode
   children: ReactNode
 }) {
@@ -43,6 +45,7 @@ export function Screen({
             {title}
           </h1>
         )}
+        {toolbar && <div className="mx-auto max-w-md px-4 pb-3">{toolbar}</div>}
       </header>
 
       <main className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain">
