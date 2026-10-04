@@ -244,7 +244,7 @@ export function TournamentScreen({ id }: { id: string }) {
       </Sheet>
 
       <Sheet open={confirm === "finish"} onClose={() => setConfirm(null)}>
-        <p className="text-lg font-semibold">Finish the tournament?</p>
+        <p className="text-2xl type-display">Finish the tournament?</p>
         <p className="mt-1 text-muted-foreground">
           Scores can't be changed once a tournament is finished.
           {unscored > 0 &&
@@ -274,7 +274,7 @@ export function TournamentScreen({ id }: { id: string }) {
       </Sheet>
 
       <Sheet open={confirm === "delete"} onClose={() => setConfirm(null)}>
-        <p className="text-lg font-semibold">Delete {tournament.name}?</p>
+        <p className="text-2xl type-display">Delete {tournament.name}?</p>
         <p className="mt-1 text-muted-foreground">The schedule and every score will be removed from this phone.</p>
         <Button variant="destructive" size="lg" className="mt-5" onClick={remove}>
           Delete tournament

@@ -25,10 +25,10 @@ export function Congrats({
           🏆
         </div>
         {winnerNames.length === 0 ? (
-          <p className="mt-3 text-2xl font-bold">Tournament finished</p>
+          <p className="mt-3 text-[2rem] type-display">Tournament finished</p>
         ) : (
           <>
-            <p className="mt-3 text-2xl font-bold">Congrats, {names}!</p>
+            <p className="mt-3 text-[2rem] type-display">Congrats, {names}!</p>
             <p className="mx-auto mt-2 max-w-72 text-lg text-muted-foreground">
               {names} {owe} everyone a treat 😄
             </p>

@@ -256,7 +256,7 @@ export function NewTournamentScreen() {
       </Section>
 
       <Sheet open={pickTarget} onClose={() => setPickTarget(false)}>
-        <p className="px-1 text-lg font-semibold">Points per game</p>
+        <p className="px-1 text-2xl type-display">Points per game</p>
         <p className="mb-3 px-1 text-sm text-muted-foreground">
           {scoringMode === "total" ? "The two scores add up to this." : "The first team to reach this wins."}
         </p>
@@ -280,7 +280,7 @@ export function NewTournamentScreen() {
       </Sheet>
 
       <Sheet open={confirmDiscard} onClose={() => setConfirmDiscard(false)}>
-        <p className="text-lg font-semibold">Discard this tournament?</p>
+        <p className="text-2xl type-display">Discard this tournament?</p>
         <p className="mt-1 text-muted-foreground">
           The {names.length} {names.length === 1 ? "player" : "players"} you added won't be saved.
         </p>
@@ -351,7 +351,7 @@ function UnevenWarning({
       <div className="text-5xl" aria-hidden>
         ⚠️
       </div>
-      <p className="mt-3 text-lg font-semibold">
+      <p className="mt-3 text-2xl type-display">
         {n} {n === 1 ? "player" : "players"} will play one match fewer
       </p>
       <p className="mt-1 text-muted-foreground">Their points get scaled up at the end to keep it fair.</p>

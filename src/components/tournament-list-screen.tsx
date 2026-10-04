@@ -201,7 +201,7 @@ function FirstTournament() {
         <path d="M10 31h100M10 149h100M60 31v118" strokeWidth="2" />
         <circle cx="84" cy="122" r="9" className="fill-accent" stroke="none" />
       </svg>
-      <p className="mt-5 text-lg font-semibold">No tournaments yet</p>
+      <p className="mt-5 text-2xl type-display">No tournaments yet</p>
       <p className="mt-1 max-w-64 text-muted-foreground">Tap New tournament below to set up your first one.</p>
     </div>
   )

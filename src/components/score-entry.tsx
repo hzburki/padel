@@ -55,7 +55,7 @@ export function ScoreEntry({
 
   return (
     <div>
-      <p className="px-1 text-lg font-semibold">{match.score ? "Edit score" : "Enter score"}</p>
+      <p className="px-1 text-2xl type-display">{match.score ? "Edit score" : "Enter score"}</p>
       <p className="px-1 text-sm text-muted-foreground">Court {match.court}</p>
 
       {mode === "firstTo" && <Step n={1} done={winner !== null}>Who won? Tap the team that reached {target}</Step>}

@@ -45,12 +45,12 @@ export function Screen({
                 )}
               </button>
             )}
-            {!large && <h1 className="min-w-0 flex-1 truncate px-1 text-lg font-semibold">{title}</h1>}
+            {!large && <h1 className="min-w-0 flex-1 truncate px-1 text-[1.375rem] type-display">{title}</h1>}
             {large && <div className="flex-1" />}
             {action}
           </div>
           {large && (
-            <h1 className="mx-auto max-w-md px-4 pb-2 text-[2.125rem] leading-tight font-bold tracking-tight">
+            <h1 className="mx-auto max-w-md px-4 pb-2 text-[2.5rem] type-display">
               {title}
             </h1>
           )}

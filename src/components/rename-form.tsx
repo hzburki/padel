@@ -25,7 +25,7 @@ export function RenameForm({
         if (problems.length === 0) onSave(name, playerNames)
       }}
     >
-      <p className="text-lg font-semibold">Edit names</p>
+      <p className="text-2xl type-display">Edit names</p>
 
       <label className="mt-4 mb-2 block px-1 text-sm font-semibold text-muted-foreground" htmlFor="tournament-name">
         Tournament
