@@ -54,7 +54,7 @@ export function Sheet({
         ref={panel}
         role="dialog"
         aria-modal="true"
-        className="absolute inset-x-0 bottom-0 mx-auto max-h-[92%] max-w-md overflow-y-auto overscroll-contain rounded-t-3xl bg-background pb-[env(safe-area-inset-bottom)] shadow-2xl"
+        className="absolute inset-x-0 bottom-0 mx-auto max-h-[92%] max-w-md overflow-y-auto overscroll-contain rounded-t-2xl bg-background pb-[env(safe-area-inset-bottom)] shadow-2xl"
       >
         {/* Drag handle: pull down to dismiss. */}
         <div

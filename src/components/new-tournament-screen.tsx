@@ -100,7 +100,7 @@ export function NewTournamentScreen() {
           )}
           <Button
             size="lg"
-            className="h-14 w-full rounded-2xl text-base"
+            className="h-14 w-full rounded-md text-base font-semibold"
             disabled={problems.length > 0 || starting}
             onClick={() => (split.playersWithFewer > 0 ? setWarnUneven(true) : start())}
           >
@@ -113,14 +113,14 @@ export function NewTournamentScreen() {
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="h-12 rounded-xl bg-card px-3.5"
+          className="h-12 rounded-md bg-card px-3.5"
           autoComplete="off"
         />
       </Section>
 
       <Section title={names.length === 0 ? "Players" : `Players (${names.length})`}>
         {players.length > 0 && (
-          <ul className="mb-2 divide-y overflow-hidden rounded-xl border bg-card">
+          <ul className="mb-2 divide-y overflow-hidden rounded-lg border bg-card">
             {players.map((p, i) => (
               <li key={i} className="flex items-center pl-3.5">
                 <span className="min-w-0 flex-1 truncate py-3">{p}</span>
@@ -151,13 +151,13 @@ export function NewTournamentScreen() {
             enterKeyHint="next"
             autoComplete="off"
             autoCapitalize="words"
-            className="h-12 flex-1 rounded-xl bg-card px-3.5"
+            className="h-12 flex-1 rounded-md bg-card px-3.5"
           />
           <Button
             type="submit"
             variant="secondary"
             aria-label="Add player"
-            className="size-12 rounded-xl"
+            className="size-12 rounded-md"
             disabled={draft.trim() === ""}
           >
             <Plus className="size-5" />
@@ -182,7 +182,7 @@ export function NewTournamentScreen() {
       </Section>
 
       <Section title="Scoring">
-        <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
+        <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
           {(
             [
               ["total", "Total points"],
@@ -194,7 +194,7 @@ export function NewTournamentScreen() {
               type="button"
               aria-pressed={scoringMode === mode}
               onClick={() => setScoringMode(mode)}
-              className="h-11 rounded-lg font-medium text-muted-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-sm"
+              className="h-11 rounded-sm font-medium text-muted-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-sm"
             >
               {label}
             </button>
@@ -245,7 +245,7 @@ export function NewTournamentScreen() {
         <Button
           variant="destructive"
           size="lg"
-          className="mt-5 h-14 w-full rounded-2xl text-base"
+          className="mt-5 h-14 w-full rounded-md text-base font-semibold"
           onClick={() => {
             setConfirmDiscard(false)
             nav.back({ force: true })
@@ -267,7 +267,7 @@ export function NewTournamentScreen() {
         </p>
         <Button
           size="lg"
-          className="mt-5 h-14 w-full rounded-2xl text-base"
+          className="mt-5 h-14 w-full rounded-md text-base font-semibold"
           onClick={() => {
             setRoundsChosen(null)
             setWarnUneven(false)
@@ -309,9 +309,9 @@ function Stepper({
   onChange: (n: number) => void
   format: (n: number) => string
 }) {
-  const button = "flex size-12 items-center justify-center rounded-xl text-primary active:bg-muted disabled:text-muted-foreground/40"
+  const button = "flex size-12 items-center justify-center rounded-sm text-primary active:bg-muted disabled:text-muted-foreground/40"
   return (
-    <div className="flex items-center rounded-xl border bg-card p-1">
+    <div className="flex items-center rounded-md border bg-card p-1">
       <button type="button" aria-label="Fewer" className={button} disabled={value <= min} onClick={() => onChange(value - 1)}>
         <Minus className="size-5" strokeWidth={2.5} />
       </button>

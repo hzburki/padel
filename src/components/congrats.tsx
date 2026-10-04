@@ -35,7 +35,7 @@ export function Congrats({
           </>
         )}
       </div>
-      <Button size="lg" className="relative z-10 mt-6 h-14 w-full rounded-2xl text-base" disabled={!canShare} onClick={onShare}>
+      <Button size="lg" className="relative z-10 mt-6 h-14 w-full rounded-md text-base font-semibold" disabled={!canShare} onClick={onShare}>
         <Share className="size-5" />
         Share results
       </Button>

@@ -5,7 +5,7 @@ import type { PlayerId } from "@/lib/types"
 // (The shareable image has its own layout in share-card.ts.)
 export function StandingsTable({ rows, nameOf }: { rows: StandingRow[]; nameOf: Map<PlayerId, string> }) {
   return (
-    <div className="overflow-hidden rounded-2xl border bg-card">
+    <div className="overflow-hidden rounded-lg border bg-card">
       <div className="flex items-center gap-3 border-b px-4 py-2 text-xs font-medium text-muted-foreground">
         <span className="w-7 text-center">#</span>
         <span className="flex-1">Player</span>

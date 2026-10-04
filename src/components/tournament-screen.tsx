@@ -116,7 +116,7 @@ export function TournamentScreen({ id }: { id: string }) {
   const shownMatch = shown && tournament.rounds[shown.round]?.matches.find((m) => m.court === shown.court)
 
   const footer = tournament.finished ? (
-    <Button size="lg" className="h-14 w-full rounded-2xl text-base" disabled={!image} onClick={share}>
+    <Button size="lg" className="h-14 w-full rounded-md text-base font-semibold" disabled={!image} onClick={share}>
       <Share className="size-5" />
       Share results
     </Button>
@@ -124,7 +124,7 @@ export function TournamentScreen({ id }: { id: string }) {
     <Button
       size="lg"
       variant={unscored === 0 ? "default" : "secondary"}
-      className="h-14 w-full rounded-2xl text-base"
+      className="h-14 w-full rounded-md text-base font-semibold"
       onClick={() => setConfirm("finish")}
     >
       Finish tournament
@@ -148,7 +148,7 @@ export function TournamentScreen({ id }: { id: string }) {
       footer={footer}
     >
       {saveError && (
-        <p className="mt-2 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <p className="mt-2 rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
           The last score couldn't be saved on this phone. It's still shown here; enter it again to retry.
         </p>
       )}
@@ -166,7 +166,7 @@ export function TournamentScreen({ id }: { id: string }) {
         <div className="pt-2">
           {tournament.finished && (
             <div className="mb-6">
-              <div className="min-h-48 overflow-hidden rounded-2xl bg-primary">
+              <div className="min-h-48 overflow-hidden rounded-lg bg-primary">
                 {image && <img src={image.previewUrl} alt="Top three" className="block w-full" />}
               </div>
               {/* The card can fill a small screen; make it obvious there's more below. */}
@@ -209,7 +209,7 @@ export function TournamentScreen({ id }: { id: string }) {
       </Sheet>
 
       <Sheet open={confirm === "menu"} onClose={() => setConfirm(null)}>
-        <div className="divide-y overflow-hidden rounded-2xl border bg-card">
+        <div className="divide-y overflow-hidden rounded-lg border bg-card">
           <button
             type="button"
             onClick={() => setConfirm("rename")}
@@ -248,7 +248,7 @@ export function TournamentScreen({ id }: { id: string }) {
           {unscored > 0 &&
             ` ${unscored} ${unscored === 1 ? "match still has" : "matches still have"} no score; anyone left with fewer games gets their points scaled up.`}
         </p>
-        <Button size="lg" className="mt-5 h-14 w-full rounded-2xl text-base" onClick={finish}>
+        <Button size="lg" className="mt-5 h-14 w-full rounded-md text-base font-semibold" onClick={finish}>
           Finish tournament
         </Button>
         <Button variant="ghost" className="mt-1 h-12 w-full" onClick={() => setConfirm(null)}>
@@ -274,7 +274,7 @@ export function TournamentScreen({ id }: { id: string }) {
       <Sheet open={confirm === "delete"} onClose={() => setConfirm(null)}>
         <p className="text-lg font-semibold">Delete {tournament.name}?</p>
         <p className="mt-1 text-muted-foreground">The schedule and every score will be removed from this phone.</p>
-        <Button variant="destructive" size="lg" className="mt-5 h-14 w-full rounded-2xl text-base" onClick={remove}>
+        <Button variant="destructive" size="lg" className="mt-5 h-14 w-full rounded-md text-base font-semibold" onClick={remove}>
           Delete tournament
         </Button>
         <Button variant="ghost" className="mt-1 h-12 w-full" onClick={() => setConfirm(null)}>
@@ -287,7 +287,7 @@ export function TournamentScreen({ id }: { id: string }) {
 
 function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   return (
-    <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
+    <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
       {(
         [
           ["rounds", "Rounds"],
@@ -299,7 +299,7 @@ function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
           type="button"
           aria-pressed={tab === value}
           onClick={() => onChange(value)}
-          className="h-10 rounded-lg font-medium text-muted-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-sm"
+          className="h-10 rounded-sm font-medium text-muted-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-sm"
         >
           {label}
         </button>
@@ -335,12 +335,12 @@ function RoundsList({
           <div className="mb-2 flex items-center gap-2 px-1">
             <h2 className="text-sm font-semibold text-muted-foreground">Round {r + 1}</h2>
             {r === current && (
-              <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground">
+              <span className="rounded-sm bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground">
                 Playing now
               </span>
             )}
           </div>
-          <div className="divide-y overflow-hidden rounded-2xl border bg-card">
+          <div className="divide-y overflow-hidden rounded-lg border bg-card">
             {round.matches.map((m) => (
               <MatchRow
                 key={m.court}
@@ -383,7 +383,7 @@ function MatchRow({
       {...(onTap ? { type: "button" as const, onClick: onTap } : {})}
       className={`flex w-full items-center gap-3 px-4 py-3 text-left ${onTap ? "active:bg-muted" : ""}`}
     >
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
         {match.court}
       </span>
       <span className="min-w-0 flex-1 text-[0.9375rem] leading-snug">
@@ -402,14 +402,14 @@ function MatchRow({
           </span>
           {/* Saved scores stay editable until the tournament is finished. */}
           {onTap && (
-            <span className="-mr-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-primary">
+            <span className="-mr-1 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
               <Pencil className="size-4" aria-label="Edit score" />
             </span>
           )}
         </>
       ) : onTap ? (
         <span
-          className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${
+          className={`shrink-0 rounded-md px-3 py-1.5 text-sm font-semibold ${
             current ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
           }`}
         >

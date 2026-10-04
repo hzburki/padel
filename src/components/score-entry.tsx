@@ -59,7 +59,7 @@ export function ScoreEntry({
       <p className="px-1 text-sm text-muted-foreground">Court {match.court}</p>
 
       {mode === "firstTo" && <Step n={1} done={winner !== null}>Who won? Tap the team that reached {target}</Step>}
-      <div className="mt-2 overflow-hidden rounded-2xl border bg-card">
+      <div className="mt-2 overflow-hidden rounded-lg border bg-card">
         {(["a", "b"] as const).map((s) => {
           const active = mode === "total" ? side === s : winner !== null && side === s
           const won = winner === s
@@ -80,12 +80,12 @@ export function ScoreEntry({
               </span>
               {mode === "firstTo" && winner === null ? (
                 // Before a winner is picked: show what tapping does.
-                <span className="flex h-12 min-w-14 items-center justify-center rounded-xl border-2 border-dashed border-primary/40 px-2 text-xl font-bold text-primary/70">
+                <span className="flex h-12 min-w-14 items-center justify-center rounded-md border-2 border-dashed border-primary/40 px-2 text-xl font-bold text-primary/70">
                   {target}
                 </span>
               ) : (
                 <span
-                  className={`flex h-12 min-w-14 items-center justify-center rounded-xl px-2 text-3xl font-bold ${
+                  className={`flex h-12 min-w-14 items-center justify-center rounded-md px-2 text-3xl font-bold ${
                     active ? "bg-primary text-primary-foreground" : won ? "bg-accent text-accent-foreground" : "bg-muted"
                   }`}
                 >
@@ -111,7 +111,7 @@ export function ScoreEntry({
             type="button"
             disabled={gridDisabled}
             onClick={() => pick(n)}
-            className={`h-12 rounded-xl text-lg font-semibold active:scale-95 disabled:opacity-30 ${
+            className={`h-12 rounded-md text-lg font-semibold active:scale-95 disabled:opacity-30 ${
               score[side] === n && !gridDisabled ? "bg-primary text-primary-foreground" : "bg-card border"
             }`}
           >
@@ -122,7 +122,7 @@ export function ScoreEntry({
 
       <Button
         size="lg"
-        className="mt-4 h-14 w-full rounded-2xl text-base"
+        className="mt-4 h-14 w-full rounded-md text-base font-semibold"
         disabled={!valid}
         onClick={() => complete && onSave(complete)}
       >

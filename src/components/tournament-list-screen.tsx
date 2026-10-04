@@ -31,7 +31,7 @@ export function TournamentListScreen() {
       title="Padel"
       bare
       footer={
-        <Button size="lg" className="h-14 w-full rounded-2xl text-base" onClick={() => nav.push({ name: "new" })}>
+        <Button size="lg" className="h-14 w-full rounded-md text-base font-semibold" onClick={() => nav.push({ name: "new" })}>
           <Plus className="size-5" strokeWidth={2.5} />
           New tournament
         </Button>
@@ -52,7 +52,7 @@ export function TournamentListScreen() {
           <h2 className="mb-2 px-1 text-sm font-semibold text-muted-foreground">
             {playing ? "Other tournaments" : "Tournaments"}
           </h2>
-          <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
+          <ul className="divide-y overflow-hidden rounded-lg border bg-card">
             {others.map((t) => (
               <li key={t.id}>
                 <TournamentRow tournament={t} onOpen={() => open(t)} />
@@ -75,7 +75,7 @@ function greeting(): string {
 // Court-blue panel at the top, with faint court lines like the share card.
 function Hero({ children }: { children: ReactNode }) {
   return (
-    <div className="relative -mx-4 overflow-hidden rounded-b-[2rem] bg-primary px-5 pt-[calc(env(safe-area-inset-top)+1.75rem)] pb-6 text-primary-foreground">
+    <div className="relative -mx-4 overflow-hidden rounded-b-2xl bg-primary px-5 pt-[calc(env(safe-area-inset-top)+1.75rem)] pb-6 text-primary-foreground">
       <CourtLines />
       <div className="relative">
         <div className="flex items-center gap-2.5">
@@ -105,9 +105,9 @@ function PlayingNow({ tournament, onOpen }: { tournament: Tournament; onOpen: ()
     <button
       type="button"
       onClick={onOpen}
-      className="block w-full rounded-3xl bg-card p-4 text-left text-card-foreground shadow-lg shadow-black/10 active:scale-[0.99]"
+      className="block w-full rounded-xl bg-card p-4 text-left text-card-foreground shadow-lg shadow-black/10 active:scale-[0.99]"
     >
-      <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-foreground">
+      <span className="rounded-sm bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground">
         Playing now
       </span>
       <p className="mt-2.5 truncate text-xl font-bold">{tournament.name}</p>
@@ -129,7 +129,7 @@ function PlayingNow({ tournament, onOpen }: { tournament: Tournament; onOpen: ()
             <span className="text-muted-foreground">No scores yet</span>
           )}
         </p>
-        <span className="flex h-10 shrink-0 items-center gap-1 rounded-full bg-primary pr-3 pl-4 text-sm font-semibold text-primary-foreground">
+        <span className="flex h-10 shrink-0 items-center gap-1 rounded-md bg-primary pr-3 pl-4 text-sm font-semibold text-primary-foreground">
           Continue
           <ChevronRight className="size-4" strokeWidth={2.5} />
         </span>
@@ -174,7 +174,7 @@ function TournamentRow({ tournament, onOpen }: { tournament: Tournament; onOpen:
   const date = new Date(tournament.createdAt)
   return (
     <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 px-3 py-3 text-left active:bg-muted">
-      <span className="flex size-12 shrink-0 flex-col items-center justify-center rounded-xl bg-secondary leading-none">
+      <span className="flex size-12 shrink-0 flex-col items-center justify-center rounded-md bg-secondary leading-none">
         <span className="text-lg font-bold">{date.getDate()}</span>
         <span className="mt-0.5 text-[0.6875rem] font-medium text-muted-foreground">
           {date.toLocaleDateString(undefined, { month: "short" })}
