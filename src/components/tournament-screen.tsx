@@ -2,12 +2,13 @@ import { Ellipsis, Pencil, Share, Trash2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
-import { computeStandings } from "@/lib/standings"
+import { computeStandings, winners } from "@/lib/standings"
 import { deleteTournament, loadTournament, saveTournament } from "@/lib/storage"
 import { currentRoundIndex, renameTournament, setScore, unscoredMatchCount } from "@/lib/tournament"
 import type { Match, PlayerId, Score, Tournament } from "@/lib/types"
 import { Screen } from "./screen"
 import { ScoreEntry } from "./score-entry"
+import { Congrats } from "./congrats"
 import { RenameForm } from "./rename-form"
 import { renderShareCard, shareOrDownload } from "./share-card"
 import { Sheet } from "./sheet"
@@ -24,7 +25,7 @@ export function TournamentScreen({ id }: { id: string }) {
   const [saveError, setSaveError] = useState(false)
   const [tab, setTab] = useState<Tab>("rounds")
   // Which sheet (other than score entry) is open.
-  const [confirm, setConfirm] = useState<"menu" | "rename" | "finish" | "delete" | null>(null)
+  const [confirm, setConfirm] = useState<"menu" | "rename" | "finish" | "delete" | "congrats" | null>(null)
   const [image, setImage] = useState<{ blob: Blob; url: string } | null>(null)
   // The last opened match, kept after closing so the sheet still has
   // content while it slides away.
@@ -91,7 +92,7 @@ export function TournamentScreen({ id }: { id: string }) {
   }
 
   const finish = () => {
-    setConfirm(null)
+    setConfirm("congrats")
     setTab("standings")
     update({ ...tournament, finished: true })
   }
@@ -237,6 +238,21 @@ export function TournamentScreen({ id }: { id: string }) {
         <Button variant="ghost" className="mt-1 h-12 w-full" onClick={() => setConfirm(null)}>
           Keep playing
         </Button>
+      </Sheet>
+
+      <Sheet open={confirm === "congrats"} onClose={() => setConfirm(null)}>
+        <Congrats
+          winnerNames={winners(
+            computeStandings(
+              tournament.players.map((p) => p.id),
+              tournament.rounds,
+              { final: true },
+            ),
+          ).map((id) => nameOf.get(id) ?? "")}
+          canShare={image !== null}
+          onShare={share}
+          onClose={() => setConfirm(null)}
+        />
       </Sheet>
 
       <Sheet open={confirm === "delete"} onClose={() => setConfirm(null)}>
