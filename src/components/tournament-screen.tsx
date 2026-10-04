@@ -1,4 +1,4 @@
-import { Ellipsis, Pencil, Share, Trash2 } from "lucide-react"
+import { ChevronDown, Ellipsis, Pencil, Share, Trash2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
@@ -31,6 +31,7 @@ export function TournamentScreen({ id }: { id: string }) {
   // The last opened match, kept after closing so the sheet still has
   // content while it slides away.
   const [shown, setShown] = useState<Editing | null>(null)
+  const fullStandings = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
     loadTournament(id).then((t) => {
@@ -164,12 +165,24 @@ export function TournamentScreen({ id }: { id: string }) {
       ) : (
         <div className="pt-2">
           {tournament.finished && (
-            <div className="mb-5">
+            <div className="mb-6">
               <div className="min-h-48 overflow-hidden rounded-2xl bg-primary">
                 {image && <img src={image.previewUrl} alt="Top three" className="block w-full" />}
               </div>
+              {/* The card can fill a small screen; make it obvious there's more below. */}
+              <button
+                type="button"
+                onClick={() => fullStandings.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="mx-auto mt-2 flex items-center gap-1 py-2 text-sm font-medium text-primary"
+              >
+                Full standings
+                <ChevronDown className="size-4" />
+              </button>
             </div>
           )}
+          <h2 ref={fullStandings} className="mb-2 scroll-mt-2 px-1 text-sm font-semibold text-muted-foreground">
+            {tournament.finished ? "Full standings" : "Standings so far"}
+          </h2>
           <StandingsTable
             rows={computeStandings(
               tournament.players.map((p) => p.id),
