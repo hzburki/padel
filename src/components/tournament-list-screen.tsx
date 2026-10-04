@@ -1,10 +1,10 @@
-import { ChevronDown, ChevronRight, MonitorDown, Plus, Smartphone } from "lucide-react"
+import { ChevronDown, ChevronRight, MonitorDown, Plus, Repeat, Smartphone } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
 import { computeStandings, formatPoints, joinNames, winners } from "@/lib/standings"
 import { listTournaments } from "@/lib/storage"
-import { currentRoundIndex, unscoredMatchCount } from "@/lib/tournament"
+import { currentRoundIndex, previousSetup, unscoredMatchCount } from "@/lib/tournament"
 import type { Tournament } from "@/lib/types"
 import { CourtLines } from "./court-lines"
 import { canInstall, InstallBanner, InstallHelp, isPhone, useInstallPrompt } from "./install-banner"
@@ -61,8 +61,19 @@ export function TournamentListScreen() {
           </h2>
           <ul className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
             {others.map((t) => (
-              <li key={t.id}>
+              <li key={t.id} className="relative">
                 <TournamentRow tournament={t} onOpen={() => open(t)} />
+                {t.finished && (
+                  // Beside the row's button, not inside it: buttons can't nest.
+                  <button
+                    type="button"
+                    aria-label={`Play again with the players from ${t.name}`}
+                    onClick={() => nav.push({ name: "new", from: previousSetup(t) })}
+                    className="absolute top-1/2 right-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full text-primary active:bg-muted"
+                  >
+                    <Repeat className="size-5" strokeWidth={2.5} />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -269,7 +280,8 @@ function TournamentRow({ tournament, onOpen }: { tournament: Tournament; onOpen:
           {date.toLocaleDateString(undefined, { month: "short" })}
         </span>
       </span>
-      <span className="min-w-0 flex-1">
+      {/* Finished rows leave room on the right for the Play again icon. */}
+      <span className={`min-w-0 flex-1 ${tournament.finished ? "pr-11" : ""}`}>
         <span className="block truncate text-lg type-label">{tournament.name}</span>
         <span className="block truncate text-sm text-muted-foreground">
           <Status tournament={tournament} />
