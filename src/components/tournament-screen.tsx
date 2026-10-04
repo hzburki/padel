@@ -118,7 +118,7 @@ export function TournamentScreen({ id }: { id: string }) {
       size="lg"
       variant={unscored === 0 ? "default" : "secondary"}
       className="h-14 w-full rounded-2xl text-base"
-      onClick={() => (unscored === 0 ? finish() : setConfirm("finish"))}
+      onClick={() => setConfirm("finish")}
     >
       Finish tournament
     </Button>
@@ -146,7 +146,11 @@ export function TournamentScreen({ id }: { id: string }) {
         </p>
       )}
       {tab === "rounds" ? (
-        <RoundsList tournament={tournament} team={team} onEdit={(round, court) => {
+        <RoundsList
+          tournament={tournament}
+          locked={tournament.finished}
+          team={team}
+          onEdit={(round, court) => {
             setEditing({ round, court })
             setShown({ round, court })
           }}
@@ -154,17 +158,10 @@ export function TournamentScreen({ id }: { id: string }) {
       ) : (
         <div className="pt-2">
           {tournament.finished && (
-            <div className="mb-4">
+            <div className="mb-5">
               <div className="aspect-[4/5] overflow-hidden rounded-2xl bg-primary">
                 {image && <img src={image.url} alt="Final standings card" className="size-full" />}
               </div>
-              <button
-                type="button"
-                className="mt-2 w-full py-2 text-sm font-medium text-primary"
-                onClick={() => update({ ...tournament, finished: false })}
-              >
-                Reopen tournament
-              </button>
             </div>
           )}
           <StandingsTable
@@ -193,14 +190,14 @@ export function TournamentScreen({ id }: { id: string }) {
       </Sheet>
 
       <Sheet open={confirm === "finish"} onClose={() => setConfirm(null)}>
-        <p className="text-lg font-semibold">
-          {unscored} {unscored === 1 ? "match has" : "matches have"} no score
-        </p>
+        <p className="text-lg font-semibold">Finish the tournament?</p>
         <p className="mt-1 text-muted-foreground">
-          Final standings count the scores entered so far. Anyone left with fewer games gets their points scaled up.
+          Scores can't be changed once a tournament is finished.
+          {unscored > 0 &&
+            ` ${unscored} ${unscored === 1 ? "match still has" : "matches still have"} no score; anyone left with fewer games gets their points scaled up.`}
         </p>
         <Button size="lg" className="mt-5 h-14 w-full rounded-2xl text-base" onClick={finish}>
-          Finish anyway
+          Finish tournament
         </Button>
         <Button variant="ghost" className="mt-1 h-12 w-full" onClick={() => setConfirm(null)}>
           Keep playing
@@ -246,14 +243,16 @@ function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
 
 function RoundsList({
   tournament,
+  locked,
   team,
   onEdit,
 }: {
   tournament: Tournament
+  locked: boolean // finished: scores are read-only
   team: (ids: PlayerId[]) => string
   onEdit: (round: number, court: number) => void
 }) {
-  const current = currentRoundIndex(tournament)
+  const current = locked ? -1 : currentRoundIndex(tournament)
   const currentRef = useRef<HTMLLIElement>(null)
   const nameOf = new Map(tournament.players.map((p) => [p.id, p.name]))
 
@@ -276,7 +275,13 @@ function RoundsList({
           </div>
           <div className="divide-y overflow-hidden rounded-2xl border bg-card">
             {round.matches.map((m) => (
-              <MatchRow key={m.court} match={m} team={team} current={r === current} onTap={() => onEdit(r, m.court)} />
+              <MatchRow
+                key={m.court}
+                match={m}
+                team={team}
+                current={r === current}
+                onTap={locked ? undefined : () => onEdit(r, m.court)}
+              />
             ))}
             {round.benched.length > 0 && (
               <p className="px-4 py-2.5 text-sm text-muted-foreground">
@@ -299,14 +304,18 @@ function MatchRow({
   match: Match
   team: (ids: PlayerId[]) => string
   current: boolean
-  onTap: () => void
+  onTap?: () => void // missing when the tournament is finished
 }) {
   const s = match.score
   const aWon = s !== null && s.a > s.b
   const bWon = s !== null && s.b > s.a
+  const Row = onTap ? "button" : "div"
 
   return (
-    <button type="button" onClick={onTap} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-muted">
+    <Row
+      {...(onTap ? { type: "button" as const, onClick: onTap } : {})}
+      className={`flex w-full items-center gap-3 px-4 py-3 text-left ${onTap ? "active:bg-muted" : ""}`}
+    >
       <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
         {match.court}
       </span>
@@ -323,7 +332,7 @@ function MatchRow({
           <span className={aWon ? "" : "text-muted-foreground"}>{s.a}</span>
           <span className={bWon ? "" : "text-muted-foreground"}>{s.b}</span>
         </span>
-      ) : (
+      ) : onTap ? (
         <span
           className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${
             current ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
@@ -331,7 +340,9 @@ function MatchRow({
         >
           Score
         </span>
+      ) : (
+        <span className="shrink-0 text-sm text-muted-foreground">Not played</span>
       )}
-    </button>
+    </Row>
   )
 }
