@@ -54,6 +54,10 @@ export type Side = 0 | 1
 // golden: the next point wins it.
 export type DeuceRule = "advantage" | "golden"
 
+// How the score is entered. points: every point is tapped in. games: only
+// who won each game, for players who don't want to tap every point.
+export type ScoreBy = "points" | "games"
+
 export interface SetMatch {
   version: 2
   kind: "match"
@@ -66,9 +70,11 @@ export interface SetMatch {
   // or "first to 2 sets". The rules are the same either way.
   setsAs: "bestOf" | "firstTo"
   gamesPerSet: number // 2–9; a tie-break is played when both teams reach it
-  deuce: DeuceRule
-  // Who won each point, in order. The only score data stored: games, sets
-  // and the winner are worked out from it.
+  deuce: DeuceRule // not used when scoring by games
+  scoreBy: ScoreBy
+  // Who won each point, in order — or who won each game, when `scoreBy` is
+  // "games". The only score data stored: games, sets and the winner are
+  // worked out from it.
   points: Side[]
   finished: boolean
 }

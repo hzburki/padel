@@ -13,8 +13,9 @@ import {
 } from "./set-match"
 import type { SetMatch, Side } from "./types"
 
-const advantage: MatchRules = { bestOf: 3, gamesPerSet: 6, deuce: "advantage" }
+const advantage: MatchRules = { bestOf: 3, gamesPerSet: 6, deuce: "advantage", scoreBy: "points" }
 const golden: MatchRules = { ...advantage, deuce: "golden" }
+const byGames: MatchRules = { ...advantage, scoreBy: "games" }
 
 // "0010" is three points to the first team and one to the second, in order.
 function pts(sequence: string): Side[] {
@@ -302,5 +303,56 @@ describe("adding and undoing points", () => {
   it("leaves an empty match unchanged on undo", () => {
     const empty = match([])
     expect(undoPoint(empty)).toBe(empty)
+  })
+})
+
+describe("a match scored by games", () => {
+  it("counts every entry in the log as a whole game", () => {
+    const state = replay(byGames, pts("0010"))
+    expect(state.sets[0].games).toEqual([3, 1])
+    expect(state.sets[0].played.map((game) => game.winner)).toEqual(pts("0010"))
+  })
+
+  it("keeps no points for a game and never has one in progress", () => {
+    const state = replay(byGames, pts("01"))
+    expect(state.sets[0].played[0].points).toBeNull()
+    expect(state.current.points).toEqual([0, 0])
+  })
+
+  it("wins a set at the same number of games, two clear", () => {
+    expect(replay(byGames, pts("0000011")).sets[0].winner).toBeNull()
+    expect(replay(byGames, pts("00000110")).setsWon).toEqual([1, 0])
+  })
+
+  it("decides a set at 6–6 with one more game, the tie-break, for 7–6", () => {
+    const sixAll = replay(byGames, pts("000001111101"))
+    expect(sixAll.current.tiebreak).toBe(true)
+
+    const set = replay(byGames, pts("000001111101" + "1")).sets[0]
+    expect(set.games).toEqual([6, 7])
+    expect(set.winner).toBe(1)
+    expect(set.played.at(-1)!.tiebreak).toBe(true)
+  })
+
+  it("is won on sets like any other match", () => {
+    const state = replay(byGames, pts("000000" + "111111" + "000000"))
+    expect(state.winner).toBe(0)
+    expect(formatSets(state)).toBe("6–0 0–6 6–0")
+  })
+
+  it("never calls a game a deuce or golden point game, whatever the rule at 40–40", () => {
+    const [game] = replay({ ...golden, scoreBy: "games" }, pts("0")).sets[0].played
+    expect(game).toMatchObject({ deuce: false, golden: false })
+  })
+
+  it("has nothing to say about how a game went, except that it was the tie-break", () => {
+    const played = replay(byGames, pts("000001111101" + "0")).sets[0].played
+    expect(gameSummary(played[0])).toBe("")
+    expect(gameSummary(played.at(-1)!)).toBe("Tie-break")
+  })
+
+  it("undoes the last game", () => {
+    const undone = undoPoint(match(pts("001"), byGames))
+    expect(replay(byGames, undone.points).sets[0].games).toEqual([2, 0])
   })
 })

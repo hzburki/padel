@@ -39,7 +39,7 @@ export function NewMatchScreen({
   const [startFailed, setStartFailed] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
 
-  const input = { name, teams, bestOf, setsAs, gamesPerSet, deuce }
+  const input = { name, teams, bestOf, setsAs, gamesPerSet, deuce, scoreBy: "points" as const }
   const problems = matchSetupProblems(input)
   const typed = teams.flat().filter((n) => n.trim() !== "").length
 

@@ -5,11 +5,13 @@ export const MAX_GAMES_PER_SET = 9
 
 const TIEBREAK_TARGET = 7
 
-export type MatchRules = Pick<SetMatch, "bestOf" | "gamesPerSet" | "deuce">
+export type MatchRules = Pick<SetMatch, "bestOf" | "gamesPerSet" | "deuce" | "scoreBy">
 
 export interface GameResult {
   winner: Side
-  points: [number, number] // points won by each side, counted 1, 2, 3
+  // Points won by each side, counted 1, 2, 3. Null when the match is scored
+  // by games: nobody logged them.
+  points: [number, number] | null
   tiebreak: boolean
   deuce: boolean // reached 40–40
   golden: boolean // decided by the single point at 40–40
@@ -40,9 +42,11 @@ export function formatLength(match: Pick<SetMatch, "bestOf" | "setsAs">): string
   return match.setsAs === "firstTo" ? `first to ${setsToWin(match.bestOf)} sets` : `best of ${match.bestOf}`
 }
 
-// The whole match worked out from the point log. Points logged after the
-// match is decided are ignored.
+// The whole match worked out from the log: one entry per point, or one per
+// game when the match is scored by games. Entries logged after the match is
+// decided are ignored.
 export function replay(rules: MatchRules, points: Side[]): MatchState {
+  const byGames = rules.scoreBy === "games"
   const target = setsToWin(rules.bestOf)
   const sets: SetState[] = [newSet()]
   const setsWon: [number, number] = [0, 0]
@@ -55,11 +59,20 @@ export function replay(rules: MatchRules, points: Side[]): MatchState {
     const set = sets[sets.length - 1]
     const tiebreak = isTiebreak(set, rules.gamesPerSet)
 
-    game[side]++
-    if (!tiebreak && game[0] === 3 && game[1] === 3) deuce = true
-    if (!gameWon(game, side, tiebreak, rules.deuce)) continue
+    // Scored by games, every entry is a whole game — the tie-break too.
+    if (!byGames) {
+      game[side]++
+      if (!tiebreak && game[0] === 3 && game[1] === 3) deuce = true
+      if (!gameWon(game, side, tiebreak, rules.deuce)) continue
+    }
 
-    set.played.push({ winner: side, points: game, tiebreak, deuce, golden: deuce && rules.deuce === "golden" })
+    set.played.push({
+      winner: side,
+      points: byGames ? null : game,
+      tiebreak,
+      deuce,
+      golden: deuce && rules.deuce === "golden",
+    })
     set.games[side]++
     game = [0, 0]
     deuce = false
@@ -117,8 +130,10 @@ export function pointLabels(state: MatchState): [string, string] {
 }
 
 // How a finished game went, in the words players use: "To 15" when the
-// loser got one point, "After deuce", "Golden point", "Tie-break 7–4".
+// loser got one point, "After deuce", "Golden point", "Tie-break 7–4". With
+// no points logged there is only "Tie-break" to say, or nothing.
 export function gameSummary(game: GameResult): string {
+  if (game.points === null) return game.tiebreak ? "Tie-break" : ""
   const won = game.points[game.winner]
   const lost = game.points[other(game.winner)]
   if (game.tiebreak) return `Tie-break ${won}–${lost}`
@@ -127,14 +142,15 @@ export function gameSummary(game: GameResult): string {
   return `To ${lost === 0 ? "love" : CALLS[lost]}`
 }
 
-// A copy of the match with one more point. Unchanged once the match is
-// decided or finished.
+// A copy of the match with one more point — one more game, when it is
+// scored by games. Unchanged once the match is decided or finished.
 export function addPoint(match: SetMatch, side: Side): SetMatch {
   if (match.finished || replay(match, match.points).winner !== null) return match
   return { ...match, points: [...match.points, side] }
 }
 
-// A copy of the match without its last point. Unchanged once finished.
+// A copy of the match without its last point, or its last game when it is
+// scored by games. Unchanged once finished.
 export function undoPoint(match: SetMatch): SetMatch {
   if (match.finished || match.points.length === 0) return match
   return { ...match, points: match.points.slice(0, -1) }

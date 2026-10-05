@@ -37,6 +37,7 @@ const match: SetMatch = {
   setsAs: "firstTo",
   gamesPerSet: 6,
   deuce: "advantage",
+  scoreBy: "games",
   points: [0, 1, 0],
   finished: false,
 }
@@ -57,6 +58,11 @@ describe("migrate", () => {
   it("reads a match saved before first to existed as a best of", () => {
     const { setsAs: _, ...older } = match
     expect(migrate(structuredClone(older))).toEqual({ ...match, setsAs: "bestOf" })
+  })
+
+  it("reads a match saved before scoring by games existed as scored point by point", () => {
+    const { scoreBy: _, ...older } = match
+    expect(migrate(structuredClone(older))).toEqual({ ...match, scoreBy: "points" })
   })
 
   it("is on version 2 today", () => {

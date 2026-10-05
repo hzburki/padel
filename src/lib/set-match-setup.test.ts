@@ -11,6 +11,7 @@ const valid: MatchSetupInput = {
   setsAs: "bestOf",
   gamesPerSet: 6,
   deuce: "advantage",
+  scoreBy: "points",
 }
 
 const deps = { now: 1000, newId: () => "id1" }
@@ -81,10 +82,15 @@ describe("createSetMatch", () => {
     const match = createSetMatch({ ...valid, bestOf: 5, setsAs: "firstTo", gamesPerSet: 4, deuce: "golden" }, deps)
     expect(match).toMatchObject({ bestOf: 5, setsAs: "firstTo", gamesPerSet: 4, deuce: "golden" })
   })
+
+  it("keeps whether the score is entered point by point or game by game", () => {
+    expect(createSetMatch(valid, deps).scoreBy).toBe("points")
+    expect(createSetMatch({ ...valid, scoreBy: "games" }, deps).scoreBy).toBe("games")
+  })
 })
 
 describe("previousMatchSetup", () => {
-  it("carries the teams and rules to a rematch, not the points", () => {
+  it("carries the teams, the rules and how the score is entered to a rematch, not the points", () => {
     const played = { ...createSetMatch(valid, deps), points: [0, 1, 0] as (0 | 1)[], finished: true }
     expect(previousMatchSetup(played)).toEqual({
       teams: valid.teams,
@@ -92,6 +98,7 @@ describe("previousMatchSetup", () => {
       setsAs: "bestOf",
       gamesPerSet: 6,
       deuce: "advantage",
+      scoreBy: "points",
     })
   })
 })

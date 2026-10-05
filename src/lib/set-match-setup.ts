@@ -55,6 +55,7 @@ export function createSetMatch(input: MatchSetupInput, { now, newId }: { now: nu
     setsAs: input.setsAs,
     gamesPerSet: input.gamesPerSet,
     deuce: input.deuce,
+    scoreBy: input.scoreBy,
     points: [],
     finished: false,
   }
@@ -74,5 +75,6 @@ export function previousMatchSetup(match: SetMatch): PreviousMatchSetup {
     setsAs: match.setsAs,
     gamesPerSet: match.gamesPerSet,
     deuce: match.deuce,
+    scoreBy: match.scoreBy,
   }
 }

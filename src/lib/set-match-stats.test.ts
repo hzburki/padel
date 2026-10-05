@@ -3,7 +3,7 @@ import { replay, type MatchRules } from "./set-match"
 import { matchStats } from "./set-match-stats"
 import type { Side } from "./types"
 
-const advantage: MatchRules = { bestOf: 3, gamesPerSet: 6, deuce: "advantage" }
+const advantage: MatchRules = { bestOf: 3, gamesPerSet: 6, deuce: "advantage", scoreBy: "points" }
 const golden: MatchRules = { ...advantage, deuce: "golden" }
 
 // "0010" is three points to the first team and one to the second, in order.
@@ -66,6 +66,12 @@ describe("matchStats", () => {
     const [first, second] = stats(games("0010001101"))
     expect(first.bestRun).toBe(3)
     expect(second.bestRun).toBe(2)
+  })
+
+  it("counts sets, games and runs but no points or deuce games when the match is scored by games", () => {
+    const [first, second] = stats(pts("0001000" + "00"), { ...advantage, scoreBy: "games" })
+    expect(first).toEqual({ sets: 1, games: 8, points: 0, deuceGames: 0, bestRun: 5 })
+    expect(second).toEqual({ sets: 0, games: 1, points: 0, deuceGames: 0, bestRun: 1 })
   })
 
   it("carries a run of games across the end of a set", () => {

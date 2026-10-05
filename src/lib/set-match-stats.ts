@@ -4,8 +4,8 @@ import type { Side } from "./types"
 export interface TeamStats {
   sets: number
   games: number // a tie-break counts as one game, as it does in the set score
-  points: number // every point won, tie-break points included
-  deuceGames: number // games won after reaching 40–40, by either deuce rule
+  points: number // every point won, tie-break points included; 0 when scored by games
+  deuceGames: number // games won after reaching 40–40, by either deuce rule; 0 when scored by games
   bestRun: number // most games won in a row, carried across sets
 }
 
@@ -20,8 +20,8 @@ export function matchStats(state: MatchState): [TeamStats, TeamStats] {
 
   for (const game of state.sets.flatMap((set) => set.played)) {
     const winner = stats[game.winner]
-    stats[0].points += game.points[0]
-    stats[1].points += game.points[1]
+    stats[0].points += game.points?.[0] ?? 0
+    stats[1].points += game.points?.[1] ?? 0
     winner.games++
     if (game.deuce) winner.deuceGames++
 

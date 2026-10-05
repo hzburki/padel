@@ -105,6 +105,10 @@ One match between two fixed pairs, with ordinary tennis-style scoring. The rules
 
 - A match stores only **who won each point**, in order. Games, sets, the winner and the stats are worked
   out by replaying that log (`replay`). Undo drops the last point. Never store a second copy of the score.
+- The organiser picks how the score is entered (`scoreBy`), fixed for the match: **points** (every point,
+  the default) or **games** (only who won each game). Scored by games, the same log holds one entry per
+  game, the tie-break is one entry like any other game, and there are no points, deuce games or 40–40 rule
+  to show. Don't assume a game has points.
 - Game: 0, 15, 30, 40. The organiser picks what happens at 40–40, fixed for the match: **advantage** (two
   points in a row, the default) or **golden point** (the next point wins).
 - Set: first to N games with two clear, N from 2 to 9 (default 6). At N–N a **tie-break** decides it: first
