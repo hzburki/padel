@@ -29,6 +29,7 @@ interface NavApi<R> {
   // Go back one step: closes whatever is open on top (see useBackHandler)
   // before leaving the screen. `force` leaves the screen regardless.
   back: (options?: { force?: boolean }) => void
+  home: () => void // leave every screen and show the first one
   depth: number
   registerBackHandler: (onBack: () => void) => () => void
 }
@@ -278,6 +279,16 @@ export function StackNavigator<R>({
     withoutGuard(() => history.back())
   }, [])
 
+  const home = useCallback(() => {
+    if (busy.current) return
+    const steps = stackRef.current.length - 1
+    if (steps < 1) return
+    // The slide-out shows the screen right underneath; when home is further
+    // down than that, skip it rather than flash a screen we're not going to.
+    if (steps > 1) skipNextPopAnimation.current = true
+    withoutGuard(() => history.go(-steps))
+  }, [])
+
   // Esc on a keyboard means back, like everywhere else.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && back()
@@ -365,8 +376,8 @@ export function StackNavigator<R>({
   }
 
   const api = useMemo(
-    () => ({ push, replace, back, depth: stack.length - 1, registerBackHandler }),
-    [push, replace, back, stack.length, registerBackHandler],
+    () => ({ push, replace, back, home, depth: stack.length - 1, registerBackHandler }),
+    [push, replace, back, home, stack.length, registerBackHandler],
   )
 
   return (
