@@ -1,4 +1,4 @@
-import { Ellipsis, Repeat, Trash2, Undo2 } from "lucide-react"
+import { Ellipsis, Repeat, Share, Trash2, Undo2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,9 @@ import { matchStats } from "@/lib/set-match-stats"
 import { deleteTournament, loadTournament, saveTournament } from "@/lib/storage"
 import type { SetMatch, Side } from "@/lib/types"
 import { Congrats } from "./congrats"
+import { renderMatchShareCard } from "./match-share-card"
 import { Screen } from "./screen"
+import { shareOrDownload } from "./share-card"
 import { Sheet } from "./sheet"
 import { useNav } from "./stack-navigator"
 
@@ -27,11 +29,33 @@ export function MatchScreen({ id }: { id: string }) {
   // Which sheet is open.
   const [confirm, setConfirm] = useState<"menu" | "finish" | "delete" | "congrats" | null>(null)
   const [saveError, setSaveError] = useState(false)
+  // The full card to share, and a score-only preview for the screen.
+  const [image, setImage] = useState<{ blob: Blob; previewUrl: string } | null>(null)
 
   useEffect(() => {
     // A tournament has its own screen; here it counts as not found.
     loadTournament(id).then((saved) => setMatch(saved?.kind === "match" ? saved : null))
   }, [id])
+
+  // Render the share image ahead of time, so the Share tap can hand it to
+  // the share sheet immediately (iOS only allows that during the tap).
+  useEffect(() => {
+    if (!match?.finished) return
+    let url = ""
+    let cancelled = false
+    Promise.all([renderMatchShareCard(match), renderMatchShareCard(match, { scoreOnly: true })]).then(
+      ([blob, preview]) => {
+        if (cancelled) return
+        url = URL.createObjectURL(preview)
+        setImage({ blob, previewUrl: url })
+      },
+    )
+    return () => {
+      cancelled = true
+      if (url) URL.revokeObjectURL(url)
+      setImage(null)
+    }
+  }, [match])
 
   if (match === undefined) return <Screen title="">{null}</Screen>
   if (match === null) {
@@ -62,6 +86,12 @@ export function MatchScreen({ id }: { id: string }) {
     update({ ...match, finished: true })
   }
 
+  const share = () => {
+    if (!image) return
+    const filename = `${match.name.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "padel"}.png`
+    shareOrDownload(image.blob, filename, match.name)
+  }
+
   const remove = async () => {
     setConfirm(null)
     await deleteTournament(match.id)
@@ -84,14 +114,21 @@ export function MatchScreen({ id }: { id: string }) {
       }
       footer={
         match.finished ? (
-          <Button
-            variant="secondary"
-            size="lg"
-            onClick={() => nav.push({ name: "new", fromMatch: previousMatchSetup(match) })}
-          >
-            <Repeat className="size-5" />
-            Play again
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="secondary"
+              size="lg"
+              className="px-3"
+              onClick={() => nav.push({ name: "new", fromMatch: previousMatchSetup(match) })}
+            >
+              <Repeat className="size-5" />
+              Play again
+            </Button>
+            <Button variant="ball" size="lg" className="px-3" disabled={!image} onClick={share}>
+              <Share className="size-5" />
+              Share
+            </Button>
+          </div>
         ) : (
           <div className="space-y-2">
             <Button
@@ -135,7 +172,14 @@ export function MatchScreen({ id }: { id: string }) {
         </p>
       )}
       <div className="pt-2">
-        <Scoreboard match={match} state={state} />
+        {match.finished ? (
+          // The share image's own scoreboard stands in for the live one.
+          <div className="min-h-48 overflow-hidden rounded-3xl bg-primary">
+            {image && <img src={image.previewUrl} alt="Final score" className="block w-full" />}
+          </div>
+        ) : (
+          <Scoreboard match={match} state={state} />
+        )}
       </div>
       {decided ? (
         <>
@@ -165,8 +209,8 @@ export function MatchScreen({ id }: { id: string }) {
       <Sheet open={confirm === "congrats"} onClose={() => setConfirm(null)}>
         <Congrats
           winnerNames={state.winner === null ? [] : match.teams[state.winner]}
-          canShare={false}
-          onShare={() => {}}
+          canShare={image !== null}
+          onShare={share}
           onClose={() => setConfirm(null)}
         />
       </Sheet>
