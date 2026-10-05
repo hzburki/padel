@@ -31,7 +31,7 @@ export function NewMatchScreen({
   const nav = useNav<Route>()
   const [name, setName] = useState(() => defaultGameName("match", new Date()))
   const [teams, setTeams] = useState(from?.teams ?? NO_NAMES)
-  const [bestOf, setBestOf] = useState<SetMatch["bestOf"]>(from?.bestOf ?? 3)
+  const [bestOf, setBestOf] = useState<SetMatch["bestOf"]>(from?.bestOf ?? 1)
   const [setsAs, setSetsAs] = useState<SetMatch["setsAs"]>(from?.setsAs ?? "bestOf")
   const [gamesPerSet, setGamesPerSet] = useState(from?.gamesPerSet ?? 6)
   const [deuce, setDeuce] = useState<DeuceRule>(from?.deuce ?? "advantage")
