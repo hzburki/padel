@@ -1,10 +1,22 @@
 import { describe, expect, it } from "vitest"
-import { legalPageAt, legalPath } from "./paths"
+import { isHomePath, legalPageAt, legalPath } from "./paths"
 
 describe("legalPath", () => {
   it("puts the privacy policy at /privacy and the terms at /terms", () => {
     expect(legalPath("privacy")).toBe("/privacy")
     expect(legalPath("terms")).toBe("/terms")
+  })
+})
+
+describe("isHomePath", () => {
+  it("treats / and /index.html as home", () => {
+    expect(isHomePath("/")).toBe(true)
+    expect(isHomePath("/index.html")).toBe(true)
+  })
+
+  it("treats any other address as not home", () => {
+    expect(isHomePath("/nope")).toBe(false)
+    expect(isHomePath("/privacy")).toBe(false)
   })
 })
 

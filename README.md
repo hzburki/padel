@@ -65,8 +65,8 @@ It is a static site; any static host works. It is set up for Cloudflare Pages:
 | Environment variable | `VITE_SITE_URL` = the site's address, no trailing slash |
 
 Node is pinned in [`.node-version`](.node-version) and response headers live in
-[`public/_headers`](public/_headers). Do not add a `404.html`: without one, Pages serves the app for `/privacy` and
-`/terms`.
+[`public/_headers`](public/_headers). Do not add a `404.html`: without one, Pages serves the app for every
+address, which is how `/privacy` and `/terms` open and how the app shows its own 404 screen for anything else.
 
 ## License
 
