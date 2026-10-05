@@ -17,6 +17,10 @@ import {
 //
 // The whole stack is stored in each history entry's state; on popstate the
 // stack is simply read back from there.
+//
+// Most screens share the address "/". A route can have an address of its own
+// (`pathOf`), and `routeAt` opens the app on that screen when someone lands
+// on the address directly.
 
 interface Entry<R> {
   key: string
@@ -102,13 +106,31 @@ function readStack<R>(state: unknown): Entry<R>[] | null {
 export function StackNavigator<R>({
   initial,
   render,
+  pathOf = () => "/",
+  routeAt,
 }: {
   initial: R
   render: (route: R) => ReactNode
+  pathOf?: (route: R) => string // the address shown while a route is on top
+  routeAt?: (pathname: string) => R | null // the route an address opens, if it has one
 }) {
-  const [stack, setStack] = useState<Entry<R>[]>(
-    () => readStack<R>(history.state) ?? [{ key: newKey(), route: initial }],
-  )
+  const [stack, setStack] = useState<Entry<R>[]>(() => {
+    const saved = readStack<R>(history.state)
+    if (saved) return saved
+    const home = [{ key: newKey(), route: initial }]
+    const linked = routeAt?.(location.pathname)
+    if (!linked) return home
+    // Opened straight on a screen's own address: put home under it in
+    // history too, so back leads into the app instead of out of it.
+    const opened = [...home, { key: newKey(), route: linked }]
+    history.replaceState({ stack: home }, "", "/")
+    history.pushState({ stack: opened }, "", pathOf(linked))
+    return opened
+  })
+  const pathOfRef = useRef(pathOf)
+  useLayoutEffect(() => {
+    pathOfRef.current = pathOf
+  })
   const stackRef = useRef(stack)
   // Event handlers read the stack through this ref; keep it current before
   // any other layout effect (the enter animation) runs.
@@ -255,7 +277,7 @@ export function StackNavigator<R>({
     if (busy.current) return
     withoutGuard(() => {
       const next = [...stackRef.current, { key: newKey(), route }]
-      history.pushState({ stack: next }, "")
+      history.pushState({ stack: next }, "", pathOfRef.current(route))
       pendingEnter.current = true
       setStack(next)
     })
@@ -265,7 +287,7 @@ export function StackNavigator<R>({
     if (busy.current) return
     withoutGuard(() => {
       const next = [...stackRef.current.slice(0, -1), { key: newKey(), route }]
-      history.replaceState({ stack: next }, "")
+      history.replaceState({ stack: next }, "", pathOfRef.current(route))
       pendingEnter.current = true
       setStack(next)
     })

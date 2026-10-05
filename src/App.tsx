@@ -5,6 +5,7 @@ import { NewGameScreen } from "@/components/new-game-screen"
 import { StackNavigator } from "@/components/stack-navigator"
 import { TournamentListScreen } from "@/components/tournament-list-screen"
 import { TournamentScreen } from "@/components/tournament-screen"
+import { legalPageAt, legalPath, type LegalPage } from "@/lib/paths"
 import type { PreviousMatchSetup } from "@/lib/set-match-setup"
 import type { PreviousSetup } from "@/lib/tournament"
 
@@ -13,7 +14,7 @@ export type Route =
   | { name: "new"; from?: PreviousSetup; fromMatch?: PreviousMatchSetup }
   | { name: "tournament"; id: string }
   | { name: "match"; id: string }
-  | { name: "legal"; page: "privacy" | "terms" }
+  | { name: "legal"; page: LegalPage }
 
 const HOME: Route = { name: "home" }
 
@@ -32,7 +33,17 @@ function render(route: Route) {
   }
 }
 
+// Only the legal pages have an address of their own, so they can be linked.
+function pathOf(route: Route): string {
+  return route.name === "legal" ? legalPath(route.page) : "/"
+}
+
+function routeAt(pathname: string): Route | null {
+  const page = legalPageAt(pathname)
+  return page ? { name: "legal", page } : null
+}
+
 export default function App() {
   useCenterFocusedField()
-  return <StackNavigator initial={HOME} render={render} />
+  return <StackNavigator initial={HOME} render={render} pathOf={pathOf} routeAt={routeAt} />
 }
