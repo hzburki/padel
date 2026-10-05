@@ -2,7 +2,7 @@ import { ChevronDown, ChevronRight, MonitorDown, Plus, Repeat, Smartphone, Sword
 import { useEffect, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
-import { teamName } from "@/lib/set-match"
+import { formatSets, replay, teamName } from "@/lib/set-match"
 import { computeStandings, formatPoints, joinNames, winners } from "@/lib/standings"
 import { listTournaments } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, unscoredMatchCount } from "@/lib/tournament"
@@ -26,8 +26,8 @@ export function TournamentListScreen() {
     if (isTop) listTournaments().then(setEvents)
   }, [isTop])
 
-  // The newest unfinished tournament gets the spotlight; the rest are listed.
-  const playing = events?.find((e): e is Tournament => e.kind === "americano" && !e.finished)
+  // The newest unfinished game gets the spotlight; the rest are listed.
+  const playing = events?.find((e) => !e.finished)
   const others = events?.filter((e) => e !== playing) ?? []
   const open = (e: SavedEvent) => nav.push({ name: e.kind === "match" ? "match" : "tournament", id: e.id })
 
@@ -36,7 +36,7 @@ export function TournamentListScreen() {
       title="Padel"
       bare
       footer={
-        // With a tournament on, Continue is the lime action and this steps back.
+        // With a game on, Continue is the lime action and this steps back.
         <Button variant={playing ? "default" : "ball"} size="lg" onClick={() => nav.push({ name: "new" })}>
           <Plus className="size-5" strokeWidth={2.5} />
           New game
@@ -48,7 +48,8 @@ export function TournamentListScreen() {
         howItWorks={events?.length === 0 ? "open" : "collapsible"}
         onInstall={canInstall() ? () => (install ? install() : setInstallHelp(true)) : undefined}
       >
-        {playing && <PlayingNow tournament={playing} onOpen={() => open(playing)} />}
+        {playing?.kind === "americano" && <PlayingNow tournament={playing} onOpen={() => open(playing)} />}
+        {playing?.kind === "match" && <MatchPlayingNow match={playing} onOpen={() => open(playing)} />}
       </Hero>
 
       <InstallBanner />
@@ -228,6 +229,43 @@ function PlayingNow({ tournament, onOpen }: { tournament: Tournament; onOpen: ()
           ) : (
             <span className="text-muted-foreground">No scores yet</span>
           )}
+        </p>
+        <span className="flex h-11 shrink-0 items-center gap-1 rounded-xl bg-accent pr-3 pl-4 text-accent-foreground shadow-[inset_0_-3px_0_rgb(14_34_64/0.16)] type-label">
+          Continue
+          <ChevronRight className="size-4" strokeWidth={2.5} />
+        </span>
+      </div>
+    </button>
+  )
+}
+
+// The spotlight card for a match: sets won where a tournament has its round
+// counter, and the set scores where it has the leader.
+function MatchPlayingNow({ match, onOpen }: { match: SetMatch; onOpen: () => void }) {
+  const state = replay(match, match.points)
+  const sets = formatSets(state)
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="block w-full rounded-3xl bg-card p-5 text-left text-card-foreground shadow-lg shadow-black/10 active:scale-[0.99]"
+    >
+      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">Playing now</span>
+      <div className="mt-3 flex items-end gap-3">
+        <p className="min-w-0 flex-1 truncate text-[1.75rem] type-display">{match.name}</p>
+        <p className="shrink-0 text-primary type-display" aria-label={`${state.setsWon[0]} sets to ${state.setsWon[1]}`}>
+          <span className="text-[1.75rem]">
+            {state.setsWon[0]}–{state.setsWon[1]}
+          </span>
+          <span className="text-lg text-muted-foreground"> sets</span>
+        </p>
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <p className="min-w-0 flex-1 text-sm">
+          <span className="block truncate font-semibold">
+            {teamName(match.teams[0])} v {teamName(match.teams[1])}
+          </span>
+          <span className="block truncate text-muted-foreground">{sets === "" ? "No games yet" : `Games ${sets}`}</span>
         </p>
         <span className="flex h-11 shrink-0 items-center gap-1 rounded-xl bg-accent pr-3 pl-4 text-accent-foreground shadow-[inset_0_-3px_0_rgb(14_34_64/0.16)] type-label">
           Continue

@@ -1,9 +1,9 @@
-import { Ellipsis, Trash2 } from "lucide-react"
+import { Ellipsis, Trash2, Undo2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
-import { pointLabels, replay, type MatchState } from "@/lib/set-match"
-import { deleteTournament, loadTournament } from "@/lib/storage"
+import { addPoint, gameSummary, pointLabels, replay, teamName, undoPoint, type MatchState } from "@/lib/set-match"
+import { deleteTournament, loadTournament, saveTournament } from "@/lib/storage"
 import type { SetMatch, Side } from "@/lib/types"
 import { Screen } from "./screen"
 import { Sheet } from "./sheet"
@@ -14,6 +14,7 @@ export function MatchScreen({ id }: { id: string }) {
   const [match, setMatch] = useState<SetMatch | null | undefined>(undefined)
   // Which sheet is open.
   const [confirm, setConfirm] = useState<"menu" | "delete" | null>(null)
+  const [saveError, setSaveError] = useState(false)
 
   useEffect(() => {
     // A tournament has its own screen; here it counts as not found.
@@ -30,6 +31,19 @@ export function MatchScreen({ id }: { id: string }) {
   }
 
   const state = replay(match, match.points)
+  const decided = state.winner !== null
+
+  // Save straight away: the phone may be locked or the tab killed any moment.
+  const update = async (next: SetMatch) => {
+    if (next === match) return
+    setMatch(next)
+    try {
+      await saveTournament(next)
+      setSaveError(false)
+    } catch {
+      setSaveError(true)
+    }
+  }
 
   const remove = async () => {
     setConfirm(null)
@@ -50,10 +64,45 @@ export function MatchScreen({ id }: { id: string }) {
           <Ellipsis className="size-6" />
         </button>
       }
+      footer={
+        <div className="space-y-2">
+          <Button
+            variant="ghost"
+            className="mx-auto flex h-11 px-4 text-base font-medium text-primary"
+            disabled={match.points.length === 0}
+            onClick={() => update(undoPoint(match))}
+          >
+            <Undo2 className="size-5" strokeWidth={2.5} />
+            Undo last point
+          </Button>
+          {!decided && (
+            <div className="grid grid-cols-2 gap-2">
+              {([0, 1] as const).map((side) => (
+                // touch-manipulation: no double-tap zoom, so quick taps all count.
+                <button
+                  key={side}
+                  type="button"
+                  onClick={() => update(addPoint(match, side))}
+                  className="flex h-20 min-w-0 touch-manipulation flex-col items-center justify-center rounded-2xl bg-accent px-3 text-accent-foreground shadow-[inset_0_-3px_0_rgb(14_34_64/0.16)] transition-transform active:scale-[0.97] active:shadow-none"
+                >
+                  <span className="text-sm font-medium opacity-70">Point for</span>
+                  <span className="max-w-full truncate text-lg type-label">{teamName(match.teams[side])}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      }
     >
+      {saveError && (
+        <p className="mt-2 rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          The last point isn't saved on this phone yet. It's still shown here, and the next point will try again.
+        </p>
+      )}
       <div className="pt-2">
         <Scoreboard match={match} state={state} />
       </div>
+      <SetGames match={match} state={state} />
 
       <Sheet open={confirm === "menu"} onClose={() => setConfirm(null)}>
         <div className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
@@ -126,5 +175,31 @@ function Scoreboard({ match, state }: { match: SetMatch; state: MatchState }) {
         ))}
       </div>
     </div>
+  )
+}
+
+// The games of the set being played, newest first.
+function SetGames({ match, state }: { match: SetMatch; state: MatchState }) {
+  const set = state.sets[state.sets.length - 1]
+  const games = set.played.map((game, i) => ({ game, number: i + 1 })).reverse()
+  return (
+    <section className="mt-8">
+      <h2 className="mb-3 px-1 text-[1.375rem] type-display">Set {state.sets.length} games</h2>
+      {games.length === 0 ? (
+        <p className="px-1 text-muted-foreground">No game finished yet in this set.</p>
+      ) : (
+        <ol className="divide-y overflow-hidden rounded-3xl border-[1.5px] bg-card">
+          {games.map(({ game, number }) => (
+            <li key={number} className="flex items-center gap-3 px-4 py-3">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xl text-primary type-display">
+                {number}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[1.0625rem] type-label">{teamName(match.teams[game.winner])}</span>
+              <span className="shrink-0 text-sm text-muted-foreground">{gameSummary(game)}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   )
 }

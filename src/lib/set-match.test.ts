@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { addPoint, formatSets, pointLabels, replay, teamName, undoPoint, type MatchRules } from "./set-match"
+import { addPoint, formatSets, gameSummary, pointLabels, replay, teamName, undoPoint, type MatchRules } from "./set-match"
 import type { SetMatch, Side } from "./types"
 
 const advantage: MatchRules = { bestOf: 3, gamesPerSet: 6, deuce: "advantage" }
@@ -198,6 +198,32 @@ describe("the match", () => {
 
   it("leaves a set with no game played out of the set scores", () => {
     expect(formatSets(replay(advantage, SET_TO_FIRST))).toBe("6–0")
+  })
+})
+
+describe("how a game went", () => {
+  const first = (points: Side[], rules = advantage) => gameSummary(replay(rules, points).sets[0].played[0])
+
+  it("says to love when the loser won no point", () => {
+    expect(first(pts("0000"))).toBe("To love")
+  })
+
+  it("says to 15 or to 30 by the loser's points", () => {
+    expect(first(pts("10000"))).toBe("To 15")
+    expect(first(pts("110000"))).toBe("To 30")
+  })
+
+  it("says after deuce for a game that went through 40–40 on advantage", () => {
+    expect(first(pts("00011100"))).toBe("After deuce")
+  })
+
+  it("says golden point for a game decided at 40–40 under that rule", () => {
+    expect(first(pts("0001111"), golden)).toBe("Golden point")
+  })
+
+  it("gives a tie-break's points with the winner's first", () => {
+    const set = replay(advantage, [...SIX_ALL, ...pts("00001111111")]).sets[0]
+    expect(gameSummary(set.played.at(-1)!)).toBe("Tie-break 7–4")
   })
 })
 

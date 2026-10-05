@@ -104,6 +104,17 @@ export function pointLabels(state: MatchState): [string, string] {
   return [CALLS[a], CALLS[b]]
 }
 
+// How a finished game went, in the words players use: "To 15" when the
+// loser got one point, "After deuce", "Golden point", "Tie-break 7–4".
+export function gameSummary(game: GameResult): string {
+  const won = game.points[game.winner]
+  const lost = game.points[other(game.winner)]
+  if (game.tiebreak) return `Tie-break ${won}–${lost}`
+  if (game.golden) return "Golden point"
+  if (game.deuce) return "After deuce"
+  return `To ${lost === 0 ? "love" : CALLS[lost]}`
+}
+
 // A copy of the match with one more point. Unchanged once the match is
 // decided or finished.
 export function addPoint(match: SetMatch, side: Side): SetMatch {
