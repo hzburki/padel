@@ -57,7 +57,7 @@ export function setupProblems(input: SetupInput): string[] {
 }
 
 // The first name that appears twice, ignoring case; null if all differ.
-function duplicateName(names: string[]): string | null {
+export function duplicateName(names: string[]): string | null {
   const seen = new Set<string>()
   for (const name of names) {
     const k = name.toLowerCase()
