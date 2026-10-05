@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react"
+import { useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -47,6 +47,17 @@ export function NewMatchScreen({
   const dirty = typed > 0 && teams.flat().join("\n") !== (from?.teams ?? NO_NAMES).flat().join("\n") && !starting
   useBackHandler(dirty && active, () => setConfirmDiscard(true))
 
+  // The keyboard's Enter key walks down the fields: name, then the four
+  // players. On the last one it puts the keyboard away.
+  const fields = useRef<(HTMLInputElement | null)[]>([])
+  const enterMovesOn = (index: number) => (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return
+    e.preventDefault()
+    const next = fields.current[index + 1]
+    if (next) next.focus()
+    else e.currentTarget.blur()
+  }
+
   const setPlayer = (side: Side, seat: 0 | 1, value: string) =>
     setTeams((t) => t.map((team, s) => team.map((n, i) => (s === side && i === seat ? value : n))) as SetMatch["teams"])
 
@@ -85,7 +96,14 @@ export function NewMatchScreen({
     >
       {top}
       <Section title="Name">
-        <Input value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" />
+        <Input
+          ref={(el) => void (fields.current[0] = el)}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={enterMovesOn(0)}
+          enterKeyHint="next"
+          autoComplete="off"
+        />
       </Section>
 
       {([0, 1] as const).map((side) => (
@@ -94,8 +112,10 @@ export function NewMatchScreen({
             {([0, 1] as const).map((seat) => (
               <Input
                 key={seat}
+                ref={(el) => void (fields.current[1 + side * 2 + seat] = el)}
                 value={teams[side][seat]}
                 onChange={(e) => setPlayer(side, seat, e.target.value)}
+                onKeyDown={enterMovesOn(1 + side * 2 + seat)}
                 placeholder={`Player ${side * 2 + seat + 1}`}
                 aria-label={`Team ${side + 1}, player ${seat + 1}`}
                 enterKeyHint={side === 1 && seat === 1 ? "done" : "next"}
