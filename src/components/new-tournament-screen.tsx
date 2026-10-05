@@ -12,7 +12,7 @@ import {
   cleanPlayerName,
   cleanPlayerNames,
   createTournament,
-  defaultTournamentName,
+  defaultGameName,
   MAX_ROUNDS,
   maxCourts,
   MIN_PLAYERS,
@@ -36,7 +36,7 @@ export function NewTournamentScreen({
   active?: boolean // false while the match form is showing instead
 }) {
   const nav = useNav<Route>()
-  const [name, setName] = useState(() => defaultTournamentName(new Date()))
+  const [name, setName] = useState(() => defaultGameName("americano", new Date()))
   const [players, setPlayers] = useState<string[]>(from?.playerNames ?? [])
   const [draft, setDraft] = useState("")
   const [courts, setCourts] = useState(from?.courts ?? 1)

@@ -6,7 +6,7 @@ import { randomId } from "@/lib/ids"
 import { MAX_GAMES_PER_SET, MIN_GAMES_PER_SET, setsToWin } from "@/lib/set-match"
 import { createSetMatch, matchSetupProblems, type PreviousMatchSetup } from "@/lib/set-match-setup"
 import { requestPersistentStorage, saveTournament } from "@/lib/storage"
-import { defaultTournamentName } from "@/lib/tournament"
+import { defaultGameName } from "@/lib/tournament"
 import type { DeuceRule, SetMatch, Side } from "@/lib/types"
 import { Hint, Section, Stepper } from "./new-tournament-screen"
 import { Screen } from "./screen"
@@ -29,7 +29,7 @@ export function NewMatchScreen({
   active: boolean // false while the Americano form is showing instead
 }) {
   const nav = useNav<Route>()
-  const [name, setName] = useState(() => defaultTournamentName(new Date()))
+  const [name, setName] = useState(() => defaultGameName("match", new Date()))
   const [teams, setTeams] = useState(from?.teams ?? NO_NAMES)
   const [bestOf, setBestOf] = useState<SetMatch["bestOf"]>(from?.bestOf ?? 3)
   const [setsAs, setSetsAs] = useState<SetMatch["setsAs"]>(from?.setsAs ?? "bestOf")

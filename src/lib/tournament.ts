@@ -1,7 +1,7 @@
 import { generateSchedule } from "./americano"
 import type { Rng } from "./bench"
 import { isValidTarget, MAX_TARGET, MIN_TARGET } from "./scoring"
-import type { Score, ScoringMode, Tournament } from "./types"
+import type { SavedEvent, Score, ScoringMode, Tournament } from "./types"
 
 export const MIN_PLAYERS = 4
 export const MAX_ROUNDS = 99
@@ -170,8 +170,9 @@ export function renameTournament(tournament: Tournament, name: string, playerNam
   }
 }
 
-// The pre-filled name: the day and date it's played, in the phone's
-// language and date order ("Padel, Sunday 4 October").
-export function defaultTournamentName(date: Date, locale?: string): string {
-  return `Padel, ${date.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}`
+// The pre-filled name: what kind of game it is and the day it's played,
+// kept short, in the phone's language and date order ("Match, Sun 4 Oct").
+export function defaultGameName(kind: SavedEvent["kind"], date: Date, locale?: string): string {
+  const what = kind === "match" ? "Match" : "Americano"
+  return `${what}, ${date.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" })}`
 }

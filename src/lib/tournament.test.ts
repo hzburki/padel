@@ -3,7 +3,7 @@ import {
   cleanPlayerNames,
   createTournament,
   currentRoundIndex,
-  defaultTournamentName,
+  defaultGameName,
   maxCourts,
   previousSetup,
   renameProblems,
@@ -244,14 +244,18 @@ describe("renaming", () => {
   })
 })
 
-describe("defaultTournamentName", () => {
+describe("defaultGameName", () => {
   const sunday = new Date(2026, 9, 4) // 4 October 2026
 
-  it("includes the day and the date", () => {
-    expect(defaultTournamentName(sunday, "en-GB")).toBe("Padel, Sunday 4 October")
+  it("names a tournament Americano with the short day and date", () => {
+    expect(defaultGameName("americano", sunday, "en-GB")).toBe("Americano, Sun 4 Oct")
+  })
+
+  it("names a match Match with the short day and date", () => {
+    expect(defaultGameName("match", sunday, "en-GB")).toBe("Match, Sun 4 Oct")
   })
 
   it("follows the phone's date order", () => {
-    expect(defaultTournamentName(sunday, "en-US")).toBe("Padel, Sunday, October 4")
+    expect(defaultGameName("match", sunday, "en-US")).toBe("Match, Sun, Oct 4")
   })
 })
