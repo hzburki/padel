@@ -5,8 +5,8 @@
 <h1 align="center">Padel</h1>
 
 <p align="center">
-  Run Americano padel tournaments with your friends.<br />
-  Fair schedules, live standings, a shareable results card. Works offline.
+  Americano tournaments and matches with your friends.<br />
+  Scored courtside on your phone. Works offline.
 </p>
 
 <p align="center">
@@ -15,81 +15,29 @@
 
 ---
 
-## What it is
+Padel is a small web app for casual padel, used from your phone between games. It installs to your home screen, needs
+no account, and keeps everything on your phone, so it works with no connection at all.
 
-Padel is a small web app for running a casual **Americano** padel tournament from your phone, courtside, between
-games. Enter the players, pick the courts and the point target, and the app makes the whole schedule. After each game
-you type in the score and the standings update.
+## What you can play
 
-It installs to your home screen like a normal app (it's a PWA). There are no accounts and no server: everything is
-stored on your phone, and it works with no connection at all.
+- **Americano.** A tournament for 4 or more players on any number of courts. Partners rotate every round, each player
+  scores the points their team wins, and the app makes the whole schedule up front with fair sit-outs. Play to any
+  target from 8 to 32, as total points or first to.
+- **Match.** Two pairs, scored point by point into games and sets. Best of 1, 3 or 5 sets, a tie-break when the games
+  are level, advantage or golden point at 40–40, and undo for a mis-tap.
 
-To install it:
+## Also
+
+- Live standings for a tournament; set-by-set stats for a match.
+- A results image to share on WhatsApp or save when the game ends.
+- Play again with the same people and settings in one tap.
+- Saved after every score or point. Lock the phone or close the tab and nothing is lost.
+- A history of past games, filtered by kind.
+
+## Install
 
 - **Chrome or Edge** (Android, Windows, Mac): tap **Install** on the home screen.
 - **iPhone or iPad:** in Safari, tap Share, then **Add to Home Screen**.
-
-## Features
-
-- **Americano, done right.** Rotating partners, individual scoring, fair sit-outs.
-- **Or just a match.** Two pairs, scored point by point into games and sets, with undo, a tie-break at
-  6–6, and advantage or golden point at 40–40. Stats and a shareable score card at the end.
-- **Any number of players**, from 4 up, on as many courts as you have.
-- **Two scoring modes:** total points or first to. Any point target from 8 to 32.
-- **Suggested round count** so everyone partners everyone and plays the same number of games. The app warns you if you
-  pick a count where some players would get one game fewer.
-- **Live standings** after every score, with clear tiebreakers. Each player's wins, draws and losses show as small
-  chips under their name, so the table still fits a small phone.
-- **Shareable results card.** When the tournament ends, share a PNG of the final standings straight to WhatsApp or
-  anywhere else, or download it.
-- **Play again with the same group.** From a finished tournament, or straight from the home list, start a new one with
-  the same players, courts, target and scoring mode filled in. Add or remove people before you start.
-- **Saves after every score.** Lock your phone, close the tab, lose signal: nothing is lost.
-- **Several tournaments** kept on the device. Rename the tournament or fix a player's name at any time; delete it when
-  you're done.
-- **Offline and private.** No sign-up, no tracking, no network calls. Your data never leaves your phone.
-
-## How Americano works
-
-Americano scores **players, not teams**. Teams only last for one game.
-
-### The schedule
-
-- Every game is doubles: 4 players on a court, two teams of two.
-- Partners rotate every round. Over the tournament, everyone partners with everyone else once (as far as the player
-  count allows) and faces as many different opponents as possible.
-- The whole schedule is made **before round 1** and never changes based on results.
-- Courts in play each round = `min(courts, floor(players / 4))`. Everyone else sits out that round.
-  - 4 players, 1 court: nobody sits.
-  - 9 players, 2 courts: two games at once, one player sits.
-  - 12 players, 2 courts: two games at once, four players sit.
-
-### Sitting out
-
-Nobody sits unless the maths forces it. When someone has to, the app benches the players who have played the **most**
-games so far (ties picked at random). After every round, no player is more than one game ahead of anyone else.
-
-### Scoring a game
-
-Games are played to a point target (8 to 32), not to sets. Each player gets the points **their team** scored in that
-game. Pick one mode for the whole tournament:
-
-| Mode             | Rule                                                 | Valid in an 8-point game | Not valid |
-| ---------------- | ---------------------------------------------------- | ------------------------ | --------- |
-| **Total points** | The two scores add up to the target.                 | 6–2, 4–4, 8–0            | 8–3       |
-| **First to**     | The winner reaches the target; the loser stays below. | 8–3, 8–7                 | 8–8, 7–5  |
-
-### Standings
-
-Players are ranked by **total points scored**. Ties are broken in this order:
-
-1. Point difference (points scored minus points conceded), the **+/−** column
-2. Head-to-head between the tied players
-3. Wins
-
-If the round count means some players played one game fewer, their points are scaled up in the **final** standings to
-keep it fair. 12 points from 4 games, when others played 5, counts as 15. Live standings during the tournament are never
-scaled.
 
 ## Running it locally
 
@@ -103,11 +51,9 @@ npm run build      # build for production into dist/
 npm run preview    # serve the build (needed to try offline mode and installing)
 ```
 
-Built with React, Vite, TypeScript, Tailwind CSS and shadcn/ui. All tournament rules live in plain functions in
-[`src/lib/`](src/lib/), each with a test file whose test names read as the rules themselves. Start with
-[`americano.test.ts`](src/lib/americano.test.ts) and [`standings.test.ts`](src/lib/standings.test.ts).
+Built with React, Vite, TypeScript, Tailwind CSS and shadcn/ui. The rules live in plain functions in
+[`src/lib/`](src/lib/), each with a test file whose test names read as the rules themselves.
 
-## Open source
+## License
 
-Padel is free and open source under the [MIT License](LICENSE). Anyone can use it, copy it, change it, sell it, or do
-anything else with it. It comes with no warranty, and the author isn't liable for anything that happens from using it.
+Free and open source under the [MIT License](LICENSE).
