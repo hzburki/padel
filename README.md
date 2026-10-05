@@ -54,6 +54,20 @@ npm run preview    # serve the build (needed to try offline mode and installing)
 Built with React, Vite, TypeScript, Tailwind CSS and shadcn/ui. The rules live in plain functions in
 [`src/lib/`](src/lib/), each with a test file whose test names read as the rules themselves.
 
+## Deploying
+
+It is a static site; any static host works. It is set up for Cloudflare Pages:
+
+| Setting | Value |
+| --- | --- |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Environment variable | `VITE_SITE_URL` = the site's address, no trailing slash |
+
+Node is pinned in [`.node-version`](.node-version) and response headers live in
+[`public/_headers`](public/_headers). Do not add a `404.html`: without one, Pages serves the app for `/privacy` and
+`/terms`.
+
 ## License
 
 Free and open source under the [MIT License](LICENSE).
