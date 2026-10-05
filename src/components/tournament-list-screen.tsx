@@ -20,6 +20,7 @@ export function TournamentListScreen() {
   const [events, setEvents] = useState<SavedEvent[] | null>(null)
   const { install } = useInstallPrompt()
   const [installHelp, setInstallHelp] = useState(false)
+  const [filter, setFilter] = useState<"all" | SavedEvent["kind"]>("all")
 
   // Reload whenever this screen comes back into view, so a game just
   // created or scored shows up to date.
@@ -30,6 +31,7 @@ export function TournamentListScreen() {
   // The newest unfinished game gets the spotlight; the rest are listed.
   const playing = events?.find((e) => !e.finished)
   const others = events?.filter((e) => e !== playing) ?? []
+  const listed = others.filter((e) => filter === "all" || e.kind === filter)
   const open = (e: SavedEvent) => nav.push({ name: e.kind === "match" ? "match" : "tournament", id: e.id })
 
   return (
@@ -59,9 +61,35 @@ export function TournamentListScreen() {
 
       {others.length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-3 px-1 text-[1.375rem] type-display">History</h2>
-          <ul className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
-            {others.map((t) => (
+          <div className="mb-3 flex items-center gap-3 px-1">
+            <h2 className="flex-1 text-[1.375rem] type-display">History</h2>
+            {/* The phone's own picker behind a pill: nothing to build or to
+                get wrong on a small screen. */}
+            <span className="relative">
+              <select
+                aria-label="Show"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as typeof filter)}
+                className="h-9 appearance-none rounded-full bg-secondary pr-8 pl-3.5 text-sm text-primary outline-none type-label focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+              >
+                <option value="all">All</option>
+                <option value="americano">Americano</option>
+                <option value="match">Matches</option>
+              </select>
+              <ChevronDown
+                className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-primary"
+                strokeWidth={2.5}
+                aria-hidden
+              />
+            </span>
+          </div>
+          {listed.length === 0 && (
+            <p className="px-1 text-muted-foreground">
+              {filter === "match" ? "No matches here yet." : "No Americano tournaments here yet."}
+            </p>
+          )}
+          <ul className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px] empty:hidden">
+            {listed.map((t) => (
               <li key={t.id} className="relative">
                 <HistoryRow event={t} onOpen={() => open(t)} />
                 {t.finished && (
