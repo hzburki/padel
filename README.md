@@ -32,6 +32,8 @@ To install it:
 ## Features
 
 - **Americano, done right.** Rotating partners, individual scoring, fair sit-outs.
+- **Or just a match.** Two pairs, scored point by point into games and sets, with undo, a tie-break at
+  6–6, and advantage or golden point at 40–40. Stats and a shareable score card at the end.
 - **Any number of players**, from 4 up, on as many courts as you have.
 - **Two scoring modes:** total points or first to. Any point target from 8 to 32.
 - **Suggested round count** so everyone partners everyone and plays the same number of games. The app warns you if you

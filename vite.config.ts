@@ -20,7 +20,7 @@ export default defineConfig({
       manifest: {
         name: 'Padel',
         short_name: 'Padel',
-        description: 'Run Americano padel tournaments, offline.',
+        description: 'Run Americano padel tournaments and score matches, offline.',
         start_url: '/',
         display: 'standalone',
         orientation: 'portrait',
