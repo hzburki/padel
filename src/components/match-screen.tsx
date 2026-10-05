@@ -13,6 +13,7 @@ import {
   type SetState,
 } from "@/lib/set-match"
 import { previousMatchSetup } from "@/lib/set-match-setup"
+import { matchStats } from "@/lib/set-match-stats"
 import { deleteTournament, loadTournament, saveTournament } from "@/lib/storage"
 import type { SetMatch, Side } from "@/lib/types"
 import { Congrats } from "./congrats"
@@ -137,8 +138,13 @@ export function MatchScreen({ id }: { id: string }) {
         <Scoreboard match={match} state={state} />
       </div>
       {decided ? (
-        // Every set in the order it was played.
-        state.sets.map((set, i) => <SetGames key={i} match={match} set={set} number={i + 1} />)
+        <>
+          <Stats match={match} state={state} />
+          {/* Every set in the order it was played. */}
+          {state.sets.map((set, i) => (
+            <SetGames key={i} match={match} set={set} number={i + 1} />
+          ))}
+        </>
       ) : (
         <SetGames match={match} set={state.sets[state.sets.length - 1]} number={state.sets.length} newestFirst />
       )}
@@ -242,6 +248,38 @@ function Scoreboard({ match, state }: { match: SetMatch; state: MatchState }) {
         ))}
       </div>
     </div>
+  )
+}
+
+// The two teams side by side, one number per row, the better one in bold.
+function Stats({ match, state }: { match: SetMatch; state: MatchState }) {
+  const [first, second] = matchStats(state)
+  const rows: [label: string, a: number, b: number][] = [
+    ["Sets", first.sets, second.sets],
+    ["Games", first.games, second.games],
+    ["Points", first.points, second.points],
+    [match.deuce === "golden" ? "Golden points" : "Deuce games", first.deuceGames, second.deuceGames],
+    ["Best run of games", first.bestRun, second.bestRun],
+  ]
+  return (
+    <section className="mt-8">
+      <h2 className="mb-3 px-1 text-[1.375rem] type-display">Match stats</h2>
+      <div className="overflow-hidden rounded-3xl border-[1.5px] bg-card">
+        <div className="flex items-center gap-3 border-b px-4 py-2 text-xs font-medium text-muted-foreground">
+          <span className="min-w-0 flex-1 truncate">{teamName(match.teams[0])}</span>
+          <span className="min-w-0 flex-1 truncate text-right">{teamName(match.teams[1])}</span>
+        </div>
+        <dl className="divide-y">
+          {rows.map(([label, a, b]) => (
+            <div key={label} className="flex items-center gap-3 px-4 py-3">
+              <dd className={`w-12 text-[1.75rem] type-display ${a < b ? "text-muted-foreground" : ""}`}>{a}</dd>
+              <dt className="flex-1 text-center text-sm text-muted-foreground">{label}</dt>
+              <dd className={`w-12 text-right text-[1.75rem] type-display ${b < a ? "text-muted-foreground" : ""}`}>{b}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </section>
   )
 }
 
