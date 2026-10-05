@@ -34,7 +34,9 @@ export function TournamentScreen({ id }: { id: string }) {
   const fullStandings = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
-    loadTournament(id).then((t) => {
+    loadTournament(id).then((saved) => {
+      // A match has its own screen; here it counts as not found.
+      const t = saved?.kind === "americano" ? saved : null
       setTournament(t)
       if (t?.finished) setTab("standings")
     })

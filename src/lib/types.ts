@@ -1,6 +1,6 @@
-// The stored shape of a tournament. Bump `version` and add a migration in
-// storage when this changes — tournaments already saved in a browser must
-// still load.
+// The stored shapes: an Americano tournament or a match, told apart by
+// `kind`. Bump `version` and add a migration in storage when either changes
+// — events already saved in a browser must still load.
 
 // total: the two scores always sum to the target (6–2 in an 8-point game).
 // firstTo: the winner's score equals the target, the loser's is below it.
@@ -33,7 +33,8 @@ export interface Round {
 }
 
 export interface Tournament {
-  version: 1
+  version: 2
+  kind: "americano"
   id: string
   name: string
   createdAt: number // epoch ms
@@ -68,3 +69,5 @@ export interface SetMatch {
   points: Side[]
   finished: boolean
 }
+
+export type SavedEvent = Tournament | SetMatch

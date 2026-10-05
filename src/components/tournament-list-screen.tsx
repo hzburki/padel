@@ -22,7 +22,8 @@ export function TournamentListScreen() {
   // Reload whenever this screen comes back into view, so a tournament just
   // created or scored shows up to date.
   useEffect(() => {
-    if (isTop) listTournaments().then(setTournaments)
+    // Matches are saved in the same store but not listed here yet.
+    if (isTop) listTournaments().then((all) => setTournaments(all.filter((e) => e.kind === "americano")))
   }, [isTop])
 
   // The newest unfinished tournament gets the spotlight; the rest are listed.

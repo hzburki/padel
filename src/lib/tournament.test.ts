@@ -94,9 +94,10 @@ describe("setupProblems", () => {
 describe("createTournament", () => {
   const t = createTournament(valid, { now: 1000, newId: counter() })
 
-  it("stores the setup as a version 1 tournament that isn't finished", () => {
+  it("stores the setup as a version 2 americano tournament that isn't finished", () => {
     expect(t).toMatchObject({
-      version: 1,
+      version: 2,
+      kind: "americano",
       name: "Friday padel",
       createdAt: 1000,
       scoringMode: "total",
