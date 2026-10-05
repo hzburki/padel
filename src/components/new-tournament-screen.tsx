@@ -21,6 +21,7 @@ import {
 } from "@/lib/tournament"
 import type { ScoringMode } from "@/lib/types"
 import { Screen } from "./screen"
+import { Segmented } from "./segmented"
 import { Sheet } from "./sheet"
 import { useBackHandler, useNav } from "./stack-navigator"
 
@@ -205,30 +206,14 @@ export function NewTournamentScreen({ from }: { from?: PreviousSetup }) {
       </Section>
 
       <Section title="Scoring">
-        {/* Navy track, lime thumb that slides to the chosen mode. */}
-        <div className="relative grid grid-cols-2 rounded-2xl bg-foreground p-1.5">
-          <span
-            aria-hidden
-            className="absolute inset-y-1.5 left-1.5 w-[calc(50%-0.375rem)] rounded-xl bg-accent shadow-[inset_0_-3px_0_rgb(14_34_64/0.16)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
-            style={{ transform: scoringMode === "firstTo" ? "translateX(100%)" : undefined }}
-          />
-          {(
-            [
-              ["total", "Total points"],
-              ["firstTo", "First to"],
-            ] as const
-          ).map(([mode, label]) => (
-            <button
-              key={mode}
-              type="button"
-              aria-pressed={scoringMode === mode}
-              onClick={() => setScoringMode(mode)}
-              className="relative h-12 text-[1.0625rem] text-primary-foreground/70 transition-colors type-label aria-pressed:text-accent-foreground"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          options={[
+            ["total", "Total points"],
+            ["firstTo", "First to"],
+          ]}
+          value={scoringMode}
+          onChange={setScoringMode}
+        />
         <div className="mt-2">
           <Stepper
             value={target}
