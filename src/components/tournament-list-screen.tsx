@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, MonitorDown, Plus, Repeat, Smartphone } from "lucide-react"
+import { ChevronDown, ChevronRight, MonitorDown, Plus, Repeat, Smartphone, Users } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
@@ -39,7 +39,7 @@ export function TournamentListScreen() {
         // With a tournament on, Continue is the lime action and this steps back.
         <Button variant={playing ? "default" : "ball"} size="lg" onClick={() => nav.push({ name: "new" })}>
           <Plus className="size-5" strokeWidth={2.5} />
-          New tournament
+          New game
         </Button>
       }
     >
@@ -57,20 +57,19 @@ export function TournamentListScreen() {
 
       {others.length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-3 px-1 text-[1.375rem] type-display">
-            {playing ? "Other tournaments" : "Tournaments"}
-          </h2>
+          <h2 className="mb-3 px-1 text-[1.375rem] type-display">History</h2>
           <ul className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
             {others.map((t) => (
               <li key={t.id} className="relative">
                 <TournamentRow tournament={t} onOpen={() => open(t)} />
                 {t.finished && (
-                  // Beside the row's button, not inside it: buttons can't nest.
+                  // Under the date. Beside the row's button, not inside it: buttons
+                  // can't nest.
                   <button
                     type="button"
                     aria-label={`Play again with the players from ${t.name}`}
                     onClick={() => nav.push({ name: "new", from: previousSetup(t) })}
-                    className="absolute top-1/2 right-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full text-primary active:bg-muted"
+                    className="absolute right-2 bottom-1 flex size-11 items-center justify-center rounded-full text-primary active:bg-muted"
                   >
                     <Repeat className="size-5" strokeWidth={2.5} />
                   </button>
@@ -265,8 +264,8 @@ function FirstTournament() {
         <path d="M10 31h100M10 149h100M60 31v118" strokeWidth="2" />
         <circle cx="84" cy="122" r="9" className="fill-accent" stroke="none" />
       </svg>
-      <p className="mt-5 text-2xl type-display">No tournaments yet</p>
-      <p className="mt-1 max-w-64 text-muted-foreground">Tap New tournament below to set up your first one.</p>
+      <p className="mt-5 text-2xl type-display">No games yet</p>
+      <p className="mt-1 max-w-64 text-muted-foreground">Tap New game below to set up your first one.</p>
     </div>
   )
 }
@@ -274,21 +273,20 @@ function FirstTournament() {
 function TournamentRow({ tournament, onOpen }: { tournament: Tournament; onOpen: () => void }) {
   const date = new Date(tournament.createdAt)
   return (
-    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 px-3.5 py-3.5 text-left active:bg-muted">
-      <span className="flex size-13 shrink-0 flex-col items-center justify-center rounded-2xl bg-secondary leading-none">
-        <span className="text-2xl type-display">{date.getDate()}</span>
-        <span className="mt-0.5 text-[0.6875rem] font-medium text-muted-foreground">
-          {date.toLocaleDateString(undefined, { month: "short" })}
-        </span>
+    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 py-3.5 pr-2 pl-3.5 text-left active:bg-muted">
+      <span className="flex size-13 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
+        <Users className="size-6" strokeWidth={2.5} aria-label="Americano" />
       </span>
-      {/* Finished rows leave room on the right for the Play again icon. */}
-      <span className={`min-w-0 flex-1 ${tournament.finished ? "pr-11" : ""}`}>
+      <span className="min-w-0 flex-1">
         <span className="block truncate text-lg type-label">{tournament.name}</span>
         <span className="block truncate text-sm text-muted-foreground">
           <Status tournament={tournament} />
         </span>
       </span>
-      <ChevronRight className="size-5 shrink-0 text-muted-foreground/60" />
+      {/* As wide as the Play again icon that sits under it on finished rows. */}
+      <span className="w-11 shrink-0 self-start pt-1 text-center text-[0.8125rem] whitespace-nowrap text-muted-foreground type-label">
+        {date.toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+      </span>
     </button>
   )
 }
