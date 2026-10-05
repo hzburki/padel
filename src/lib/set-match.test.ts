@@ -196,6 +196,11 @@ describe("the match", () => {
     expect(formatSets(replay(advantage, points))).toBe("6–4 3–6 7–6")
   })
 
+  it("writes the set scores from the second team's side when asked", () => {
+    const points = [...games("1111000000"), ...games("000111111")]
+    expect(formatSets(replay(advantage, points), 1)).toBe("4–6 6–3")
+  })
+
   it("leaves a set with no game played out of the set scores", () => {
     expect(formatSets(replay(advantage, SET_TO_FIRST))).toBe("6–0")
   })

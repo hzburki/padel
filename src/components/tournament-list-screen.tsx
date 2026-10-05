@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
 import { formatSets, replay, teamName } from "@/lib/set-match"
+import { previousMatchSetup } from "@/lib/set-match-setup"
 import { computeStandings, formatPoints, joinNames, winners } from "@/lib/standings"
 import { listTournaments } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, unscoredMatchCount } from "@/lib/tournament"
@@ -63,13 +64,19 @@ export function TournamentListScreen() {
             {others.map((t) => (
               <li key={t.id} className="relative">
                 <HistoryRow event={t} onOpen={() => open(t)} />
-                {t.kind === "americano" && t.finished && (
+                {t.finished && (
                   // Under the date. Beside the row's button, not inside it: buttons
                   // can't nest.
                   <button
                     type="button"
                     aria-label={`Play again with the players from ${t.name}`}
-                    onClick={() => nav.push({ name: "new", from: previousSetup(t) })}
+                    onClick={() =>
+                      nav.push(
+                        t.kind === "match"
+                          ? { name: "new", fromMatch: previousMatchSetup(t) }
+                          : { name: "new", from: previousSetup(t) },
+                      )
+                    }
                     className="absolute right-2 bottom-1 flex size-11 items-center justify-center rounded-full text-primary active:bg-muted"
                   >
                     <Repeat className="size-5" strokeWidth={2.5} />
@@ -337,6 +344,14 @@ function HistoryRow({ event, onOpen }: { event: SavedEvent; onOpen: () => void }
 }
 
 function MatchStatus({ match }: { match: SetMatch }) {
+  const state = replay(match, match.points)
+  if (match.finished && state.winner !== null) {
+    return (
+      <>
+        🏆 {teamName(match.teams[state.winner])}, {formatSets(state, state.winner)}
+      </>
+    )
+  }
   return (
     <>
       {teamName(match.teams[0])} v {teamName(match.teams[1])}

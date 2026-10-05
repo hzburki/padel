@@ -128,11 +128,12 @@ export function undoPoint(match: SetMatch): SetMatch {
   return { ...match, points: match.points.slice(0, -1) }
 }
 
-// The set scores in order, first team's games first: "6–4 3–6 7–6". A set
-// with no game played yet is left out.
-export function formatSets(state: MatchState): string {
+// The set scores in order: "6–4 3–6 7–6". The first team's games come
+// first unless `from` says to read it from the second team's side, as a
+// result is when they won. A set with no game played yet is left out.
+export function formatSets(state: MatchState, from: Side = 0): string {
   return state.sets
     .filter((set) => set.played.length > 0)
-    .map((set) => `${set.games[0]}–${set.games[1]}`)
+    .map((set) => `${set.games[from]}–${set.games[other(from)]}`)
     .join(" ")
 }

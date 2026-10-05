@@ -1,10 +1,21 @@
-import { Ellipsis, Trash2, Undo2 } from "lucide-react"
+import { Ellipsis, Repeat, Trash2, Undo2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
-import { addPoint, gameSummary, pointLabels, replay, teamName, undoPoint, type MatchState } from "@/lib/set-match"
+import {
+  addPoint,
+  gameSummary,
+  pointLabels,
+  replay,
+  teamName,
+  undoPoint,
+  type MatchState,
+  type SetState,
+} from "@/lib/set-match"
+import { previousMatchSetup } from "@/lib/set-match-setup"
 import { deleteTournament, loadTournament, saveTournament } from "@/lib/storage"
 import type { SetMatch, Side } from "@/lib/types"
+import { Congrats } from "./congrats"
 import { Screen } from "./screen"
 import { Sheet } from "./sheet"
 import { useNav } from "./stack-navigator"
@@ -13,7 +24,7 @@ export function MatchScreen({ id }: { id: string }) {
   const nav = useNav<Route>()
   const [match, setMatch] = useState<SetMatch | null | undefined>(undefined)
   // Which sheet is open.
-  const [confirm, setConfirm] = useState<"menu" | "delete" | null>(null)
+  const [confirm, setConfirm] = useState<"menu" | "finish" | "delete" | "congrats" | null>(null)
   const [saveError, setSaveError] = useState(false)
 
   useEffect(() => {
@@ -45,6 +56,11 @@ export function MatchScreen({ id }: { id: string }) {
     }
   }
 
+  const finish = () => {
+    setConfirm("congrats")
+    update({ ...match, finished: true })
+  }
+
   const remove = async () => {
     setConfirm(null)
     await deleteTournament(match.id)
@@ -54,6 +70,7 @@ export function MatchScreen({ id }: { id: string }) {
   return (
     <Screen
       title={match.name}
+      homeButton={match.finished}
       action={
         <button
           type="button"
@@ -65,33 +82,50 @@ export function MatchScreen({ id }: { id: string }) {
         </button>
       }
       footer={
-        <div className="space-y-2">
+        match.finished ? (
           <Button
-            variant="ghost"
-            className="mx-auto flex h-11 px-4 text-base font-medium text-primary"
-            disabled={match.points.length === 0}
-            onClick={() => update(undoPoint(match))}
+            variant="secondary"
+            size="lg"
+            onClick={() => nav.push({ name: "new", fromMatch: previousMatchSetup(match) })}
           >
-            <Undo2 className="size-5" strokeWidth={2.5} />
-            Undo last point
+            <Repeat className="size-5" />
+            Play again
           </Button>
-          {!decided && (
-            <div className="grid grid-cols-2 gap-2">
-              {([0, 1] as const).map((side) => (
-                // touch-manipulation: no double-tap zoom, so quick taps all count.
-                <button
-                  key={side}
-                  type="button"
-                  onClick={() => update(addPoint(match, side))}
-                  className="flex h-20 min-w-0 touch-manipulation flex-col items-center justify-center rounded-2xl bg-accent px-3 text-accent-foreground shadow-[inset_0_-3px_0_rgb(14_34_64/0.16)] transition-transform active:scale-[0.97] active:shadow-none"
-                >
-                  <span className="text-sm font-medium opacity-70">Point for</span>
-                  <span className="max-w-full truncate text-lg type-label">{teamName(match.teams[side])}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        ) : (
+          <div className="space-y-2">
+            <Button
+              variant="ghost"
+              className="mx-auto flex h-11 px-4 text-base font-medium text-primary"
+              disabled={match.points.length === 0}
+              onClick={() => update(undoPoint(match))}
+            >
+              <Undo2 className="size-5" strokeWidth={2.5} />
+              Undo last point
+            </Button>
+            {/* Finishing asks first, so a second tap meant as a point can't end
+                the match; until then the last point can still be undone. */}
+            {decided ? (
+              <Button variant="ball" size="lg" onClick={() => setConfirm("finish")}>
+                Finish match
+              </Button>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {([0, 1] as const).map((side) => (
+                  // touch-manipulation: no double-tap zoom, so quick taps all count.
+                  <button
+                    key={side}
+                    type="button"
+                    onClick={() => update(addPoint(match, side))}
+                    className="flex h-20 min-w-0 touch-manipulation flex-col items-center justify-center rounded-2xl bg-accent px-3 text-accent-foreground shadow-[inset_0_-3px_0_rgb(14_34_64/0.16)] transition-transform active:scale-[0.97] active:shadow-none"
+                  >
+                    <span className="text-sm font-medium opacity-70">Point for</span>
+                    <span className="max-w-full truncate text-lg type-label">{teamName(match.teams[side])}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )
       }
     >
       {saveError && (
@@ -102,7 +136,34 @@ export function MatchScreen({ id }: { id: string }) {
       <div className="pt-2">
         <Scoreboard match={match} state={state} />
       </div>
-      <SetGames match={match} state={state} />
+      {decided ? (
+        // Every set in the order it was played.
+        state.sets.map((set, i) => <SetGames key={i} match={match} set={set} number={i + 1} />)
+      ) : (
+        <SetGames match={match} set={state.sets[state.sets.length - 1]} number={state.sets.length} newestFirst />
+      )}
+
+      <Sheet open={confirm === "finish"} onClose={() => setConfirm(null)}>
+        <p className="text-2xl type-display">Finish the match?</p>
+        <p className="mt-1 text-muted-foreground">The score can't be changed once a match is finished.</p>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirm(null)}>
+            Not yet
+          </Button>
+          <Button size="lg" className="px-3" onClick={finish}>
+            Finish
+          </Button>
+        </div>
+      </Sheet>
+
+      <Sheet open={confirm === "congrats"} onClose={() => setConfirm(null)}>
+        <Congrats
+          winnerNames={state.winner === null ? [] : match.teams[state.winner]}
+          canShare={false}
+          onShare={() => {}}
+          onClose={() => setConfirm(null)}
+        />
+      </Sheet>
 
       <Sheet open={confirm === "menu"} onClose={() => setConfirm(null)}>
         <div className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
@@ -137,11 +198,13 @@ export function MatchScreen({ id }: { id: string }) {
 // the points of the game in progress on the right.
 function Scoreboard({ match, state }: { match: SetMatch; state: MatchState }) {
   const points = pointLabels(state)
-  const live = state.winner === null && !match.finished
+  const live = state.winner === null
   return (
     <div className="overflow-hidden rounded-3xl border-[1.5px] bg-card">
       <div className="flex items-center gap-1 border-b px-4 py-2 text-xs font-medium text-muted-foreground">
-        <span className="flex-1">{state.current.tiebreak ? "Tie-break" : `Set ${state.sets.length}`}</span>
+        <span className="flex-1">
+          {!live ? "Final score" : state.current.tiebreak ? "Tie-break" : `Set ${state.sets.length}`}
+        </span>
         {state.sets.map((_, i) => (
           <span key={i} className="w-7 text-center">
             S{i + 1}
@@ -152,7 +215,11 @@ function Scoreboard({ match, state }: { match: SetMatch; state: MatchState }) {
       <div className="divide-y">
         {([0, 1] as const).map((side: Side) => (
           <div key={side} className="flex items-center gap-1 px-4 py-3">
-            <span className="min-w-0 flex-1 text-lg leading-tight type-label">
+            <span
+              className={`min-w-0 flex-1 text-lg leading-tight type-label ${
+                !live && state.winner !== side ? "text-muted-foreground" : ""
+              }`}
+            >
               <span className="block truncate">{match.teams[side][0]}</span>
               <span className="block truncate">{match.teams[side][1]}</span>
             </span>
@@ -178,13 +245,31 @@ function Scoreboard({ match, state }: { match: SetMatch; state: MatchState }) {
   )
 }
 
-// The games of the set being played, newest first.
-function SetGames({ match, state }: { match: SetMatch; state: MatchState }) {
-  const set = state.sets[state.sets.length - 1]
-  const games = set.played.map((game, i) => ({ game, number: i + 1 })).reverse()
+// One set's games. While it is being played the newest is on top; once the
+// match is over they read in order, with the set score beside the title.
+function SetGames({
+  match,
+  set,
+  number,
+  newestFirst = false,
+}: {
+  match: SetMatch
+  set: SetState
+  number: number
+  newestFirst?: boolean
+}) {
+  const games = set.played.map((game, i) => ({ game, number: i + 1 }))
+  if (newestFirst) games.reverse()
   return (
     <section className="mt-8">
-      <h2 className="mb-3 px-1 text-[1.375rem] type-display">Set {state.sets.length} games</h2>
+      <h2 className="mb-3 flex items-baseline gap-2 px-1 text-[1.375rem] type-display">
+        <span className="flex-1">{newestFirst ? `Set ${number} games` : `Set ${number}`}</span>
+        {set.winner !== null && (
+          <span className="text-primary">
+            {set.games[0]}–{set.games[1]}
+          </span>
+        )}
+      </h2>
       {games.length === 0 ? (
         <p className="px-1 text-muted-foreground">No game finished yet in this set.</p>
       ) : (
