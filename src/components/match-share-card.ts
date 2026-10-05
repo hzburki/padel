@@ -5,7 +5,7 @@ import { BALL, BLUE, body, display, drawCourt, fit, INK, INSET, label, MUTED, PA
 
 // The shareable result of a match: the same 4:5 blue card as a tournament's,
 // with the winners in the ball-yellow panel, the set scores under it and
-// three numbers at the foot.
+// a few numbers at the foot.
 
 const FULL_H = 1350
 const TOP = 250 // where the winner panel starts, under the title
@@ -121,19 +121,24 @@ export async function renderMatchShareCard(
     })
   })
 
-  // Three numbers, winners' first
+  // Three numbers, winners' first. A match scored by games has no points
+  // or deuce games to count, so it shows the best run of games instead.
   if (!scoreOnly) {
     const numbers: [value: string, name: string][] = [
       [`${stats[won].games}–${stats[lost].games}`, "games"],
-      [`${stats[won].points}–${stats[lost].points}`, "points"],
-      [
-        `${stats[won].deuceGames}–${stats[lost].deuceGames}`,
-        match.deuce === "golden" ? "golden points" : "deuce games",
-      ],
+      ...(match.scoreBy === "points"
+        ? ([
+            [`${stats[won].points}–${stats[lost].points}`, "points"],
+            [
+              `${stats[won].deuceGames}–${stats[lost].deuceGames}`,
+              match.deuce === "golden" ? "golden points" : "deuce games",
+            ],
+          ] as [string, string][])
+        : ([[`${stats[won].bestRun}–${stats[lost].bestRun}`, "best run"]] as [string, string][])),
     ]
     const colW = (W - 2 * PAD) / numbers.length
     const mid = (tableBottom + H - BOTTOM) / 2
-    // One size for all three, small enough that the widest keeps clear air
+    // One size for all of them, small enough that the widest keeps clear air
     // either side of it.
     const size = shrinkToFit(
       ctx,

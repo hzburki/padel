@@ -7,7 +7,7 @@ import { MAX_GAMES_PER_SET, MIN_GAMES_PER_SET, setsToWin } from "@/lib/set-match
 import { createSetMatch, matchSetupProblems, type PreviousMatchSetup } from "@/lib/set-match-setup"
 import { requestPersistentStorage, saveTournament } from "@/lib/storage"
 import { capitaliseFirst, defaultGameName } from "@/lib/tournament"
-import type { DeuceRule, SetMatch, Side } from "@/lib/types"
+import type { DeuceRule, ScoreBy, SetMatch, Side } from "@/lib/types"
 import { Hint, Section, Stepper } from "./new-tournament-screen"
 import { Screen } from "./screen"
 import { Segmented } from "./segmented"
@@ -35,11 +35,12 @@ export function NewMatchScreen({
   const [setsAs, setSetsAs] = useState<SetMatch["setsAs"]>(from?.setsAs ?? "bestOf")
   const [gamesPerSet, setGamesPerSet] = useState(from?.gamesPerSet ?? 6)
   const [deuce, setDeuce] = useState<DeuceRule>(from?.deuce ?? "advantage")
+  const [scoreBy, setScoreBy] = useState<ScoreBy>(from?.scoreBy ?? "points")
   const [starting, setStarting] = useState(false)
   const [startFailed, setStartFailed] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
 
-  const input = { name, teams, bestOf, setsAs, gamesPerSet, deuce, scoreBy: "points" as const }
+  const input = { name, teams, bestOf, setsAs, gamesPerSet, deuce, scoreBy }
   const problems = matchSetupProblems(input)
   const typed = teams.flat().filter((n) => n.trim() !== "").length
 
@@ -173,21 +174,40 @@ export function NewMatchScreen({
         </Hint>
       </Section>
 
-      <Section title="At 40–40">
+      <Section title="Keeping score">
         <Segmented
           options={[
-            ["advantage", "Advantage"],
-            ["golden", "Golden point"],
+            ["points", "Every point"],
+            ["games", "Games only"],
           ]}
-          value={deuce}
-          onChange={setDeuce}
+          value={scoreBy}
+          onChange={setScoreBy}
         />
         <Hint>
-          {deuce === "advantage"
-            ? "A team needs two points in a row to win the game."
-            : "The next point wins the game."}
+          {scoreBy === "points"
+            ? "Tap who won each point. The app counts the games and sets."
+            : "Tap who won each game. Quicker, but points aren't kept."}
         </Hint>
       </Section>
+
+      {/* With no points entered there is no 40–40 to settle. */}
+      {scoreBy === "points" && (
+        <Section title="At 40–40">
+          <Segmented
+            options={[
+              ["advantage", "Advantage"],
+              ["golden", "Golden point"],
+            ]}
+            value={deuce}
+            onChange={setDeuce}
+          />
+          <Hint>
+            {deuce === "advantage"
+              ? "A team needs two points in a row to win the game."
+              : "The next point wins the game."}
+          </Hint>
+        </Section>
+      )}
 
       <Sheet open={confirmDiscard} onClose={() => setConfirmDiscard(false)}>
         <p className="text-2xl type-display">Discard this match?</p>
