@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { addPoint, formatSets, pointLabels, replay, undoPoint, type MatchRules } from "./set-match"
+import { addPoint, formatSets, pointLabels, replay, teamName, undoPoint, type MatchRules } from "./set-match"
 import type { SetMatch, Side } from "./types"
 
 const advantage: MatchRules = { bestOf: 3, gamesPerSet: 6, deuce: "advantage" }
@@ -198,6 +198,12 @@ describe("the match", () => {
 
   it("leaves a set with no game played out of the set scores", () => {
     expect(formatSets(replay(advantage, SET_TO_FIRST))).toBe("6–0")
+  })
+})
+
+describe("team names", () => {
+  it("joins the two partners with an ampersand", () => {
+    expect(teamName(["Ali", "Sara"])).toBe("Ali & Sara")
   })
 })
 

@@ -1,11 +1,12 @@
-import { ChevronDown, ChevronRight, MonitorDown, Plus, Repeat, Smartphone, Users } from "lucide-react"
+import { ChevronDown, ChevronRight, MonitorDown, Plus, Repeat, Smartphone, Swords, Users } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
+import { teamName } from "@/lib/set-match"
 import { computeStandings, formatPoints, joinNames, winners } from "@/lib/standings"
 import { listTournaments } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, unscoredMatchCount } from "@/lib/tournament"
-import type { Tournament } from "@/lib/types"
+import type { SavedEvent, SetMatch, Tournament } from "@/lib/types"
 import { CourtLines } from "./court-lines"
 import { canInstall, InstallBanner, InstallHelp, isPhone, useInstallPrompt } from "./install-banner"
 import { Screen } from "./screen"
@@ -15,21 +16,20 @@ import { useIsTopScreen, useNav } from "./stack-navigator"
 export function TournamentListScreen() {
   const nav = useNav<Route>()
   const isTop = useIsTopScreen()
-  const [tournaments, setTournaments] = useState<Tournament[] | null>(null)
+  const [events, setEvents] = useState<SavedEvent[] | null>(null)
   const { install } = useInstallPrompt()
   const [installHelp, setInstallHelp] = useState(false)
 
-  // Reload whenever this screen comes back into view, so a tournament just
+  // Reload whenever this screen comes back into view, so a game just
   // created or scored shows up to date.
   useEffect(() => {
-    // Matches are saved in the same store but not listed here yet.
-    if (isTop) listTournaments().then((all) => setTournaments(all.filter((e) => e.kind === "americano")))
+    if (isTop) listTournaments().then(setEvents)
   }, [isTop])
 
   // The newest unfinished tournament gets the spotlight; the rest are listed.
-  const playing = tournaments?.find((t) => !t.finished)
-  const others = tournaments?.filter((t) => t !== playing) ?? []
-  const open = (t: Tournament) => nav.push({ name: "tournament", id: t.id })
+  const playing = events?.find((e): e is Tournament => e.kind === "americano" && !e.finished)
+  const others = events?.filter((e) => e !== playing) ?? []
+  const open = (e: SavedEvent) => nav.push({ name: e.kind === "match" ? "match" : "tournament", id: e.id })
 
   return (
     <Screen
@@ -45,7 +45,7 @@ export function TournamentListScreen() {
     >
       {/* New users always see how it works; everyone else can open it. */}
       <Hero
-        howItWorks={tournaments?.length === 0 ? "open" : "collapsible"}
+        howItWorks={events?.length === 0 ? "open" : "collapsible"}
         onInstall={canInstall() ? () => (install ? install() : setInstallHelp(true)) : undefined}
       >
         {playing && <PlayingNow tournament={playing} onOpen={() => open(playing)} />}
@@ -53,7 +53,7 @@ export function TournamentListScreen() {
 
       <InstallBanner />
 
-      {tournaments?.length === 0 && <FirstTournament />}
+      {events?.length === 0 && <FirstTournament />}
 
       {others.length > 0 && (
         <section className="mt-8">
@@ -61,8 +61,8 @@ export function TournamentListScreen() {
           <ul className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
             {others.map((t) => (
               <li key={t.id} className="relative">
-                <TournamentRow tournament={t} onOpen={() => open(t)} />
-                {t.finished && (
+                <HistoryRow event={t} onOpen={() => open(t)} />
+                {t.kind === "americano" && t.finished && (
                   // Under the date. Beside the row's button, not inside it: buttons
                   // can't nest.
                   <button
@@ -270,17 +270,24 @@ function FirstTournament() {
   )
 }
 
-function TournamentRow({ tournament, onOpen }: { tournament: Tournament; onOpen: () => void }) {
-  const date = new Date(tournament.createdAt)
+function HistoryRow({ event, onOpen }: { event: SavedEvent; onOpen: () => void }) {
+  const date = new Date(event.createdAt)
+  const match = event.kind === "match"
+  const Icon = match ? Swords : Users
   return (
     <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 py-3.5 pr-2 pl-3.5 text-left active:bg-muted">
-      <span className="flex size-13 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
-        <Users className="size-6" strokeWidth={2.5} aria-label="Americano" />
+      {/* The tile says what kind of game it was: lime for a match. */}
+      <span
+        className={`flex size-13 shrink-0 items-center justify-center rounded-2xl ${
+          match ? "bg-accent text-accent-foreground" : "bg-secondary text-primary"
+        }`}
+      >
+        <Icon className="size-6" strokeWidth={2.5} aria-label={match ? "Match" : "Americano"} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-lg type-label">{tournament.name}</span>
+        <span className="block truncate text-lg type-label">{event.name}</span>
         <span className="block truncate text-sm text-muted-foreground">
-          <Status tournament={tournament} />
+          {match ? <MatchStatus match={event} /> : <Status tournament={event} />}
         </span>
       </span>
       {/* As wide as the Play again icon that sits under it on finished rows. */}
@@ -288,6 +295,14 @@ function TournamentRow({ tournament, onOpen }: { tournament: Tournament; onOpen:
         {date.toLocaleDateString(undefined, { day: "numeric", month: "short" })}
       </span>
     </button>
+  )
+}
+
+function MatchStatus({ match }: { match: SetMatch }) {
+  return (
+    <>
+      {teamName(match.teams[0])} v {teamName(match.teams[1])}
+    </>
   )
 }
 

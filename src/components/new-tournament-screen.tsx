@@ -26,7 +26,15 @@ import { Sheet } from "./sheet"
 import { useBackHandler, useNav } from "./stack-navigator"
 
 
-export function NewTournamentScreen({ from }: { from?: PreviousSetup }) {
+export function NewTournamentScreen({
+  from,
+  top,
+  active = true,
+}: {
+  from?: PreviousSetup
+  top?: ReactNode // shown above the first field
+  active?: boolean // false while the match form is showing instead
+}) {
   const nav = useNav<Route>()
   const [name, setName] = useState(() => defaultTournamentName(new Date()))
   const [players, setPlayers] = useState<string[]>(from?.playerNames ?? [])
@@ -69,7 +77,7 @@ export function NewTournamentScreen({ from }: { from?: PreviousSetup }) {
   // Leaving with players entered asks first, whichever way back is triggered.
   // Players carried over from the last tournament don't count until changed.
   const dirty = names.join("\n") !== (from?.playerNames ?? []).join("\n") && names.length > 0 && !starting
-  useBackHandler(dirty, () => setConfirmDiscard(true))
+  useBackHandler(dirty && active, () => setConfirmDiscard(true))
 
   const addDraft = () => {
     const n = cleanPlayerName(draft)
@@ -105,7 +113,7 @@ export function NewTournamentScreen({ from }: { from?: PreviousSetup }) {
 
   return (
     <Screen
-      title="New tournament"
+      title="New game"
       footer={
         <div className="space-y-2">
           {startFailed && (
@@ -132,6 +140,7 @@ export function NewTournamentScreen({ from }: { from?: PreviousSetup }) {
         </div>
       }
     >
+      {top}
       <Section title="Name">
         <Input
           value={name}
@@ -434,7 +443,7 @@ function RoundsWarning({
   )
 }
 
-function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
+export function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
   return (
     <section className="mt-8 first:mt-3">
       <h2 className="mb-3 flex items-baseline gap-2 px-1 text-[1.375rem] type-display">
@@ -446,13 +455,13 @@ function Section({ title, count, children }: { title: string; count?: number; ch
   )
 }
 
-function Hint({ children }: { children: ReactNode }) {
+export function Hint({ children }: { children: ReactNode }) {
   return <p className="mt-2 px-1 text-sm text-muted-foreground">{children}</p>
 }
 
 // A setting with a big number in the middle: minus on the left, plus (the
 // usual move) filled on the right.
-function Stepper({
+export function Stepper({
   value,
   min,
   max,

@@ -88,6 +88,11 @@ function other(side: Side): Side {
   return side === 0 ? 1 : 0
 }
 
+// A pair's name wherever the match is shown: "Ali & Sara".
+export function teamName(team: [string, string]): string {
+  return team.join(" & ")
+}
+
 const CALLS = ["0", "15", "30", "40"]
 
 // How the game in progress is called: 0, 15, 30, 40 and Ad, or plain
