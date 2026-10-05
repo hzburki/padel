@@ -109,7 +109,8 @@ One match between two fixed pairs, with ordinary tennis-style scoring. The rules
   points in a row, the default) or **golden point** (the next point wins).
 - Set: first to N games with two clear, N from 2 to 9 (default 6). At N–N a **tie-break** decides it: first
   to 7 points, two clear, counted as one game (7–6). The golden point never applies inside a tie-break.
-- Match: 1 set, best of 3 or best of 5. The final set uses the same tie-break.
+- Match: 1 set, best of 3 or best of 5. The organiser can pick the same lengths as "first to" 1, 2 or 3
+  sets; that changes only the wording (`setsAs`), never the rules. The final set uses the same tie-break.
 - The rules are fixed once the match starts — changing them would re-read every point already played.
 - A decided match is not finished until the organiser confirms it, so the last point can still be undone.
 - Not tracked: who serves, and how long the match took.

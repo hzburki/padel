@@ -3,7 +3,7 @@ import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { randomId } from "@/lib/ids"
-import { MAX_GAMES_PER_SET, MIN_GAMES_PER_SET } from "@/lib/set-match"
+import { MAX_GAMES_PER_SET, MIN_GAMES_PER_SET, setsToWin } from "@/lib/set-match"
 import { createSetMatch, matchSetupProblems, type PreviousMatchSetup } from "@/lib/set-match-setup"
 import { requestPersistentStorage, saveTournament } from "@/lib/storage"
 import { defaultTournamentName } from "@/lib/tournament"
@@ -32,13 +32,14 @@ export function NewMatchScreen({
   const [name, setName] = useState(() => defaultTournamentName(new Date()))
   const [teams, setTeams] = useState(from?.teams ?? NO_NAMES)
   const [bestOf, setBestOf] = useState<SetMatch["bestOf"]>(from?.bestOf ?? 3)
+  const [setsAs, setSetsAs] = useState<SetMatch["setsAs"]>(from?.setsAs ?? "bestOf")
   const [gamesPerSet, setGamesPerSet] = useState(from?.gamesPerSet ?? 6)
   const [deuce, setDeuce] = useState<DeuceRule>(from?.deuce ?? "advantage")
   const [starting, setStarting] = useState(false)
   const [startFailed, setStartFailed] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
 
-  const input = { name, teams, bestOf, gamesPerSet, deuce }
+  const input = { name, teams, bestOf, setsAs, gamesPerSet, deuce }
   const problems = matchSetupProblems(input)
   const typed = teams.flat().filter((n) => n.trim() !== "").length
 
@@ -128,15 +129,36 @@ export function NewMatchScreen({
       ))}
 
       <Section title="Sets">
+        {/* Two ways to say the same length: first to 2 sets is a best of 3. */}
         <Segmented
           options={[
-            [1, "1 set"],
-            [3, "Best of 3"],
-            [5, "Best of 5"],
+            ["bestOf", "Best of"],
+            ["firstTo", "First to"],
           ]}
-          value={bestOf}
-          onChange={setBestOf}
+          value={setsAs}
+          onChange={setSetsAs}
         />
+        <div className="mt-2">
+          {setsAs === "bestOf" ? (
+            <Segmented
+              options={[
+                [1, "1 set"],
+                [3, "3 sets"],
+                [5, "5 sets"],
+              ]}
+              value={bestOf}
+              onChange={setBestOf}
+            />
+          ) : (
+            <Stepper
+              value={setsToWin(bestOf)}
+              min={1}
+              max={3}
+              onChange={(n) => setBestOf((2 * n - 1) as SetMatch["bestOf"])}
+              unit={(n) => (n === 1 ? "set to win" : "sets to win")}
+            />
+          )}
+        </div>
         <div className="mt-2">
           <Stepper
             value={gamesPerSet}

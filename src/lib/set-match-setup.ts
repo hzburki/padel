@@ -5,6 +5,7 @@ import type { SetMatch } from "./types"
 type Teams = SetMatch["teams"]
 
 export interface MatchSetupInput extends MatchRules {
+  setsAs: SetMatch["setsAs"]
   name: string
   teams: Teams // player names as typed
 }
@@ -51,6 +52,7 @@ export function createSetMatch(input: MatchSetupInput, { now, newId }: { now: nu
     createdAt: now,
     teams: cleanTeams(input.teams),
     bestOf: input.bestOf,
+    setsAs: input.setsAs,
     gamesPerSet: input.gamesPerSet,
     deuce: input.deuce,
     points: [],
@@ -61,9 +63,16 @@ export function createSetMatch(input: MatchSetupInput, { now, newId }: { now: nu
 // What a rematch starts from: the same people on the same sides and the
 // same rules, not the points.
 export interface PreviousMatchSetup extends MatchRules {
+  setsAs: SetMatch["setsAs"]
   teams: Teams
 }
 
 export function previousMatchSetup(match: SetMatch): PreviousMatchSetup {
-  return { teams: match.teams, bestOf: match.bestOf, gamesPerSet: match.gamesPerSet, deuce: match.deuce }
+  return {
+    teams: match.teams,
+    bestOf: match.bestOf,
+    setsAs: match.setsAs,
+    gamesPerSet: match.gamesPerSet,
+    deuce: match.deuce,
+  }
 }

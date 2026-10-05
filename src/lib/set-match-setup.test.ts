@@ -8,6 +8,7 @@ const valid: MatchSetupInput = {
     ["Omar", "Zed"],
   ],
   bestOf: 3,
+  setsAs: "bestOf",
   gamesPerSet: 6,
   deuce: "advantage",
 }
@@ -76,9 +77,9 @@ describe("createSetMatch", () => {
     ])
   })
 
-  it("keeps the chosen sets, games a set and deuce rule", () => {
-    const match = createSetMatch({ ...valid, bestOf: 5, gamesPerSet: 4, deuce: "golden" }, deps)
-    expect(match).toMatchObject({ bestOf: 5, gamesPerSet: 4, deuce: "golden" })
+  it("keeps the chosen sets, how they were chosen, games a set and deuce rule", () => {
+    const match = createSetMatch({ ...valid, bestOf: 5, setsAs: "firstTo", gamesPerSet: 4, deuce: "golden" }, deps)
+    expect(match).toMatchObject({ bestOf: 5, setsAs: "firstTo", gamesPerSet: 4, deuce: "golden" })
   })
 })
 
@@ -88,6 +89,7 @@ describe("previousMatchSetup", () => {
     expect(previousMatchSetup(played)).toEqual({
       teams: valid.teams,
       bestOf: 3,
+      setsAs: "bestOf",
       gamesPerSet: 6,
       deuce: "advantage",
     })

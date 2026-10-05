@@ -62,6 +62,9 @@ export interface SetMatch {
   createdAt: number // epoch ms
   teams: [[string, string], [string, string]] // player names
   bestOf: 1 | 3 | 5 // sets
+  // How the organiser chose the length, and so how it is worded: "best of 3"
+  // or "first to 2 sets". The rules are the same either way.
+  setsAs: "bestOf" | "firstTo"
   gamesPerSet: number // 2–9; a tie-break is played when both teams reach it
   deuce: DeuceRule
   // Who won each point, in order. The only score data stored: games, sets

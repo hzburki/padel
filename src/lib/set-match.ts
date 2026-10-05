@@ -28,10 +28,22 @@ export interface MatchState {
   winner: Side | null
 }
 
+// Sets a team needs: 2 in a best of 3.
+export function setsToWin(bestOf: number): number {
+  return Math.ceil(bestOf / 2)
+}
+
+// The match length in the words it was chosen in: "best of 3", "first to 2
+// sets", or plain "1 set" when one set decides it.
+export function formatLength(match: Pick<SetMatch, "bestOf" | "setsAs">): string {
+  if (match.bestOf === 1) return "1 set"
+  return match.setsAs === "firstTo" ? `first to ${setsToWin(match.bestOf)} sets` : `best of ${match.bestOf}`
+}
+
 // The whole match worked out from the point log. Points logged after the
 // match is decided are ignored.
 export function replay(rules: MatchRules, points: Side[]): MatchState {
-  const setsToWin = Math.ceil(rules.bestOf / 2)
+  const target = setsToWin(rules.bestOf)
   const sets: SetState[] = [newSet()]
   const setsWon: [number, number] = [0, 0]
   let game: [number, number] = [0, 0]
@@ -56,7 +68,7 @@ export function replay(rules: MatchRules, points: Side[]): MatchState {
 
     set.winner = side
     setsWon[side]++
-    if (setsWon[side] === setsToWin) winner = side
+    if (setsWon[side] === target) winner = side
     else sets.push(newSet())
   }
 

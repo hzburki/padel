@@ -24,6 +24,10 @@ export function migrate(raw: unknown): SavedEvent {
   if (kind !== "americano" && kind !== "match") {
     throw new Error(`Unknown kind of saved event: ${String(kind)}`)
   }
+  // Matches saved before "first to" existed were all chosen as a best of.
+  // Filled in here rather than with a version bump: the field is only
+  // wording, and the build that wrote them can still read the record.
+  if (kind === "match" && !("setsAs" in record)) return { ...record, setsAs: "bestOf" } as SavedEvent
   return record as SavedEvent
 }
 

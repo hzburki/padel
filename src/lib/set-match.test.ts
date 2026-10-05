@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest"
-import { addPoint, formatSets, gameSummary, pointLabels, replay, teamName, undoPoint, type MatchRules } from "./set-match"
+import {
+  addPoint,
+  formatLength,
+  formatSets,
+  gameSummary,
+  pointLabels,
+  replay,
+  setsToWin,
+  teamName,
+  undoPoint,
+  type MatchRules,
+} from "./set-match"
 import type { SetMatch, Side } from "./types"
 
 const advantage: MatchRules = { bestOf: 3, gamesPerSet: 6, deuce: "advantage" }
@@ -33,6 +44,7 @@ function match(points: Side[], rules: MatchRules = advantage): SetMatch {
       ["Omar", "Zed"],
     ],
     ...rules,
+    setsAs: "bestOf",
     points,
     finished: false,
   }
@@ -203,6 +215,26 @@ describe("the match", () => {
 
   it("leaves a set with no game played out of the set scores", () => {
     expect(formatSets(replay(advantage, SET_TO_FIRST))).toBe("6–0")
+  })
+})
+
+describe("match length", () => {
+  it("needs 1, 2 and 3 sets to win a best of 1, 3 and 5", () => {
+    expect([1, 3, 5].map(setsToWin)).toEqual([1, 2, 3])
+  })
+
+  it("is worded best of 3 when chosen as a best of", () => {
+    expect(formatLength({ bestOf: 3, setsAs: "bestOf" })).toBe("best of 3")
+  })
+
+  it("is worded first to 2 sets when the same length was chosen as a first to", () => {
+    expect(formatLength({ bestOf: 3, setsAs: "firstTo" })).toBe("first to 2 sets")
+    expect(formatLength({ bestOf: 5, setsAs: "firstTo" })).toBe("first to 3 sets")
+  })
+
+  it("is worded 1 set either way when one set decides it", () => {
+    expect(formatLength({ bestOf: 1, setsAs: "bestOf" })).toBe("1 set")
+    expect(formatLength({ bestOf: 1, setsAs: "firstTo" })).toBe("1 set")
   })
 })
 

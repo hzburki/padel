@@ -1,4 +1,4 @@
-import { replay } from "@/lib/set-match"
+import { formatLength, replay } from "@/lib/set-match"
 import { matchStats } from "@/lib/set-match-stats"
 import type { SetMatch, Side } from "@/lib/types"
 import { BALL, BLUE, body, display, drawCourt, fit, INK, INSET, label, MUTED, PAD, W } from "./share-card"
@@ -51,8 +51,7 @@ export async function renderMatchShareCard(
   ctx.fillStyle = MUTED
   ctx.font = body(32)
   const date = new Date(match.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })
-  const length = match.bestOf === 1 ? "1 set" : `best of ${match.bestOf}`
-  ctx.fillText(`${date}, ${length}, ${match.gamesPerSet} games a set`, PAD, 196)
+  ctx.fillText(`${date}, ${formatLength(match)}, ${match.gamesPerSet} games a set`, PAD, 196)
 
   // The winners: a ball-yellow panel, the one loud thing on the card
   ctx.save()

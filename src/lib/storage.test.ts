@@ -34,6 +34,7 @@ const match: SetMatch = {
     ["Omar", "Zed"],
   ],
   bestOf: 3,
+  setsAs: "firstTo",
   gamesPerSet: 6,
   deuce: "advantage",
   points: [0, 1, 0],
@@ -51,6 +52,11 @@ describe("migrate", () => {
 
   it("loads a version 2 match unchanged", () => {
     expect(migrate(structuredClone(match))).toEqual(match)
+  })
+
+  it("reads a match saved before first to existed as a best of", () => {
+    const { setsAs: _, ...older } = match
+    expect(migrate(structuredClone(older))).toEqual({ ...match, setsAs: "bestOf" })
   })
 
   it("is on version 2 today", () => {
