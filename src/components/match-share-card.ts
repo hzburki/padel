@@ -16,6 +16,7 @@ const GAP = 14
 const BOTTOM = 60
 const SET_W = 112 // one column of games per set, up to five
 const RIGHT = W - PAD - INSET
+const STRIP_GAP = 36 // clear space each side of a number at the foot
 
 // `scoreOnly` stops under the set scores — the on-screen preview, where the
 // stats are already listed below it.
@@ -45,7 +46,7 @@ export async function renderMatchShareCard(
   // Title and details
   ctx.textBaseline = "alphabetic"
   ctx.fillStyle = "#ffffff"
-  ctx.font = display(92)
+  ctx.font = display(shrinkToFit(ctx, [match.name], W - 2 * PAD, 92, 60))
   ctx.fillText(fit(ctx, match.name, W - 2 * PAD), PAD, 142)
   ctx.fillStyle = MUTED
   ctx.font = body(32)
@@ -133,12 +134,21 @@ export async function renderMatchShareCard(
     ]
     const colW = (W - 2 * PAD) / numbers.length
     const mid = (tableBottom + H - BOTTOM) / 2
+    // One size for all three, small enough that the widest keeps clear air
+    // either side of it.
+    const size = shrinkToFit(
+      ctx,
+      numbers.map(([value]) => value),
+      colW - 2 * STRIP_GAP,
+      104,
+      48,
+    )
     ctx.textAlign = "center"
     ctx.textBaseline = "alphabetic"
     numbers.forEach(([value, name], i) => {
       const cx = PAD + colW * (i + 0.5)
       ctx.fillStyle = "#ffffff"
-      ctx.font = display(104)
+      ctx.font = display(size)
       ctx.fillText(value, cx, mid + 20)
       ctx.fillStyle = MUTED
       ctx.font = label(30)
@@ -149,4 +159,13 @@ export async function renderMatchShareCard(
   return new Promise((resolve, reject) =>
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Couldn't make the image"))), "image/png"),
   )
+}
+
+// The largest display size, from `max` down to `min`, at which every text
+// fits `width`. Some phones draw this font wider than others, so a size
+// that fits on one can run into its neighbour on another.
+function shrinkToFit(ctx: CanvasRenderingContext2D, texts: string[], width: number, max: number, min: number): number {
+  ctx.font = display(max)
+  const widest = Math.max(...texts.map((t) => ctx.measureText(t).width))
+  return widest <= width ? max : Math.max(min, Math.floor((max * width) / widest))
 }
