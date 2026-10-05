@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  capitaliseFirst,
   cleanPlayerNames,
   createTournament,
   currentRoundIndex,
@@ -41,6 +42,25 @@ describe("cleanPlayerNames", () => {
       "Élodie",
       "De Vries",
     ])
+  })
+})
+
+describe("capitaliseFirst", () => {
+  it("makes the first letter upper case as soon as it is typed", () => {
+    expect(capitaliseFirst("a")).toBe("A")
+    expect(capitaliseFirst("ali")).toBe("Ali")
+  })
+
+  it("keeps a space at the end, so a second word can still be typed", () => {
+    expect(capitaliseFirst("de ")).toBe("De ")
+  })
+
+  it("drops spaces typed before the name", () => {
+    expect(capitaliseFirst(" ali")).toBe("Ali")
+  })
+
+  it("leaves an empty field empty", () => {
+    expect(capitaliseFirst("")).toBe("")
   })
 })
 

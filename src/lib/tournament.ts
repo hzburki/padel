@@ -22,7 +22,13 @@ export function cleanPlayerNames(names: string[]): string[] {
 // Trimmed, first letter upper case ("ana" → "Ana"); the rest is left as
 // typed, so "McKay" or "de Vries" keep their own casing after the first letter.
 export function cleanPlayerName(name: string): string {
-  const n = name.trim()
+  return capitaliseFirst(name.trim())
+}
+
+// For a name still being typed: the first letter goes upper case straight
+// away, and nothing else is touched, so spaces can still be typed.
+export function capitaliseFirst(name: string): string {
+  const n = name.trimStart()
   return n.charAt(0).toLocaleUpperCase() + n.slice(1)
 }
 

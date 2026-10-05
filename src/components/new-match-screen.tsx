@@ -6,7 +6,7 @@ import { randomId } from "@/lib/ids"
 import { MAX_GAMES_PER_SET, MIN_GAMES_PER_SET, setsToWin } from "@/lib/set-match"
 import { createSetMatch, matchSetupProblems, type PreviousMatchSetup } from "@/lib/set-match-setup"
 import { requestPersistentStorage, saveTournament } from "@/lib/storage"
-import { defaultGameName } from "@/lib/tournament"
+import { capitaliseFirst, defaultGameName } from "@/lib/tournament"
 import type { DeuceRule, SetMatch, Side } from "@/lib/types"
 import { Hint, Section, Stepper } from "./new-tournament-screen"
 import { Screen } from "./screen"
@@ -115,7 +115,7 @@ export function NewMatchScreen({
                 key={seat}
                 ref={(el) => void (fields.current[1 + side * 2 + seat] = el)}
                 value={teams[side][seat]}
-                onChange={(e) => setPlayer(side, seat, e.target.value)}
+                onChange={(e) => setPlayer(side, seat, capitaliseFirst(e.target.value))}
                 onKeyDown={enterMovesOn(1 + side * 2 + seat)}
                 placeholder={`Player ${side * 2 + seat + 1}`}
                 aria-label={`Team ${side + 1}, player ${seat + 1}`}
