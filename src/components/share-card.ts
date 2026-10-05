@@ -5,19 +5,19 @@ import type { Tournament } from "@/lib/types"
 // drawn straight onto a canvas. Kept separate from the on-screen standings
 // on purpose — it has to read well as a small chat thumbnail.
 
-const W = 1080
+export const W = 1080
 const FULL_H = 1350 // 4:5, the shape feeds and chats show best
-const PAD = 60
-const INSET = 28 // text sits this far inside the winner panel and the table rows
-const BLUE = "#1d4f91"
-const BALL = "#dceb3a"
-const INK = "#0e2240"
-const MUTED = "rgba(255,255,255,0.7)"
+export const PAD = 60
+export const INSET = 28 // text sits this far inside the winner panel and the table rows
+export const BLUE = "#1d4f91"
+export const BALL = "#dceb3a"
+export const INK = "#0e2240"
+export const MUTED = "rgba(255,255,255,0.7)"
 const FAMILY = '"Archivo Variable", sans-serif'
 // The app's scoreboard voice: narrow and heavy for names and numbers.
-const display = (size: number) => `800 condensed ${size}px ${FAMILY}`
-const label = (size: number) => `700 semi-condensed ${size}px ${FAMILY}`
-const body = (size: number) => `500 ${size}px ${FAMILY}`
+export const display = (size: number) => `800 condensed ${size}px ${FAMILY}`
+export const label = (size: number) => `700 semi-condensed ${size}px ${FAMILY}`
+export const body = (size: number) => `500 ${size}px ${FAMILY}`
 
 const TOP = 250 // where the winner panel starts, under the title
 const WINNER_H = 240
@@ -185,7 +185,7 @@ export async function renderShareCard(
 }
 
 // Faint padel court lines behind everything: outer walls, net, service lines.
-function drawCourt(ctx: CanvasRenderingContext2D, H: number) {
+export function drawCourt(ctx: CanvasRenderingContext2D, H: number) {
   const courtW = 760
   const courtH = courtW * 2 // a court is 10 m by 20 m
   const x = W - courtW * 0.62
@@ -208,7 +208,7 @@ function drawCourt(ctx: CanvasRenderingContext2D, H: number) {
   ctx.restore()
 }
 
-function fit(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+export function fit(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
   if (ctx.measureText(text).width <= maxWidth) return text
   let t = text
   while (t.length > 1 && ctx.measureText(`${t}…`).width > maxWidth) t = t.slice(0, -1)

@@ -17,11 +17,15 @@ This is about answers to the user in chat, not code or comments.
 
 ## Project
 
-A mobile-first PWA for running casual padel tournaments among friends. One format only: **Americano**. No
-other padel format (no Mexicano, no classic draws, no box leagues) is in scope.
+A mobile-first PWA for casual padel among friends. Two kinds of game, picked on the New game screen:
 
-**Local-only.** There is no backend, no accounts, no sync, no network calls. All tournament state lives in
-the browser (IndexedDB for tournament data; `localStorage` is fine for small UI prefs). This is a hard
+- **Americano** — a tournament for 4 or more players with rotating partners.
+- **Match** — one 2 v 2 match scored point by point: points, games, sets.
+
+No other padel format (no Mexicano, no classic draws, no box leagues) is in scope.
+
+**Local-only.** There is no backend, no accounts, no sync, no network calls. All tournament and match state
+lives in the browser (IndexedDB for the games; `localStorage` is fine for small UI prefs). This is a hard
 constraint, not a v1 shortcut — the app must fully work offline, including a cold start with no connection.
 Do not introduce a server, an API client, or a hosted database. Treat "export/import a tournament as a JSON
 file" as the sharing mechanism if sharing is ever needed.
@@ -94,6 +98,23 @@ Keep the scheduling logic in a pure, framework-free module (`src/lib/americano.t
 returns pairings. It is the highest-value thing to unit test; the React layer should only read and render
 its output.
 
+## Domain: Match
+
+One match between two fixed pairs, with ordinary tennis-style scoring. The rules live in
+`src/lib/set-match.ts`; the stored type is `SetMatch`, because `Match` already means one Americano game.
+
+- A match stores only **who won each point**, in order. Games, sets, the winner and the stats are worked
+  out by replaying that log (`replay`). Undo drops the last point. Never store a second copy of the score.
+- Game: 0, 15, 30, 40. The organiser picks what happens at 40–40, fixed for the match: **advantage** (two
+  points in a row, the default) or **golden point** (the next point wins).
+- Set: first to N games with two clear, N from 2 to 9 (default 6). At N–N a **tie-break** decides it: first
+  to 7 points, two clear, counted as one game (7–6). The golden point never applies inside a tie-break.
+- Match: 1 set, best of 3 or best of 5. The organiser can pick the same lengths as "first to" 1, 2 or 3
+  sets; that changes only the wording (`setsAs`), never the rules. The final set uses the same tie-break.
+- The rules are fixed once the match starts — changing them would re-read every point already played.
+- A decided match is not finished until the organiser confirms it, so the last point can still be undone.
+- Not tracked: who serves, and how long the match took.
+
 ## Delivering code the user can review
 
 The user wants to understand every change. Big mixed diffs make that impossible. These rules keep review
@@ -136,15 +157,18 @@ change to the shape of a stored tournament. These are the changes that are expen
 
 ## Persistence
 
-A tournament is the unit of persistence: players, number of courts, point target, scoring mode, the rounds played so
-far, their scores, and the sit-out history. Persist after every score entry — the phone will be backgrounded, locked, and
+A tournament or a match is the unit of persistence, told apart by `kind` (`"americano"` or `"match"`) and
+kept in the same IndexedDB store. A tournament holds its players, number of courts, point target, scoring
+mode, the rounds played so far, their scores, and the sit-out history; a match holds its two teams, its
+rules and its point log. Persist after every score entry or point — the phone will be backgrounded, locked, and
 reloaded mid-tournament, and losing a round's scores is the worst failure mode this app has. Schema changes
 need a migration path for tournaments already saved in a user's browser; version the stored shape from the
 start.
 
 ## Shareable result image
 
-When a tournament ends the app produces a PNG of the final standings, meant for WhatsApp and social feeds.
+When a tournament ends the app produces a PNG of the final standings, and when a match ends a PNG of its
+score, both meant for WhatsApp and social feeds.
 It has to be a real image file the user can share or save — `navigator.share` with a `File`, falling back
 to a download when the Web Share API is unavailable — not something the user has to screenshot.
 

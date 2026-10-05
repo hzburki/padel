@@ -34,7 +34,7 @@ export function Screen({
             {canGoBack && (
               <button
                 type="button"
-                onClick={() => nav.back()}
+                onClick={() => (homeButton ? nav.home() : nav.back())}
                 aria-label={homeButton ? "Home" : "Back"}
                 className="-ml-1 flex size-11 shrink-0 items-center justify-center rounded-full text-primary active:bg-muted"
               >

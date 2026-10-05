@@ -12,7 +12,7 @@ import {
   cleanPlayerName,
   cleanPlayerNames,
   createTournament,
-  defaultTournamentName,
+  defaultGameName,
   MAX_ROUNDS,
   maxCourts,
   MIN_PLAYERS,
@@ -21,13 +21,22 @@ import {
 } from "@/lib/tournament"
 import type { ScoringMode } from "@/lib/types"
 import { Screen } from "./screen"
+import { Segmented } from "./segmented"
 import { Sheet } from "./sheet"
 import { useBackHandler, useNav } from "./stack-navigator"
 
 
-export function NewTournamentScreen({ from }: { from?: PreviousSetup }) {
+export function NewTournamentScreen({
+  from,
+  top,
+  active = true,
+}: {
+  from?: PreviousSetup
+  top?: ReactNode // shown above the first field
+  active?: boolean // false while the match form is showing instead
+}) {
   const nav = useNav<Route>()
-  const [name, setName] = useState(() => defaultTournamentName(new Date()))
+  const [name, setName] = useState(() => defaultGameName("americano", new Date()))
   const [players, setPlayers] = useState<string[]>(from?.playerNames ?? [])
   const [draft, setDraft] = useState("")
   const [courts, setCourts] = useState(from?.courts ?? 1)
@@ -68,7 +77,7 @@ export function NewTournamentScreen({ from }: { from?: PreviousSetup }) {
   // Leaving with players entered asks first, whichever way back is triggered.
   // Players carried over from the last tournament don't count until changed.
   const dirty = names.join("\n") !== (from?.playerNames ?? []).join("\n") && names.length > 0 && !starting
-  useBackHandler(dirty, () => setConfirmDiscard(true))
+  useBackHandler(dirty && active, () => setConfirmDiscard(true))
 
   const addDraft = () => {
     const n = cleanPlayerName(draft)
@@ -104,7 +113,7 @@ export function NewTournamentScreen({ from }: { from?: PreviousSetup }) {
 
   return (
     <Screen
-      title="New tournament"
+      title="New game"
       footer={
         <div className="space-y-2">
           {startFailed && (
@@ -131,6 +140,7 @@ export function NewTournamentScreen({ from }: { from?: PreviousSetup }) {
         </div>
       }
     >
+      {top}
       <Section title="Name">
         <Input
           value={name}
@@ -205,30 +215,14 @@ export function NewTournamentScreen({ from }: { from?: PreviousSetup }) {
       </Section>
 
       <Section title="Scoring">
-        {/* Navy track, lime thumb that slides to the chosen mode. */}
-        <div className="relative grid grid-cols-2 rounded-2xl bg-foreground p-1.5">
-          <span
-            aria-hidden
-            className="absolute inset-y-1.5 left-1.5 w-[calc(50%-0.375rem)] rounded-xl bg-accent shadow-[inset_0_-3px_0_rgb(14_34_64/0.16)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
-            style={{ transform: scoringMode === "firstTo" ? "translateX(100%)" : undefined }}
-          />
-          {(
-            [
-              ["total", "Total points"],
-              ["firstTo", "First to"],
-            ] as const
-          ).map(([mode, label]) => (
-            <button
-              key={mode}
-              type="button"
-              aria-pressed={scoringMode === mode}
-              onClick={() => setScoringMode(mode)}
-              className="relative h-12 text-[1.0625rem] text-primary-foreground/70 transition-colors type-label aria-pressed:text-accent-foreground"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          options={[
+            ["total", "Total points"],
+            ["firstTo", "First to"],
+          ]}
+          value={scoringMode}
+          onChange={setScoringMode}
+        />
         <div className="mt-2">
           <Stepper
             value={target}
@@ -449,7 +443,7 @@ function RoundsWarning({
   )
 }
 
-function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
+export function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
   return (
     <section className="mt-8 first:mt-3">
       <h2 className="mb-3 flex items-baseline gap-2 px-1 text-[1.375rem] type-display">
@@ -461,13 +455,13 @@ function Section({ title, count, children }: { title: string; count?: number; ch
   )
 }
 
-function Hint({ children }: { children: ReactNode }) {
+export function Hint({ children }: { children: ReactNode }) {
   return <p className="mt-2 px-1 text-sm text-muted-foreground">{children}</p>
 }
 
 // A setting with a big number in the middle: minus on the left, plus (the
 // usual move) filled on the right.
-function Stepper({
+export function Stepper({
   value,
   min,
   max,

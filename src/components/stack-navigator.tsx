@@ -17,6 +17,10 @@ import {
 //
 // The whole stack is stored in each history entry's state; on popstate the
 // stack is simply read back from there.
+//
+// Most screens share the address "/". A route can have an address of its own
+// (`pathOf`), and `routeAt` opens the app on that screen when someone lands
+// on the address directly.
 
 interface Entry<R> {
   key: string
@@ -29,6 +33,7 @@ interface NavApi<R> {
   // Go back one step: closes whatever is open on top (see useBackHandler)
   // before leaving the screen. `force` leaves the screen regardless.
   back: (options?: { force?: boolean }) => void
+  home: () => void // leave every screen and show the first one
   depth: number
   registerBackHandler: (onBack: () => void) => () => void
 }
@@ -101,13 +106,31 @@ function readStack<R>(state: unknown): Entry<R>[] | null {
 export function StackNavigator<R>({
   initial,
   render,
+  pathOf = () => "/",
+  routeAt,
 }: {
   initial: R
   render: (route: R) => ReactNode
+  pathOf?: (route: R) => string // the address shown while a route is on top
+  routeAt?: (pathname: string) => R | null // the route an address opens, if it has one
 }) {
-  const [stack, setStack] = useState<Entry<R>[]>(
-    () => readStack<R>(history.state) ?? [{ key: newKey(), route: initial }],
-  )
+  const [stack, setStack] = useState<Entry<R>[]>(() => {
+    const saved = readStack<R>(history.state)
+    if (saved) return saved
+    const home = [{ key: newKey(), route: initial }]
+    const linked = routeAt?.(location.pathname)
+    if (!linked) return home
+    // Opened straight on a screen's own address: put home under it in
+    // history too, so back leads into the app instead of out of it.
+    const opened = [...home, { key: newKey(), route: linked }]
+    history.replaceState({ stack: home }, "", "/")
+    history.pushState({ stack: opened }, "", pathOf(linked))
+    return opened
+  })
+  const pathOfRef = useRef(pathOf)
+  useLayoutEffect(() => {
+    pathOfRef.current = pathOf
+  })
   const stackRef = useRef(stack)
   // Event handlers read the stack through this ref; keep it current before
   // any other layout effect (the enter animation) runs.
@@ -254,7 +277,7 @@ export function StackNavigator<R>({
     if (busy.current) return
     withoutGuard(() => {
       const next = [...stackRef.current, { key: newKey(), route }]
-      history.pushState({ stack: next }, "")
+      history.pushState({ stack: next }, "", pathOfRef.current(route))
       pendingEnter.current = true
       setStack(next)
     })
@@ -264,7 +287,7 @@ export function StackNavigator<R>({
     if (busy.current) return
     withoutGuard(() => {
       const next = [...stackRef.current.slice(0, -1), { key: newKey(), route }]
-      history.replaceState({ stack: next }, "")
+      history.replaceState({ stack: next }, "", pathOfRef.current(route))
       pendingEnter.current = true
       setStack(next)
     })
@@ -276,6 +299,16 @@ export function StackNavigator<R>({
     if (handler && !options?.force) return handler.onBack()
     if (stackRef.current.length < 2) return
     withoutGuard(() => history.back())
+  }, [])
+
+  const home = useCallback(() => {
+    if (busy.current) return
+    const steps = stackRef.current.length - 1
+    if (steps < 1) return
+    // The slide-out shows the screen right underneath; when home is further
+    // down than that, skip it rather than flash a screen we're not going to.
+    if (steps > 1) skipNextPopAnimation.current = true
+    withoutGuard(() => history.go(-steps))
   }, [])
 
   // Esc on a keyboard means back, like everywhere else.
@@ -365,8 +398,8 @@ export function StackNavigator<R>({
   }
 
   const api = useMemo(
-    () => ({ push, replace, back, depth: stack.length - 1, registerBackHandler }),
-    [push, replace, back, stack.length, registerBackHandler],
+    () => ({ push, replace, back, home, depth: stack.length - 1, registerBackHandler }),
+    [push, replace, back, home, stack.length, registerBackHandler],
   )
 
   return (

@@ -1,7 +1,7 @@
 import { generateSchedule } from "./americano"
 import type { Rng } from "./bench"
 import { isValidTarget, MAX_TARGET, MIN_TARGET } from "./scoring"
-import type { Score, ScoringMode, Tournament } from "./types"
+import type { SavedEvent, Score, ScoringMode, Tournament } from "./types"
 
 export const MIN_PLAYERS = 4
 export const MAX_ROUNDS = 99
@@ -22,7 +22,13 @@ export function cleanPlayerNames(names: string[]): string[] {
 // Trimmed, first letter upper case ("ana" → "Ana"); the rest is left as
 // typed, so "McKay" or "de Vries" keep their own casing after the first letter.
 export function cleanPlayerName(name: string): string {
-  const n = name.trim()
+  return capitaliseFirst(name.trim())
+}
+
+// For a name still being typed: the first letter goes upper case straight
+// away, and nothing else is touched, so spaces can still be typed.
+export function capitaliseFirst(name: string): string {
+  const n = name.trimStart()
   return n.charAt(0).toLocaleUpperCase() + n.slice(1)
 }
 
@@ -57,7 +63,7 @@ export function setupProblems(input: SetupInput): string[] {
 }
 
 // The first name that appears twice, ignoring case; null if all differ.
-function duplicateName(names: string[]): string | null {
+export function duplicateName(names: string[]): string | null {
   const seen = new Set<string>()
   for (const name of names) {
     const k = name.toLowerCase()
@@ -78,7 +84,8 @@ export interface CreateDeps {
 export function createTournament(input: SetupInput, { now, newId, rng }: CreateDeps): Tournament {
   const players = cleanPlayerNames(input.playerNames).map((name) => ({ id: newId(), name }))
   return {
-    version: 1,
+    version: 2,
+    kind: "americano",
     id: newId(),
     name: input.name.trim(),
     createdAt: now,
@@ -169,8 +176,9 @@ export function renameTournament(tournament: Tournament, name: string, playerNam
   }
 }
 
-// The pre-filled name: the day and date it's played, in the phone's
-// language and date order ("Padel, Sunday 4 October").
-export function defaultTournamentName(date: Date, locale?: string): string {
-  return `Padel, ${date.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}`
+// The pre-filled name: what kind of game it is and the day it's played,
+// kept short, in the phone's language and date order ("Match, Sun 4 Oct").
+export function defaultGameName(kind: SavedEvent["kind"], date: Date, locale?: string): string {
+  const what = kind === "match" ? "Match" : "Americano"
+  return `${what}, ${date.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" })}`
 }

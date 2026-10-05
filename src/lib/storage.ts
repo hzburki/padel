@@ -1,10 +1,11 @@
-import type { Tournament } from "./types"
+import type { SavedEvent } from "./types"
 
-export const CURRENT_VERSION = 1
+export const CURRENT_VERSION = 2
 
-// Bring a tournament read from storage up to the current shape. Each future
-// version adds one step here (v1 → v2, v2 → v3, …) so old saves keep loading.
-export function migrate(raw: unknown): Tournament {
+// Bring a tournament or match read from storage up to the current shape.
+// Each version adds one step here (v1 → v2, v2 → v3, …) so old saves keep
+// loading.
+export function migrate(raw: unknown): SavedEvent {
   if (typeof raw !== "object" || raw === null || !("version" in raw)) {
     throw new Error("Not a saved tournament")
   }
@@ -15,11 +16,24 @@ export function migrate(raw: unknown): Tournament {
   if (version > CURRENT_VERSION) {
     throw new Error(`Tournament was saved by a newer version of the app (v${version})`)
   }
-  return raw as Tournament
+  // v1 → v2: matches arrived, so every record now says what kind it is.
+  // Everything saved before that was an Americano tournament.
+  const record = version === 1 ? { ...raw, version: 2, kind: "americano" } : raw
+
+  const { kind } = record as { kind?: unknown }
+  if (kind !== "americano" && kind !== "match") {
+    throw new Error(`Unknown kind of saved event: ${String(kind)}`)
+  }
+  // Matches saved before "first to" existed were all chosen as a best of.
+  // Filled in here rather than with a version bump: the field is only
+  // wording, and the build that wrote them can still read the record.
+  if (kind === "match" && !("setsAs" in record)) return { ...record, setsAs: "bestOf" } as SavedEvent
+  return record as SavedEvent
 }
 
-// IndexedDB: one database, one store of tournaments keyed by id. Every write
-// is a whole tournament — they are small, and it keeps saves atomic.
+// IndexedDB: one database, one store keyed by id. It is named for
+// tournaments but holds matches too. Every write is a whole record — they
+// are small, and it keeps saves atomic.
 const DB_NAME = "padel"
 const STORE = "tournaments"
 
@@ -48,28 +62,28 @@ async function run<T>(mode: IDBTransactionMode, op: (store: IDBObjectStore) => I
   })
 }
 
-export async function saveTournament(tournament: Tournament): Promise<void> {
-  await run("readwrite", (store) => store.put(tournament))
+export async function saveTournament(event: SavedEvent): Promise<void> {
+  await run("readwrite", (store) => store.put(event))
 }
 
-export async function loadTournament(id: string): Promise<Tournament | null> {
+export async function loadTournament(id: string): Promise<SavedEvent | null> {
   const raw = await run("readonly", (store) => store.get(id))
   return raw === undefined ? null : migrate(raw)
 }
 
 // Newest first. Saves that can't be migrated are skipped rather than
 // breaking the whole list.
-export async function listTournaments(): Promise<Tournament[]> {
+export async function listTournaments(): Promise<SavedEvent[]> {
   const all = await run("readonly", (store) => store.getAll())
-  const tournaments: Tournament[] = []
+  const events: SavedEvent[] = []
   for (const raw of all) {
     try {
-      tournaments.push(migrate(raw))
+      events.push(migrate(raw))
     } catch {
       // left in storage untouched; a later app version may be able to read it
     }
   }
-  return tournaments.sort((x, y) => y.createdAt - x.createdAt)
+  return events.sort((x, y) => y.createdAt - x.createdAt)
 }
 
 export async function deleteTournament(id: string): Promise<void> {

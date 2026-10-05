@@ -1,11 +1,13 @@
-import { ChevronDown, ChevronRight, MonitorDown, Plus, Repeat, Smartphone } from "lucide-react"
+import { ChevronDown, ChevronRight, MonitorDown, Plus, Repeat, Smartphone, Swords, Users } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
+import { formatSets, replay, teamName } from "@/lib/set-match"
+import { previousMatchSetup } from "@/lib/set-match-setup"
 import { computeStandings, formatPoints, joinNames, winners } from "@/lib/standings"
 import { listTournaments } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, unscoredMatchCount } from "@/lib/tournament"
-import type { Tournament } from "@/lib/types"
+import type { SavedEvent, SetMatch, Tournament } from "@/lib/types"
 import { CourtLines } from "./court-lines"
 import { canInstall, InstallBanner, InstallHelp, isPhone, useInstallPrompt } from "./install-banner"
 import { Screen } from "./screen"
@@ -15,61 +17,95 @@ import { useIsTopScreen, useNav } from "./stack-navigator"
 export function TournamentListScreen() {
   const nav = useNav<Route>()
   const isTop = useIsTopScreen()
-  const [tournaments, setTournaments] = useState<Tournament[] | null>(null)
+  const [events, setEvents] = useState<SavedEvent[] | null>(null)
   const { install } = useInstallPrompt()
   const [installHelp, setInstallHelp] = useState(false)
+  const [filter, setFilter] = useState<"all" | SavedEvent["kind"]>("all")
 
-  // Reload whenever this screen comes back into view, so a tournament just
+  // Reload whenever this screen comes back into view, so a game just
   // created or scored shows up to date.
   useEffect(() => {
-    if (isTop) listTournaments().then(setTournaments)
+    if (isTop) listTournaments().then(setEvents)
   }, [isTop])
 
-  // The newest unfinished tournament gets the spotlight; the rest are listed.
-  const playing = tournaments?.find((t) => !t.finished)
-  const others = tournaments?.filter((t) => t !== playing) ?? []
-  const open = (t: Tournament) => nav.push({ name: "tournament", id: t.id })
+  // The newest unfinished game gets the spotlight; the rest are listed.
+  const playing = events?.find((e) => !e.finished)
+  const others = events?.filter((e) => e !== playing) ?? []
+  const listed = others.filter((e) => filter === "all" || e.kind === filter)
+  const open = (e: SavedEvent) => nav.push({ name: e.kind === "match" ? "match" : "tournament", id: e.id })
 
   return (
     <Screen
       title="Padel"
       bare
       footer={
-        // With a tournament on, Continue is the lime action and this steps back.
+        // With a game on, Continue is the lime action and this steps back.
         <Button variant={playing ? "default" : "ball"} size="lg" onClick={() => nav.push({ name: "new" })}>
           <Plus className="size-5" strokeWidth={2.5} />
-          New tournament
+          New game
         </Button>
       }
     >
       {/* New users always see how it works; everyone else can open it. */}
       <Hero
-        howItWorks={tournaments?.length === 0 ? "open" : "collapsible"}
+        howItWorks={events?.length === 0 ? "open" : "collapsible"}
         onInstall={canInstall() ? () => (install ? install() : setInstallHelp(true)) : undefined}
       >
-        {playing && <PlayingNow tournament={playing} onOpen={() => open(playing)} />}
+        {playing?.kind === "americano" && <PlayingNow tournament={playing} onOpen={() => open(playing)} />}
+        {playing?.kind === "match" && <MatchPlayingNow match={playing} onOpen={() => open(playing)} />}
       </Hero>
 
       <InstallBanner />
 
-      {tournaments?.length === 0 && <FirstTournament />}
+      {events?.length === 0 && <FirstTournament />}
 
       {others.length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-3 px-1 text-[1.375rem] type-display">
-            {playing ? "Other tournaments" : "Tournaments"}
-          </h2>
-          <ul className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
-            {others.map((t) => (
+          <div className="mb-3 flex items-center gap-3 px-1">
+            <h2 className="flex-1 text-[1.375rem] type-display">History</h2>
+            {/* The phone's own picker behind a pill: nothing to build or to
+                get wrong on a small screen. */}
+            <span className="relative">
+              <select
+                aria-label="Show"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as typeof filter)}
+                className="h-9 appearance-none rounded-full bg-secondary pr-8 pl-3.5 text-sm text-primary outline-none type-label focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+              >
+                <option value="all">All</option>
+                <option value="americano">Americano</option>
+                <option value="match">Matches</option>
+              </select>
+              <ChevronDown
+                className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-primary"
+                strokeWidth={2.5}
+                aria-hidden
+              />
+            </span>
+          </div>
+          {listed.length === 0 && (
+            <p className="px-1 text-muted-foreground">
+              {filter === "match" ? "No matches here yet." : "No Americano tournaments here yet."}
+            </p>
+          )}
+          <ul className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px] empty:hidden">
+            {listed.map((t) => (
               <li key={t.id} className="relative">
-                <TournamentRow tournament={t} onOpen={() => open(t)} />
+                <HistoryRow event={t} onOpen={() => open(t)} />
                 {t.finished && (
-                  // Beside the row's button, not inside it: buttons can't nest.
+                  // Under the date. Beside the row's button, not inside it: buttons
+                  // can't nest.
                   <button
                     type="button"
                     aria-label={`Play again with the players from ${t.name}`}
-                    onClick={() => nav.push({ name: "new", from: previousSetup(t) })}
-                    className="absolute top-1/2 right-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full text-primary active:bg-muted"
+                    onClick={() =>
+                      nav.push(
+                        t.kind === "match"
+                          ? { name: "new", fromMatch: previousMatchSetup(t) }
+                          : { name: "new", from: previousSetup(t) },
+                      )
+                    }
+                    className="absolute right-2 bottom-1 flex size-11 items-center justify-center rounded-full text-primary active:bg-muted"
                   >
                     <Repeat className="size-5" strokeWidth={2.5} />
                   </button>
@@ -238,6 +274,43 @@ function PlayingNow({ tournament, onOpen }: { tournament: Tournament; onOpen: ()
   )
 }
 
+// The spotlight card for a match: sets won where a tournament has its round
+// counter, and the set scores where it has the leader.
+function MatchPlayingNow({ match, onOpen }: { match: SetMatch; onOpen: () => void }) {
+  const state = replay(match, match.points)
+  const sets = formatSets(state)
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="block w-full rounded-3xl bg-card p-5 text-left text-card-foreground shadow-lg shadow-black/10 active:scale-[0.99]"
+    >
+      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">Playing now</span>
+      <div className="mt-3 flex items-end gap-3">
+        <p className="min-w-0 flex-1 truncate text-[1.75rem] type-display">{match.name}</p>
+        <p className="shrink-0 text-primary type-display" aria-label={`${state.setsWon[0]} sets to ${state.setsWon[1]}`}>
+          <span className="text-[1.75rem]">
+            {state.setsWon[0]}–{state.setsWon[1]}
+          </span>
+          <span className="text-lg text-muted-foreground"> sets</span>
+        </p>
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <p className="min-w-0 flex-1 text-sm">
+          <span className="block truncate font-semibold">
+            {teamName(match.teams[0])} v {teamName(match.teams[1])}
+          </span>
+          <span className="block truncate text-muted-foreground">{sets === "" ? "No games yet" : `Games ${sets}`}</span>
+        </p>
+        <span className="flex h-11 shrink-0 items-center gap-1 rounded-xl bg-accent pr-3 pl-4 text-accent-foreground shadow-[inset_0_-3px_0_rgb(14_34_64/0.16)] type-label">
+          Continue
+          <ChevronRight className="size-4" strokeWidth={2.5} />
+        </span>
+      </div>
+    </button>
+  )
+}
+
 function HowItWorks() {
   const steps = ["Add your players and courts", "Enter scores courtside", "Share the final standings"]
   return (
@@ -264,31 +337,53 @@ function FirstTournament() {
         <path d="M10 31h100M10 149h100M60 31v118" strokeWidth="2" />
         <circle cx="84" cy="122" r="9" className="fill-accent" stroke="none" />
       </svg>
-      <p className="mt-5 text-2xl type-display">No tournaments yet</p>
-      <p className="mt-1 max-w-64 text-muted-foreground">Tap New tournament below to set up your first one.</p>
+      <p className="mt-5 text-2xl type-display">No games yet</p>
+      <p className="mt-1 max-w-64 text-muted-foreground">Tap New game below to set up your first one.</p>
     </div>
   )
 }
 
-function TournamentRow({ tournament, onOpen }: { tournament: Tournament; onOpen: () => void }) {
-  const date = new Date(tournament.createdAt)
+function HistoryRow({ event, onOpen }: { event: SavedEvent; onOpen: () => void }) {
+  const date = new Date(event.createdAt)
+  const match = event.kind === "match"
+  const Icon = match ? Swords : Users
   return (
-    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 px-3.5 py-3.5 text-left active:bg-muted">
-      <span className="flex size-13 shrink-0 flex-col items-center justify-center rounded-2xl bg-secondary leading-none">
-        <span className="text-2xl type-display">{date.getDate()}</span>
-        <span className="mt-0.5 text-[0.6875rem] font-medium text-muted-foreground">
-          {date.toLocaleDateString(undefined, { month: "short" })}
-        </span>
+    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 py-3.5 pr-2 pl-3.5 text-left active:bg-muted">
+      {/* The tile says what kind of game it was: lime for a match. */}
+      <span
+        className={`flex size-13 shrink-0 items-center justify-center rounded-2xl ${
+          match ? "bg-accent text-accent-foreground" : "bg-secondary text-primary"
+        }`}
+      >
+        <Icon className="size-6" strokeWidth={2.5} aria-label={match ? "Match" : "Americano"} />
       </span>
-      {/* Finished rows leave room on the right for the Play again icon. */}
-      <span className={`min-w-0 flex-1 ${tournament.finished ? "pr-11" : ""}`}>
-        <span className="block truncate text-lg type-label">{tournament.name}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-lg type-label">{event.name}</span>
         <span className="block truncate text-sm text-muted-foreground">
-          <Status tournament={tournament} />
+          {match ? <MatchStatus match={event} /> : <Status tournament={event} />}
         </span>
       </span>
-      <ChevronRight className="size-5 shrink-0 text-muted-foreground/60" />
+      {/* As wide as the Play again icon that sits under it on finished rows. */}
+      <span className="w-11 shrink-0 self-start pt-1 text-center text-[0.8125rem] whitespace-nowrap text-muted-foreground type-label">
+        {date.toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+      </span>
     </button>
+  )
+}
+
+function MatchStatus({ match }: { match: SetMatch }) {
+  const state = replay(match, match.points)
+  if (match.finished && state.winner !== null) {
+    return (
+      <>
+        🏆 {teamName(match.teams[state.winner])}, {formatSets(state, state.winner)}
+      </>
+    )
+  }
+  return (
+    <>
+      {teamName(match.teams[0])} v {teamName(match.teams[1])}
+    </>
   )
 }
 
