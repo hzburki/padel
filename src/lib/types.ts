@@ -45,3 +45,26 @@ export interface Tournament {
   rounds: Round[]
   finished: boolean
 }
+
+// One 2 v 2 match played in sets. Sides are 0 and 1, indexing `teams`.
+export type Side = 0 | 1
+
+// What happens at 40–40. advantage: two points in a row win the game.
+// golden: the next point wins it.
+export type DeuceRule = "advantage" | "golden"
+
+export interface SetMatch {
+  version: 2
+  kind: "match"
+  id: string
+  name: string
+  createdAt: number // epoch ms
+  teams: [[string, string], [string, string]] // player names
+  bestOf: 1 | 3 | 5 // sets
+  gamesPerSet: number // 2–9; a tie-break is played when both teams reach it
+  deuce: DeuceRule
+  // Who won each point, in order. The only score data stored: games, sets
+  // and the winner are worked out from it.
+  points: Side[]
+  finished: boolean
+}
