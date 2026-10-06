@@ -1,8 +1,9 @@
-import { Swords, Users, type LucideIcon } from "lucide-react"
-import { useState } from "react"
+import { Podium } from "lucide-react"
+import { useState, type ComponentType, type SVGProps } from "react"
 import type { PreviousMatchSetup } from "@/lib/set-match-setup"
 import type { PreviousSetup } from "@/lib/tournament"
 import type { SavedEvent } from "@/lib/types"
+import { CourtIcon } from "./court-icon"
 import { NewMatchScreen } from "./new-match-screen"
 import { NewTournamentScreen } from "./new-tournament-screen"
 
@@ -15,14 +16,14 @@ export function NewGameScreen({ from, fromMatch }: { from?: PreviousSetup; fromM
   const picker = (
     <div className="mt-3 grid grid-cols-2 gap-2">
       <KindCard
-        icon={Users}
+        icon={Podium}
         name="Americano"
         about="4 or more players, partners rotate"
         chosen={kind === "americano"}
         onChoose={() => setKind("americano")}
       />
       <KindCard
-        icon={Swords}
+        icon={CourtIcon}
         name="Match"
         about="2 v 2, games and sets"
         chosen={kind === "match"}
@@ -52,7 +53,7 @@ function KindCard({
   chosen,
   onChoose,
 }: {
-  icon: LucideIcon
+  icon: ComponentType<SVGProps<SVGSVGElement>>
   name: string
   about: string
   chosen: boolean

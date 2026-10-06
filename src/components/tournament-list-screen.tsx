@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, MonitorDown, Plus, Repeat, Smartphone, Swords, Users } from "lucide-react"
+import { ChevronDown, ChevronRight, MonitorDown, Plus, Podium, Repeat, Smartphone } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { computeStandings, formatPoints, joinNames, winners } from "@/lib/standi
 import { listTournaments } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, unscoredMatchCount } from "@/lib/tournament"
 import type { SavedEvent, SetMatch, Tournament } from "@/lib/types"
+import { CourtIcon } from "./court-icon"
 import { CourtLines } from "./court-lines"
 import { canInstall, InstallBanner, InstallHelp, isPhone, useInstallPrompt } from "./install-banner"
 import { Screen } from "./screen"
@@ -346,7 +347,7 @@ function FirstTournament() {
 function HistoryRow({ event, onOpen }: { event: SavedEvent; onOpen: () => void }) {
   const date = new Date(event.createdAt)
   const match = event.kind === "match"
-  const Icon = match ? Swords : Users
+  const Icon = match ? CourtIcon : Podium
   return (
     <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 py-3.5 pr-2 pl-3.5 text-left active:bg-muted">
       {/* The tile says what kind of game it was: lime for a match. */}
