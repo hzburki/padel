@@ -34,6 +34,67 @@ no account, and keeps everything on your phone, so it works with no connection a
 - Saved after every score or point. Lock the phone or close the tab and nothing is lost.
 - A history of past games, filtered by kind.
 
+## How Americano standings work
+
+Each player's score is the total of the points their teams won. The player with the most points is first.
+
+### When players are level on points
+
+Ties are broken in this order. Each step is only used if the one before it leaves players level.
+
+**1. Point difference.** Points scored minus points conceded, shown in the **+/−** column.
+
+First to 16, three games each:
+
+| Player | Scored | Conceded | +/− | Place |
+| --- | --- | --- | --- | --- |
+| Ana | 40 | 30 | +10 | 1 |
+| Ben | 40 | 36 | +4 | 2 |
+
+This step only matters in first-to games. In total-points games every game adds up to the same number, so two players
+level on points are always level on difference too.
+
+**2. Head-to-head.** Only the players still level are compared, and only the games where they stood on opposite sides of
+the net. A player gets +1 for each of those games won and −1 for each lost. Games they played as partners don't count.
+
+Ana, Ben and Cai are level on points and difference:
+
+| Game between them | Winner |
+| --- | --- |
+| Ana's team v Ben's team | Ana |
+| Ana's team v Cai's team | Ana |
+| Ben's team v Cai's team | Ben |
+
+Ana is +2, Ben is 0 (one won, one lost) and Cai is −2, so they finish in that order.
+
+**3. Wins.** If head-to-head is level too (say Ana and Ben never faced each other, or won one each), the player who won
+more games in the whole tournament goes higher.
+
+**Still level?** The players share the place, and the next place is skipped: 1, 2, 2, 4. Players who share first place
+all win the tournament.
+
+### When players have played a different number of games
+
+If the players don't fill the courts exactly, somebody sits out each round. Sit-outs are shared so nobody falls more
+than one game behind, but a tournament can still end with some players a game short.
+
+In the **final** standings, a player who played fewer games than the most anyone played has their points scaled up, as
+if they had kept scoring at the same rate:
+
+> points × most games played ÷ games played
+
+| Player | Games | Points scored | Final points |
+| --- | --- | --- | --- |
+| Ana | 5 | 14 | 14 |
+| Ben | 4 | 12 | 12 × 5 ÷ 4 = **15** |
+
+Ben finishes above Ana. His point difference is scaled the same way, so +4 from four games counts as +5.
+
+The result is not always a whole number: 13 points from 3 games, when others played 4, is 17.33, shown as 17.3.
+
+Nothing is scaled while the tournament is still going. A player with fewer games then may just not have played their
+next one yet.
+
 ## Install
 
 - **Chrome or Edge** (Android, Windows, Mac): tap **Install** on the home screen.
