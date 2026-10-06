@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="public/og-image.png" alt="Padel: Americano tournaments with your friends" width="600" />
+  <img src="public/og-image.png" alt="Padel: score your games with friends" width="600" />
 </p>
 
 ---

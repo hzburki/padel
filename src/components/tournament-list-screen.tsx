@@ -8,6 +8,7 @@ import { computeStandings, formatPoints, joinNames, winners } from "@/lib/standi
 import { listTournaments } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, unscoredMatchCount } from "@/lib/tournament"
 import type { SavedEvent, SetMatch, Tournament } from "@/lib/types"
+import { BallIcon } from "./ball-icon"
 import { CourtIcon } from "./court-icon"
 import { CourtLines } from "./court-lines"
 import { canInstall, InstallBanner, InstallHelp, isPhone, useInstallPrompt } from "./install-banner"
@@ -169,7 +170,7 @@ function Hero({
       )}
       <div className="relative">
         <div className="flex items-center gap-2.5">
-          <span className="size-7 rounded-full bg-accent shadow-[inset_-4px_-4px_0_rgba(0,0,0,0.12)]" aria-hidden />
+          <BallIcon className="size-7" />
           <h1 className="text-[3.25rem] leading-none type-display">Padel</h1>
         </div>
         <p className="mt-2 text-lg text-primary-foreground/75">Ready for a game?</p>
@@ -336,7 +337,7 @@ function FirstTournament() {
         <rect x="10" y="5" width="100" height="170" rx="4" strokeWidth="3" className="fill-secondary" />
         <path d="M10 90h100" strokeWidth="4" />
         <path d="M10 31h100M10 149h100M60 31v118" strokeWidth="2" />
-        <circle cx="84" cy="122" r="9" className="fill-accent" stroke="none" />
+        <BallIcon x="75" y="113" width="18" height="18" stroke="none" />
       </svg>
       <p className="mt-5 text-2xl type-display">No games yet</p>
       <p className="mt-1 max-w-64 text-muted-foreground">Tap New game below to set up your first one.</p>
