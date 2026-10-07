@@ -1,5 +1,6 @@
 import { House } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { BallIcon } from "./ball-icon"
 import { Screen } from "./screen"
 import { useNav } from "./stack-navigator"
 
@@ -58,16 +59,14 @@ function Stars() {
   )
 }
 
-// A round droid, drawn in the app's own colours: the body is a padel ball
-// with its seam, the head a white dome with one eye.
+// A round droid, drawn in the app's own colours: the body is the logo's
+// ball, the head a white dome with one eye.
 function BallDroid() {
   return (
     <svg viewBox="0 0 160 190" className="mx-auto mt-2 h-44" fill="none" aria-hidden>
       <ellipse cx="80" cy="180" rx="46" ry="6" className="fill-black/30" />
-      {/* body */}
-      <circle cx="80" cy="120" r="56" className="fill-accent" />
-      <path d="M36 88c26 14 34 48 14 78M124 88c-26 14-34 48-14 78" stroke="#0e2240" strokeOpacity="0.22" strokeWidth="5" strokeLinecap="round" />
-      <circle cx="80" cy="120" r="56" stroke="#0e2240" strokeOpacity="0.12" strokeWidth="6" />
+      {/* body: the app's own ball, the one in the logo */}
+      <BallIcon x="24" y="64" width="112" height="112" />
       {/* antennas */}
       <path d="M92 30V10M102 34V20" stroke="white" strokeWidth="3" strokeLinecap="round" />
       {/* head */}
