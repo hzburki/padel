@@ -5,7 +5,8 @@ import type { SavedEvent } from "./types"
 
 // What this phone remembers about the games it has put online, by game id:
 // "1" while later saves still send a copy, "closed" once another game took
-// over the broadcast, "ended" once the finished game has gone out. What
+// over the broadcast, "ended" once the finished game has gone out,
+// "deleted" while a deleted game's copy is still to be taken away. What
 // each one sends is in sentOnSave.
 export type SharedGames = Record<string, string>
 

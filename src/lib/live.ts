@@ -110,12 +110,29 @@ export function pushLive(event: SavedEvent): void {
 }
 
 // Call when the organiser deletes an event: takes the online copy away too,
-// so the link stops working. Friends keep what they already saved.
+// so the link stops working. Friends keep what they already saved, as a
+// finished game. The phone remembers the delete until it has gone through:
+// with no connection it is tried again when the app starts (finishDeletes).
 export async function deleteLive(id: string): Promise<void> {
   if (!hasLink(id)) return
-  localStorage.removeItem(sharedKey(id))
+  localStorage.setItem(sharedKey(id), "deleted")
   await auth.authStateReady()
-  await deleteDoc(doc(db, "live", id))
+  try {
+    await deleteDoc(doc(db, "live", id))
+  } catch (error) {
+    // Refused: the copy is already gone, or is not this phone's to delete.
+    // Trying again would change nothing.
+    if ((error as { code?: string }).code !== "permission-denied") throw error
+  }
+  localStorage.removeItem(sharedKey(id))
+}
+
+// Call when the app starts: takes away the online copies of games that
+// were deleted while there was no connection. Never throws.
+export function finishDeletes(): void {
+  for (const [id, state] of Object.entries(sharedGames())) {
+    if (state === "deleted") deleteLive(id).catch(() => {})
+  }
 }
 
 // Open an event for its screen. `show` gets the event (null when there is
@@ -124,7 +141,8 @@ export async function deleteLive(id: string): Promise<void> {
 //
 // A friend's copy is saved on this phone on every change, marked `shared`,
 // so it is still there with no connection or after the organiser deletes
-// theirs. Once it is finished nothing more can change, so following stops.
+// theirs, which finishes it here. Once it is finished nothing more can
+// change, so following stops.
 // A closed broadcast is still followed, in case it is picked up again.
 // Following also stops when the game gets too old (followTimeLeft): opened
 // after that, its newest score is read once and it is not live.
@@ -158,11 +176,27 @@ export function openGame(
     const follow = () =>
       onSnapshot(
         doc(db, "live", id),
+        // Also told when an answer from memory is confirmed by the server:
+        // that is how a delete is heard of once the connection is back.
+        { includeMetadataChanges: true },
         (snapshot) => {
+          // With no connection Firestore answers from its own empty memory:
+          // that is not a delete, so keep waiting for the real answer.
+          if (!snapshot.exists() && snapshot.metadata.fromCache) return show(latest, false)
+          if (!snapshot.exists()) {
+            // Deleted by the organiser, or never there. Nothing more will
+            // come, so a copy saved here is kept as a finished game.
+            end()
+            if (latest) {
+              latest = { ...latest, finished: true }
+              void saveTournament(latest)
+            }
+            return show(latest, false)
+          }
           try {
             latest = { ...migrate(JSON.parse(snapshot.get("json"))), shared: true }
           } catch {
-            // Deleted by the organiser, or never there.
+            // A copy this build can't read, such as one from a newer build.
             end()
             return show(latest, false)
           }

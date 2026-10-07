@@ -7,7 +7,6 @@ Claude: do not read, act on or edit this file unless asked to.
 
 ## To Do
 
-- [ ] When I delete a game, which is being broadcasted with other users. The firebsase connection should be closed. Live badge should be removed. As for the game just mark it as finished for the users. Keep the data and scores on their device. On the creators phone we simply delete everything. Also delete everything from firebase once the data has been synced to the users device. In this case use the score upscaling logic to ensure that the scores are fair and accurate for all players on the viewers device.
 - [ ] When typing a name the keyboard has a huge empty space on top of it so the visible screen is too small. Check the red area highlighted in the screenshot. This is on iOS I have not tested on android. But both platforms need to have minimum space required to separate the keyboard from the visible screen. This is a UX issue and needs to be fixed.
 - [ ] Create a short link for the shared/broadcast link for users to share. 
 - [ ] Can we also change the og description and title for the shared link so that user knows which game its for? If not, then leave it. This is not a priority. 
@@ -40,3 +39,7 @@ Claude: do not read, act on or edit this file unless asked to.
   - [x] No broadcast item in the menu of a finished game
   - [x] Finishing a game whose broadcast was closed sends its final result once
   - [x] Opening a finished game sends a final result that never went out
+- [x] When I delete a game, which is being broadcasted with other users. The firebsase connection should be closed. Live badge should be removed. As for the game just mark it as finished for the users. Keep the data and scores on their device. On the creators phone we simply delete everything. Also delete everything from firebase once the data has been synced to the users device. In this case use the score upscaling logic to ensure that the scores are fair and accurate for all players on the viewers device.
+  - [x] A friend's copy becomes a finished game when the organiser deletes theirs (Americano points scaled for fewer games)
+  - [x] A finished match with no winner shows the team ahead, or "Level", on its result card
+  - [x] A delete made with no connection is retried when the app starts

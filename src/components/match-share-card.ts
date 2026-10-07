@@ -1,4 +1,4 @@
-import { formatLength, replay } from "@/lib/set-match"
+import { ahead, formatLength, replay } from "@/lib/set-match"
 import { matchStats } from "@/lib/set-match-stats"
 import type { SetMatch, Side } from "@/lib/types"
 import { BALL, BLUE, body, display, drawCourt, fit, INK, INSET, label, MUTED, PAD, W } from "./share-card"
@@ -28,8 +28,11 @@ export async function renderMatchShareCard(
 
   const state = replay(match, match.points)
   const stats = matchStats(state)
-  // Winners on top; everything on the card reads winner first.
-  const order: [Side, Side] = state.winner === 1 ? [1, 0] : [0, 1]
+  // Winners on top; everything on the card reads winner first. A match
+  // that ended with no winner, deleted by the organiser while a friend
+  // followed it, reads from the team in front.
+  const lead = ahead(state)
+  const order: [Side, Side] = lead === 1 ? [1, 0] : [0, 1]
   const [won, lost] = order
   const tableBottom = TABLE_TOP + 2 * ROW_H + GAP
   const H = scoreOnly ? tableBottom + BOTTOM : FULL_H
@@ -80,11 +83,17 @@ export async function renderMatchShareCard(
   ctx.textAlign = "left"
   const x = PAD + INSET + 8
   const nameMax = RIGHT - setsW - 36 - x
-  ctx.font = label(30)
-  ctx.fillText(state.winner === null ? "Ahead" : "Winners", x, TOP + 58)
-  ctx.font = display(88)
-  ctx.fillText(fit(ctx, match.teams[won][0], nameMax), x, TOP + 140)
-  ctx.fillText(fit(ctx, match.teams[won][1], nameMax), x, TOP + 220)
+  if (lead === null) {
+    // Nobody in front: no team to name.
+    ctx.font = display(88)
+    ctx.fillText("Level", x, TOP + 156)
+  } else {
+    ctx.font = label(30)
+    ctx.fillText(state.winner === null ? "Ahead" : "Winners", x, TOP + 58)
+    ctx.font = display(88)
+    ctx.fillText(fit(ctx, match.teams[won][0], nameMax), x, TOP + 140)
+    ctx.fillText(fit(ctx, match.teams[won][1], nameMax), x, TOP + 220)
+  }
 
   // Set scores: one row per team, a column per set
   const played = state.sets.filter((set) => set.played.length > 0)

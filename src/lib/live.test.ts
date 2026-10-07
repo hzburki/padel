@@ -46,7 +46,7 @@ vi.mock("firebase/firestore", () => ({
   doc: (_db: unknown, _collection: string, id: string) => ({ id }),
   setDoc: vi.fn(async () => {}),
   deleteDoc: vi.fn(async () => {}),
-  onSnapshot: vi.fn((ref: { id: string }, next: (snapshot: unknown) => void, fail: () => void) => {
+  onSnapshot: vi.fn((ref: { id: string }, _options: unknown, next: (snapshot: unknown) => void, fail: () => void) => {
     const listener = { id: ref.id, next, fail, open: true }
     fake.listeners.push(listener)
     return () => {
@@ -61,7 +61,7 @@ vi.mock("./storage", () => ({
 }))
 
 import { deleteDoc, setDoc } from "firebase/firestore"
-import { closesAnother, deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "./live"
+import { closesAnother, deleteLive, finishDeletes, hasLink, isSending, openGame, pushLive, shareLive } from "./live"
 import { saveTournament } from "./storage"
 
 // Only the fields live.ts reads.
@@ -87,9 +87,13 @@ const sent = (id: string) =>
 
 // The online copy as a friend's phone receives it.
 const copy = (event: SavedEvent, closed = false) => ({
+  exists: () => true,
+  metadata: { fromCache: false },
   get: (field: string) => (field === "json" ? JSON.stringify(event) : field === "closed" && closed ? true : undefined),
 })
-const deleted = { get: () => undefined }
+const deleted = { exists: () => false, metadata: { fromCache: false }, get: () => undefined }
+// What Firestore answers with no connection: it has no copy of its own.
+const noConnection = { ...deleted, metadata: { fromCache: true } }
 
 const listening = () => fake.listeners.filter((l) => l.open)
 const hidePage = (hidden: boolean) => {
@@ -303,6 +307,47 @@ describe("deleting a broadcast game", () => {
     await deleteLive("a")
     expect(deleteDoc).not.toHaveBeenCalled()
   })
+
+  it("remembers a delete that could not go through", async () => {
+    await shareLive(own("a"))
+    vi.mocked(deleteDoc).mockRejectedValueOnce(new Error("offline"))
+    await expect(deleteLive("a")).rejects.toThrow("offline")
+    expect(fake.flags.get("live:a")).toBe("deleted")
+  })
+
+  it("tries the delete again when the app starts, and then forgets it", async () => {
+    await shareLive(own("a"))
+    vi.mocked(deleteDoc).mockRejectedValueOnce(new Error("offline"))
+    await deleteLive("a").catch(() => {})
+    finishDeletes()
+    await settle()
+    expect(deleteDoc).toHaveBeenCalledTimes(2)
+    expect(hasLink("a")).toBe(false)
+  })
+
+  it("deletes nothing when the app starts with no delete owed", async () => {
+    await shareLive(own("a"))
+    finishDeletes()
+    await settle()
+    expect(deleteDoc).not.toHaveBeenCalled()
+    expect(isSending("a")).toBe(true)
+  })
+
+  it("forgets a delete that is refused: the copy is already gone", async () => {
+    await shareLive(own("a"))
+    vi.mocked(deleteDoc).mockRejectedValueOnce(Object.assign(new Error("refused"), { code: "permission-denied" }))
+    await deleteLive("a")
+    expect(hasLink("a")).toBe(false)
+  })
+
+  it("sends no score for a game whose delete is still owed", async () => {
+    await shareLive(own("a"))
+    vi.mocked(deleteDoc).mockRejectedValueOnce(new Error("offline"))
+    await deleteLive("a").catch(() => {})
+    pushLive(game("a"))
+    await settle()
+    expect(sent("a")).toHaveLength(1)
+  })
 })
 
 describe("opening your own game", () => {
@@ -408,12 +453,61 @@ describe("following a friend's game", () => {
     expect(fake.listeners).toHaveLength(0)
   })
 
-  it("keeps the saved copy and stops listening when the organiser deletes the game", async () => {
+  it("keeps the saved copy as a finished game and stops listening when the organiser deletes the game", async () => {
     const saved = own("a", { shared: true })
     const { last } = await open("a")
     fake.listeners[0].next(deleted)
-    expect(last()).toEqual({ event: saved, live: false })
+    expect(last()).toEqual({ event: { ...saved, finished: true }, live: false })
+    expect(saveTournament).toHaveBeenCalledWith({ ...saved, finished: true })
     expect(listening()).toHaveLength(0)
+  })
+
+  it("finishes the copy with the last score that arrived before the delete", async () => {
+    const { last } = await open("a", true)
+    fake.listeners[0].next(copy(game("a", { name: "last score" })))
+    fake.listeners[0].next(deleted)
+    expect(last()).toEqual({ event: { ...game("a", { name: "last score" }), shared: true, finished: true }, live: false })
+  })
+
+  it("finishes a copy whose game was deleted while this phone was away, even 4 hours on", async () => {
+    own("a", { shared: true })
+    vi.setSystemTime(5 * HOUR)
+    const { last } = await open("a")
+    fake.listeners[0].next(deleted)
+    expect(last().event?.finished).toBe(true)
+  })
+
+  it("shows nothing, and saves nothing, for a link whose game is gone", async () => {
+    const { last } = await open("a", true)
+    fake.listeners[0].next(deleted)
+    expect(last()).toEqual({ event: null, live: false })
+    expect(saveTournament).not.toHaveBeenCalled()
+  })
+
+  it("does not take having no connection for a delete: the copy stays unfinished and is still listened to", async () => {
+    const saved = own("a", { shared: true })
+    const { last } = await open("a")
+    fake.listeners[0].next(noConnection)
+    expect(last()).toEqual({ event: saved, live: false })
+    expect(saveTournament).not.toHaveBeenCalled()
+    expect(listening()).toHaveLength(1)
+  })
+
+  it("finishes the copy when the delete is heard of once the connection is back", async () => {
+    own("a", { shared: true })
+    const { last } = await open("a")
+    fake.listeners[0].next(noConnection)
+    fake.listeners[0].next(deleted)
+    expect(last().event?.finished).toBe(true)
+    expect(listening()).toHaveLength(0)
+  })
+
+  it("leaves alone a copy it can't read, such as one from a newer build", async () => {
+    const saved = own("a", { shared: true })
+    const { last } = await open("a")
+    fake.listeners[0].next({ ...copy(game("a")), get: () => "not a game" })
+    expect(last()).toEqual({ event: saved, live: false })
+    expect(saveTournament).not.toHaveBeenCalled()
   })
 
   it("is not live when the connection fails", async () => {

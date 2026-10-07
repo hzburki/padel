@@ -10,7 +10,8 @@
       "ClaudeInChromeDomain(localhost:5301)",
       "ClaudeInChromeDomain([::1]:5301)",
       "ClaudeInChromeDomain(127.0.0.1:5173)",
-      "ClaudeInChromeDomain(192.168.18.55:5173)"
+      "ClaudeInChromeDomain(192.168.18.55:5173)",
+      "mcp__claude-in-chrome__browser_batch"
     ]
   },
   "enabledPlugins": {
