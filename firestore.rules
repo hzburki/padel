@@ -6,8 +6,10 @@ service cloud.firestore {
     match /live/{id} {
       function wellFormed() {
         let data = request.resource.data;
-        return data.keys().hasOnly(['owner', 'json'])
+        return data.keys().hasOnly(['owner', 'json', 'closed'])
           && data.owner == request.auth.uid
+          // Set when the organiser moves the broadcast to another game.
+          && (!('closed' in data) || data.closed == true)
           && data.json is string
           && data.json.size() < 500000;
       }

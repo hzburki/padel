@@ -43,6 +43,10 @@ describe("livePath", () => {
     expect(livePath("americano", "ab12")).toBe("/live/t/ab12")
     expect(livePath("match", "ab12")).toBe("/live/m/ab12")
   })
+
+  it("gives a game the same link every time it is broadcast", () => {
+    expect(livePath("match", "ab12")).toBe(livePath("match", "ab12"))
+  })
 })
 
 describe("liveAt", () => {

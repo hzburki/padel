@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app"
 import { connectAuthEmulator, getAuth, signInAnonymously } from "firebase/auth"
 import { connectFirestoreEmulator, deleteDoc, doc, getFirestore, onSnapshot, setDoc } from "firebase/firestore"
+import { broadcastsClosedBy, followedLive, type SharedGames } from "./broadcast"
 import { livePath } from "./paths"
 import { loadTournament, migrate, saveTournament } from "./storage"
 import type { SavedEvent } from "./types"
@@ -34,24 +35,53 @@ if (import.meta.env.DEV) {
   connectFirestoreEmulator(db, location.hostname, 8080)
 }
 
-// Which events this phone has shared: "1" while later saves still send a
-// copy, "ended" once the finished game has gone out and nothing more will.
+// Which events this phone has shared, kept in localStorage. What the
+// values mean is in broadcast.ts (SharedGames).
 const sharedKey = (id: string) => `live:${id}`
+
+function sharedGames(): SharedGames {
+  const shared: SharedGames = {}
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key?.startsWith("live:")) shared[key.slice(5)] = localStorage.getItem(key) ?? ""
+  }
+  return shared
+}
 
 // The event travels as one JSON string: Firestore can't hold a list inside
 // a list, which a match's teams are. The rules let only `owner` write.
-async function send(event: SavedEvent): Promise<void> {
+// `closed` tells friends the score is no longer being kept up to date.
+async function send(event: SavedEvent, closed = false): Promise<void> {
   await auth.authStateReady()
   // An anonymous account: nothing to sign up for, and it marks this browser
   // as the one that may update the score.
   const user = auth.currentUser ?? (await signInAnonymously(auth)).user
-  await setDoc(doc(db, "live", event.id), { owner: user.uid, json: JSON.stringify(event) })
+  await setDoc(doc(db, "live", event.id), { owner: user.uid, json: JSON.stringify(event), ...(closed && { closed }) })
 }
 
-// Start sharing an event. Returns the link to send to friends. Nothing is
-// stored online before this is called.
+// Whether putting this game online would close the broadcast of another:
+// the screens ask the organiser first.
+export function closesAnother(event: SavedEvent): boolean {
+  return broadcastsClosedBy(sharedGames(), event).length > 0
+}
+
+// Stop broadcasting a game without taking its copy away: the link still
+// opens the last score sent, and broadcasting the game again reuses it.
+// Never throws: with no connection the copy just isn't marked.
+function closeLive(id: string): void {
+  localStorage.setItem(sharedKey(id), "closed")
+  loadTournament(id)
+    .then((event) => event && send(event, true))
+    .catch(() => {})
+}
+
+// Start sharing an event. Returns the link to send to friends, the same
+// one every time for the same event. Nothing is stored online before this
+// is called. Going live closes the broadcast of any other game, but only
+// once this one is online: a failed attempt leaves the old broadcast on.
 export async function shareLive(event: SavedEvent): Promise<string> {
   await send(event)
+  broadcastsClosedBy(sharedGames(), event).forEach(closeLive)
   localStorage.setItem(sharedKey(event.id), event.finished ? "ended" : "1")
   return location.origin + livePath(event.kind, event.id)
 }
@@ -95,6 +125,7 @@ export async function deleteLive(id: string): Promise<void> {
 // A friend's copy is saved on this phone on every change, marked `shared`,
 // so it is still there with no connection or after the organiser deletes
 // theirs. Once it is finished nothing more can change, so following stops.
+// A closed broadcast is still followed, in case it is picked up again.
 export function openGame(
   id: string,
   fromLink: boolean, // opened from a shared link, so it may not be saved here yet
@@ -110,22 +141,38 @@ export function openGame(
 
     let latest = saved
     if (saved) show(saved, false)
-    stop = onSnapshot(
-      doc(db, "live", id),
-      (snapshot) => {
-        try {
-          latest = { ...migrate(JSON.parse(snapshot.get("json"))), shared: true }
-        } catch {
-          // Deleted by the organiser, or never there.
-          stop()
-          return show(latest, false)
-        }
-        void saveTournament(latest)
-        show(latest, !latest.finished)
-        if (latest.finished) stop()
-      },
-      () => show(latest, false),
-    )
+    let unsubscribe = () => {}
+    // Nothing more will come, or the screen closed: stop for good.
+    const end = () => {
+      document.removeEventListener("visibilitychange", onVisibility)
+      unsubscribe()
+    }
+    const follow = () =>
+      onSnapshot(
+        doc(db, "live", id),
+        (snapshot) => {
+          try {
+            latest = { ...migrate(JSON.parse(snapshot.get("json"))), shared: true }
+          } catch {
+            // Deleted by the organiser, or never there.
+            end()
+            return show(latest, false)
+          }
+          void saveTournament(latest)
+          show(latest, followedLive(latest, snapshot.get("closed") === true))
+          if (latest.finished) end()
+        },
+        () => show(latest, false),
+      )
+    // No connection is kept open for a page nobody is looking at: following
+    // stops while it is hidden and starts again when it comes back.
+    function onVisibility() {
+      unsubscribe()
+      unsubscribe = document.hidden ? () => {} : follow()
+    }
+    document.addEventListener("visibilitychange", onVisibility)
+    stop = end
+    onVisibility()
   })
   return () => {
     closed = true

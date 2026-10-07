@@ -2,7 +2,7 @@ import { ChevronDown, Ellipsis, LoaderCircle, Pencil, Radio, Repeat, Scale, Shar
 import { useEffect, useRef, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
-import { canShareLive, deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "@/lib/live"
+import { canShareLive, closesAnother, deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "@/lib/live"
 import { computeStandings, placesMovedByScaling, winners } from "@/lib/standings"
 import { deleteTournament, saveTournament } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, renameTournament, setScore, unscoredMatchCount } from "@/lib/tournament"
@@ -32,7 +32,7 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
   const [saveError, setSaveError] = useState(false)
   const [tab, setTab] = useState<Tab>("rounds")
   // Which sheet (other than score entry) is open.
-  const [confirm, setConfirm] = useState<"menu" | "rename" | "finish" | "delete" | "congrats" | "scaling" | null>(
+  const [confirm, setConfirm] = useState<"menu" | "rename" | "broadcast" | "finish" | "delete" | "congrats" | "scaling" | null>(
     null,
   )
   // The full card to share, and a top-three preview for the screen.
@@ -330,7 +330,8 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
               {canShareLive && (
                 <button
                   type="button"
-                  onClick={shareLink}
+                  // Going live takes the broadcast from any other game: say so first.
+                  onClick={closesAnother(tournament) ? () => setConfirm("broadcast") : shareLink}
                   className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
                 >
                   <Radio className="size-5 text-primary" />
@@ -438,6 +439,21 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
           onShare={share}
           onClose={() => setConfirm(null)}
         />
+      </Sheet>
+
+      <Sheet open={confirm === "broadcast"} onClose={() => setConfirm(null)}>
+        <p className="text-2xl type-display">Broadcast this game?</p>
+        <p className="mt-1 text-muted-foreground">
+          Your other broadcast closes. Its link keeps the last score.
+        </p>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirm(null)}>
+            Cancel
+          </Button>
+          <Button size="lg" className="px-3" onClick={shareLink}>
+            Broadcast
+          </Button>
+        </div>
       </Sheet>
 
       <Sheet open={confirm === "delete"} onClose={() => setConfirm(null)}>

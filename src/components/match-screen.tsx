@@ -2,7 +2,7 @@ import { Ellipsis, LoaderCircle, Radio, Repeat, Share, Trash2, Undo2 } from "luc
 import { useEffect, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
-import { canShareLive, deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "@/lib/live"
+import { canShareLive, closesAnother, deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "@/lib/live"
 import {
   addPoint,
   gameSummary,
@@ -34,7 +34,7 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
   const toNotFound = nav.replace
   const [match, setMatch] = useState<SetMatch | null | undefined>(undefined)
   // Which sheet is open.
-  const [confirm, setConfirm] = useState<"menu" | "finish" | "delete" | "congrats" | null>(null)
+  const [confirm, setConfirm] = useState<"menu" | "broadcast" | "finish" | "delete" | "congrats" | null>(null)
   const [saveError, setSaveError] = useState(false)
   // The full card to share, and a score-only preview for the screen.
   const [image, setImage] = useState<{ blob: Blob; previewUrl: string } | null>(null)
@@ -305,7 +305,8 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
           {!readOnly && canShareLive && (
             <button
               type="button"
-              onClick={shareLink}
+              // Going live takes the broadcast from any other game: say so first.
+              onClick={closesAnother(match) ? () => setConfirm("broadcast") : shareLink}
               className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
             >
               <Radio className="size-5 text-primary" />
@@ -331,6 +332,21 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
             <Trash2 className="size-5" />
             Delete match
           </button>
+        </div>
+      </Sheet>
+
+      <Sheet open={confirm === "broadcast"} onClose={() => setConfirm(null)}>
+        <p className="text-2xl type-display">Broadcast this game?</p>
+        <p className="mt-1 text-muted-foreground">
+          Your other broadcast closes. Its link keeps the last score.
+        </p>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirm(null)}>
+            Cancel
+          </Button>
+          <Button size="lg" className="px-3" onClick={shareLink}>
+            Broadcast
+          </Button>
         </div>
       </Sheet>
 

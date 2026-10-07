@@ -3,6 +3,12 @@
     "allow": [
       "mcp__claude-in-chrome__tabs_context_mcp",
       "mcp__claude-in-chrome__tabs_create_mcp",
+      "ClaudeInChromeDomain(localhost:5199)",
+      "ClaudeInChromeDomain([::1]:5199)",
+      "ClaudeInChromeDomain(localhost:5198)",
+      "ClaudeInChromeDomain([::1]:5198)",
+      "ClaudeInChromeDomain(localhost:5301)",
+      "ClaudeInChromeDomain([::1]:5301)"
     ]
   },
   "enabledPlugins": {

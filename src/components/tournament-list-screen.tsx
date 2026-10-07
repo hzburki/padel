@@ -4,6 +4,8 @@ import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
 import { formatSets, replay, teamName } from "@/lib/set-match"
 import { previousMatchSetup } from "@/lib/set-match-setup"
+import { followedFromHome } from "@/lib/broadcast"
+import { openGame } from "@/lib/live"
 import { computeStandings, formatPoints, joinNames, winners } from "@/lib/standings"
 import { listTournaments } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, unscoredMatchCount } from "@/lib/tournament"
@@ -12,6 +14,7 @@ import { BallIcon } from "./ball-icon"
 import { CourtIcon } from "./court-icon"
 import { CourtLines } from "./court-lines"
 import { canInstall, InstallBanner, InstallHelp, isPhone, useInstallPrompt } from "./install-banner"
+import { LiveBadge } from "./live-badge"
 import { Screen } from "./screen"
 import { SharedTag } from "./shared-tag"
 import { Sheet } from "./sheet"
@@ -30,6 +33,32 @@ export function TournamentListScreen() {
   useEffect(() => {
     if (isTop) listTournaments().then(setEvents)
   }, [isTop])
+
+  // Unfinished games are opened the way their own screen opens them, so a
+  // game is live here exactly when it is live there: sent from this phone,
+  // or followed on a friend's. A followed game also brings its newest score.
+  // A friend's game from hours ago is left alone (followedFromHome).
+  const [live, setLive] = useState<ReadonlySet<string>>(new Set())
+  const unfinished = events?.filter((e) => followedFromHome(e, Date.now())).map((e) => e.id).join() ?? ""
+  useEffect(() => {
+    if (!isTop || unfinished === "") return
+    const stops = unfinished.split(",").map((id) =>
+      openGame(id, false, (event, isLive) => {
+        if (event) setEvents((all) => all?.map((e) => (e.id === id ? event : e)) ?? null)
+        setLive((ids) => {
+          if (ids.has(id) === isLive) return ids
+          const next = new Set(ids)
+          if (isLive) next.add(id)
+          else next.delete(id)
+          return next
+        })
+      }),
+    )
+    return () => {
+      stops.forEach((stop) => stop())
+      setLive(new Set())
+    }
+  }, [isTop, unfinished])
 
   // The newest unfinished game gets the spotlight; the rest are listed. A
   // friend's game is never the spotlight: there is nothing to continue.
@@ -62,6 +91,7 @@ export function TournamentListScreen() {
         {/* One child or none, so the header adds no gap when nothing is on. */}
         {playing && (
           <div className="relative">
+            {live.has(playing.id) && <LiveBadge />}
             {playing.kind === "americano" ? (
               <PlayingNow tournament={playing} onOpen={() => open(playing)} />
             ) : (
@@ -87,7 +117,8 @@ export function TournamentListScreen() {
 
       {others.length > 0 && (
         <section className="mt-8">
-          <div className="mb-3 flex items-center gap-3 px-1">
+          {/* Room under the filter for a Live badge on the first row. */}
+          <div className="mb-5 flex items-center gap-3 px-1">
             <h2 className="flex-1 text-[1.375rem] type-display">History</h2>
             {/* The phone's own picker behind a pill: nothing to build or to
                 get wrong on a small screen. */}
@@ -114,9 +145,12 @@ export function TournamentListScreen() {
               {filter === "match" ? "No matches here yet." : "No Americano tournaments here yet."}
             </p>
           )}
-          <ul className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px] empty:hidden">
+          {/* Not clipped: the Live badge sits on a row's top border. The end
+              rows round their own corners instead. */}
+          <ul className="divide-y rounded-3xl bg-card border-[1.5px] empty:hidden">
             {listed.map((t) => (
               <li key={t.id} className="relative">
+                {live.has(t.id) && !t.finished && <LiveBadge />}
                 <HistoryRow event={t} onOpen={() => open(t)} />
                 {/* Under the date. Beside the row's button, not inside it: buttons
                     can't nest. */}
@@ -367,7 +401,7 @@ function HistoryRow({ event, onOpen }: { event: SavedEvent; onOpen: () => void }
   const match = event.kind === "match"
   const Icon = match ? CourtIcon : Podium
   return (
-    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 py-3.5 pr-2 pl-3.5 text-left active:bg-muted">
+    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 py-3.5 pr-2 pl-3.5 text-left active:bg-muted [li:first-child>&]:rounded-t-[calc(1.5rem-1.5px)] [li:last-child>&]:rounded-b-[calc(1.5rem-1.5px)]">
       {/* The tile says what kind of game it was: lime for a match. */}
       <span
         className={`flex size-13 shrink-0 items-center justify-center rounded-2xl ${
