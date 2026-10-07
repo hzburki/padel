@@ -53,8 +53,13 @@ export function TournamentListScreen() {
         howItWorks={events?.length === 0 ? "open" : "collapsible"}
         onInstall={canInstall() ? () => (install ? install() : setInstallHelp(true)) : undefined}
       >
-        {playing?.kind === "americano" && <PlayingNow tournament={playing} onOpen={() => open(playing)} />}
-        {playing?.kind === "match" && <MatchPlayingNow match={playing} onOpen={() => open(playing)} />}
+        {/* One child or none, so the header adds no gap when nothing is on. */}
+        {playing &&
+          (playing.kind === "americano" ? (
+            <PlayingNow tournament={playing} onOpen={() => open(playing)} />
+          ) : (
+            <MatchPlayingNow match={playing} onOpen={() => open(playing)} />
+          ))}
       </Hero>
 
       <InstallBanner />
@@ -152,7 +157,7 @@ function Hero({
   const showSteps = howItWorks === "open" || expanded
 
   return (
-    <div className="relative -mx-4 overflow-hidden rounded-b-2xl bg-primary px-5 pt-[calc(env(safe-area-inset-top)+1.75rem)] pb-6 text-primary-foreground">
+    <div className="relative -mx-4 overflow-hidden rounded-b-2xl bg-primary px-5 pt-[calc(env(safe-area-inset-top)+1.75rem)] pb-3 text-primary-foreground">
       <CourtLines />
       {onInstall && (
         <button
@@ -180,7 +185,7 @@ function Hero({
             type="button"
             aria-expanded={expanded}
             onClick={() => setExpanded((e) => !e)}
-            className="mt-3 -ml-1 flex items-center gap-1 rounded-sm px-1 py-1.5 text-sm font-semibold text-primary-foreground/90 active:bg-white/10"
+            className="mt-1 -ml-1 flex items-center gap-1 rounded-sm px-1 py-1.5 text-sm font-semibold text-primary-foreground/90 active:bg-white/10"
           >
             How it works
             <ChevronDown
@@ -202,17 +207,18 @@ function Hero({
           </div>
         </div>
 
-        {children && <div className="mt-6">{children}</div>}
+        {children && <div className="mt-4">{children}</div>}
+        {/* A quiet credit on a row of its own, so it keeps the same gap from
+            whatever is above it. */}
+        <a
+          href="https://hzburki.com"
+          target="_blank"
+          rel="noopener"
+          className="mt-2 ml-auto block w-fit text-[0.6875rem] leading-none text-primary-foreground/45"
+        >
+          hzburki.com
+        </a>
       </div>
-      {/* A quiet credit tucked into the corner of the court. */}
-      <a
-        href="https://hzburki.com"
-        target="_blank"
-        rel="noopener"
-        className="absolute right-5 bottom-1 py-1 text-[0.6875rem] text-primary-foreground/45"
-      >
-        hzburki.com
-      </a>
     </div>
   )
 }
