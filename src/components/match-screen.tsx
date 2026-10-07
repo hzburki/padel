@@ -142,11 +142,14 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
       await navigator.clipboard.write([new ClipboardItem({ "text/plain": link })])
       setToast("Link copied!")
     } catch {
-      setToast("Couldn't copy the link. Try again")
+      // The copy can fail with the game already online.
+      const isOnline = await online.then(
+        () => true,
+        () => false,
+      )
+      setToast(isOnline ? "Couldn't copy the link. Try again" : "No connection. Try again")
     }
-    // The copy can fail with the game already online; the badge follows
-    // the game, not the copy.
-    await online.catch(() => {})
+    // The badge follows the game, not the copy.
     setLive(isSending(match.id))
     setSharing(false)
   }

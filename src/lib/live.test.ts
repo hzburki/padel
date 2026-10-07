@@ -285,6 +285,47 @@ describe("one broadcast at a time", () => {
     expect(hasLink("b")).toBe(false)
   })
 
+  it("refuses at once with no connection, and sends nothing", async () => {
+    const phone = globalThis.navigator
+    vi.stubGlobal("navigator", { onLine: false })
+    await expect(shareLive(own("a"))).rejects.toThrow("No connection")
+    vi.stubGlobal("navigator", phone)
+    expect(sent("a")).toEqual([])
+    expect(hasLink("a")).toBe(false)
+  })
+
+  it("gives up after 5 seconds when the connection is up but nothing gets through", async () => {
+    vi.useFakeTimers({ now: 0 })
+    vi.mocked(setDoc).mockReturnValueOnce(new Promise(() => {}))
+    const sharing = expect(shareLive(own("a"))).rejects.toThrow("No connection")
+    await vi.advanceTimersByTimeAsync(4999)
+    expect(hasLink("a")).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    await sharing
+    expect(isSending("a")).toBe(false)
+  })
+
+  it("remembers a copy may still go online after giving up, so a delete takes it away", async () => {
+    vi.useFakeTimers({ now: 0 })
+    vi.mocked(setDoc).mockReturnValueOnce(new Promise(() => {}))
+    const sharing = expect(shareLive(own("a"))).rejects.toThrow()
+    await vi.advanceTimersByTimeAsync(5000)
+    await sharing
+    expect(hasLink("a")).toBe(true)
+    await deleteLive("a")
+    expect(deleteDoc).toHaveBeenCalledTimes(1)
+  })
+
+  it("keeps a game on air when broadcasting it again gets nowhere", async () => {
+    await shareLive(own("a"))
+    vi.useFakeTimers({ now: 0 })
+    vi.mocked(setDoc).mockReturnValueOnce(new Promise(() => {}))
+    const sharing = expect(shareLive(own("a"))).rejects.toThrow()
+    await vi.advanceTimersByTimeAsync(5000)
+    await sharing
+    expect(isSending("a")).toBe(true)
+  })
+
   it("still switches when only the closing can't be sent", async () => {
     await shareLive(own("a"))
     vi.mocked(setDoc).mockResolvedValueOnce().mockRejectedValueOnce(new Error("offline"))

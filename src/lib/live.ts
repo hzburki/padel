@@ -75,12 +75,34 @@ function closeLive(id: string): void {
     .catch(() => {})
 }
 
+// How long putting a game online may take before the organiser is told it
+// did not work.
+const SHARE_LIMIT = 5000
+
 // Start sharing an event. Returns the link to send to friends, the same
 // one every time for the same event. Nothing is stored online before this
 // is called. Going live closes the broadcast of any other game, but only
 // once this one is online: a failed attempt leaves the old broadcast on.
+//
+// With no connection it fails at once. On a connection that is up but
+// dead it gives up after SHARE_LIMIT, so the screen is never left waiting.
 export async function shareLive(event: SavedEvent): Promise<string> {
-  await send(event)
+  if (navigator.onLine === false) throw new Error("No connection")
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const tooSlow = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      // Firestore keeps the send and makes it when the connection is back.
+      // Remember there may be a copy, not being broadcast, so that
+      // deleting the game takes it away.
+      if (!hasLink(event.id)) localStorage.setItem(sharedKey(event.id), "closed")
+      reject(new Error("No connection"))
+    }, SHARE_LIMIT)
+  })
+  try {
+    await Promise.race([send(event), tooSlow])
+  } finally {
+    clearTimeout(timer)
+  }
   broadcastsClosedBy(sharedGames(), event).forEach(closeLive)
   localStorage.setItem(sharedKey(event.id), "1")
   return location.origin + livePath(event.kind, event.id)

@@ -35,6 +35,7 @@ unless you broadcast a game.
   game that is never broadcast stays on your phone. Only a game still being played can be broadcast; once it is
   finished, its link shows the final result. Deleting a broadcast game takes the online copy away; friends who
   opened the link keep theirs as a finished game.
+  With no connection the Live badge turns to a grey Offline, and broadcasting says so instead of waiting.
   The link is short: the site, then `/t/` or `/m/` and the game's 10-character id.
 - Play again with the same people and settings in one tap.
 - Saved after every score or point. Lock the phone or close the tab and nothing is lost.
