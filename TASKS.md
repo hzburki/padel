@@ -5,8 +5,6 @@ Claude: do not read, act on or edit this file unless asked to.
 
 ## In Progress
 
-- [ ] Do not allow to broadcast finished games. 
-
 ## To Do
 
 - [ ] When I delete a game, which is being broadcasted with other users. The firebsase connection should be closed. Live badge should be removed. As for the game just mark it as finished for the users. Keep the data and scores on their device. On the creators phone we simply delete everything. Also delete everything from firebase once the data has been synced to the users device. In this case use the score upscaling logic to ensure that the scores are fair and accurate for all players on the viewers device.
@@ -38,3 +36,7 @@ Claude: do not read, act on or edit this file unless asked to.
 - [x] Should we implement a max time for a connection. In case there are rouge subscriptions which are not closed properly. This is to ensure that the firebase connections are not left open for a long time.
   - [x] One rule: a friend's game is followed for 4 hours from when it was created, on the home screen and the game screen
   - [x] Game screen: close the connection when the game turns 4 hours old; opened later, read the score once
+- [x] Do not allow to broadcast finished games. 
+  - [x] No broadcast item in the menu of a finished game
+  - [x] Finishing a game whose broadcast was closed sends its final result once
+  - [x] Opening a finished game sends a final result that never went out

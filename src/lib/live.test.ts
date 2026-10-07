@@ -136,7 +136,7 @@ describe("broadcasting a game", () => {
 
   it("returns the link friends open: the site, then /live/t/<id> or /live/m/<id>", async () => {
     expect(await shareLive(own("a"))).toBe("https://padel.test/live/t/a")
-    expect(await shareLive(own("b", { kind: "match", finished: true } as Partial<SavedEvent>))).toBe(
+    expect(await shareLive(own("b", { kind: "match" } as Partial<SavedEvent>))).toBe(
       "https://padel.test/live/m/b",
     )
   })
@@ -166,13 +166,6 @@ describe("broadcasting a game", () => {
     pushLive(game("a"))
     await settle()
     expect(isSending("a")).toBe(true)
-  })
-
-  it("puts a finished game's result online without calling it live", async () => {
-    await shareLive(own("a", { finished: true }))
-    expect(sent("a")).toHaveLength(1)
-    expect(isSending("a")).toBe(false)
-    expect(hasLink("a")).toBe(true)
   })
 })
 
@@ -213,11 +206,6 @@ describe("one broadcast at a time", () => {
     const a = own("a")
     await shareLive(a)
     expect(closesAnother(a)).toBe(false)
-  })
-
-  it("does not ask for a finished game's link", async () => {
-    await shareLive(own("a"))
-    expect(closesAnother(own("b", { finished: true }))).toBe(false)
   })
 
   it("stops broadcasting the old game when a new one goes live", async () => {
@@ -263,10 +251,26 @@ describe("one broadcast at a time", () => {
     expect(sent("b")[1].closed).toBe(true)
   })
 
-  it("closes nothing when a finished game's result is put online", async () => {
+  it("sends the closed game's final result once when it is finished", async () => {
     await shareLive(own("a"))
-    await shareLive(own("b", { finished: true }))
-    expect(isSending("a")).toBe(true)
+    await shareLive(own("b"))
+    await settle()
+    pushLive(game("a", { finished: true }))
+    await settle()
+    pushLive(game("a", { finished: true }))
+    await settle()
+    expect(sent("a")).toHaveLength(3)
+    expect(JSON.parse(sent("a")[2].json).finished).toBe(true)
+  })
+
+  it("leaves the other broadcast on when the closed game's final result goes out", async () => {
+    await shareLive(own("a"))
+    await shareLive(own("b"))
+    await settle()
+    pushLive(game("a", { finished: true }))
+    await settle()
+    expect(isSending("a")).toBe(false)
+    expect(isSending("b")).toBe(true)
   })
 
   it("keeps the old broadcast when the new game can't be put online", async () => {
@@ -318,6 +322,30 @@ describe("opening your own game", () => {
     await shareLive(own("a"))
     await shareLive(own("b"))
     expect((await open("a")).last().live).toBe(false)
+  })
+
+  it("sends the final result when the game was finished with no connection", async () => {
+    await shareLive(own("a"))
+    vi.mocked(setDoc).mockRejectedValueOnce(new Error("offline"))
+    pushLive(own("a", { finished: true }))
+    await settle()
+    await open("a")
+    expect(JSON.parse(sent("a")[2].json).finished).toBe(true)
+    expect(isSending("a")).toBe(false)
+  })
+
+  it("sends nothing when the final result already went out", async () => {
+    await shareLive(own("a"))
+    pushLive(own("a", { finished: true }))
+    await settle()
+    await open("a")
+    expect(sent("a")).toHaveLength(2)
+  })
+
+  it("sends nothing for a finished game that was never broadcast", async () => {
+    own("a", { finished: true })
+    await open("a")
+    expect(setDoc).not.toHaveBeenCalled()
   })
 
   it("is your own even when opened from your own link", async () => {

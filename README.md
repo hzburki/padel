@@ -32,7 +32,8 @@ unless you broadcast a game.
 - Live standings for a tournament; set-by-set stats for a match.
 - A results image to share on WhatsApp or save when the game ends.
 - Broadcast a game by link, so friends can follow the score live. Broadcasting stores a copy of that game online; a
-  game that is never broadcast stays on your phone.
+  game that is never broadcast stays on your phone. Only a game still being played can be broadcast; once it is
+  finished, its link shows the final result.
 - Play again with the same people and settings in one tap.
 - Saved after every score or point. Lock the phone or close the tab and nothing is lost.
 - A history of past games, filtered by kind.

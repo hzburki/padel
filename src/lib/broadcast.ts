@@ -5,15 +5,26 @@ import type { SavedEvent } from "./types"
 
 // What this phone remembers about the games it has put online, by game id:
 // "1" while later saves still send a copy, "closed" once another game took
-// over the broadcast, "ended" once the finished game has gone out. Only
-// "1" sends anything.
+// over the broadcast, "ended" once the finished game has gone out. What
+// each one sends is in sentOnSave.
 export type SharedGames = Record<string, string>
 
+// Whether the organiser may put this game online. A finished game has
+// nothing left to follow, and a friend's copy is not theirs to send.
+export function canBroadcast(event: SavedEvent): boolean {
+  return !event.finished && !event.shared
+}
+
+// Whether a save of this game is sent to friends, given what this phone
+// remembers about it (null: never put online). A closed broadcast sends
+// nothing until the game is finished: its link still gets the result.
+export function sentOnSave(state: string | null, event: SavedEvent): boolean {
+  return state === "1" || (state === "closed" && event.finished)
+}
+
 // The broadcasts that close when this game is put online. A phone
-// broadcasts one game at a time, so going live closes every other one. A
-// finished game is not live: putting its result online closes nothing.
+// broadcasts one game at a time, so going live closes every other one.
 export function broadcastsClosedBy(shared: SharedGames, event: SavedEvent): string[] {
-  if (event.finished) return []
   return Object.keys(shared).filter((other) => other !== event.id && shared[other] === "1")
 }
 

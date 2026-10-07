@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app"
 import { connectAuthEmulator, getAuth, signInAnonymously } from "firebase/auth"
 import { connectFirestoreEmulator, deleteDoc, doc, getFirestore, onSnapshot, setDoc } from "firebase/firestore"
-import { broadcastsClosedBy, followedLive, followTimeLeft, type SharedGames } from "./broadcast"
+import { broadcastsClosedBy, followedLive, followTimeLeft, sentOnSave, type SharedGames } from "./broadcast"
 import { livePath } from "./paths"
 import { loadTournament, migrate, saveTournament } from "./storage"
 import type { SavedEvent } from "./types"
@@ -82,7 +82,7 @@ function closeLive(id: string): void {
 export async function shareLive(event: SavedEvent): Promise<string> {
   await send(event)
   broadcastsClosedBy(sharedGames(), event).forEach(closeLive)
-  localStorage.setItem(sharedKey(event.id), event.finished ? "ended" : "1")
+  localStorage.setItem(sharedKey(event.id), "1")
   return location.origin + livePath(event.kind, event.id)
 }
 
@@ -96,12 +96,12 @@ export function isSending(id: string): boolean {
   return localStorage.getItem(sharedKey(id)) === "1"
 }
 
-// Call after every save. Does nothing unless the event is being sent.
-// Never throws: a failed send is made up for by the next one, which carries
-// the whole event again. The finished game is the last thing sent: friends
-// stop following when they get it.
+// Call after every save. Does nothing unless the save is one to send
+// (sentOnSave). Never throws: a failed send is made up for by the next one,
+// which carries the whole event again. The finished game is the last thing
+// sent: friends stop following when they get it.
 export function pushLive(event: SavedEvent): void {
-  if (!isSending(event.id)) return
+  if (!sentOnSave(localStorage.getItem(sharedKey(event.id)), event)) return
   send(event)
     .then(() => {
       if (event.finished) localStorage.setItem(sharedKey(event.id), "ended")
@@ -138,7 +138,11 @@ export function openGame(
   loadTournament(id).then((saved) => {
     if (closed) return
     // The organiser's own game, even when opened from their own link.
-    if (saved && !saved.shared) return show(saved, !saved.finished && isSending(id))
+    if (saved && !saved.shared) {
+      // A result that never went out, finished with no connection, goes now.
+      if (saved.finished) pushLive(saved)
+      return show(saved, !saved.finished && isSending(id))
+    }
     if (saved?.finished || (!saved && !fromLink) || !canShareLive) return show(saved, false)
 
     let latest = saved

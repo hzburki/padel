@@ -2,6 +2,7 @@ import { Ellipsis, LoaderCircle, Radio, Repeat, Share, Trash2, Undo2 } from "luc
 import { useEffect, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
+import { canBroadcast } from "@/lib/broadcast"
 import { canShareLive, closesAnother, deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "@/lib/live"
 import {
   addPoint,
@@ -302,7 +303,7 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
 
       <Sheet open={confirm === "menu"} onClose={() => setConfirm(null)}>
         <div className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
-          {!readOnly && canShareLive && (
+          {canShareLive && canBroadcast(match) && (
             <button
               type="button"
               // Going live takes the broadcast from any other game: say so first.
@@ -310,7 +311,7 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
               className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
             >
               <Radio className="size-5 text-primary" />
-              {match.finished ? "Broadcast link" : "Broadcast live"}
+              Broadcast live
             </button>
           )}
           {/* A finished match has this in its footer. */}

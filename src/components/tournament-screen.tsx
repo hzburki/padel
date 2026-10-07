@@ -2,6 +2,7 @@ import { ChevronDown, Ellipsis, LoaderCircle, Pencil, Radio, Repeat, Scale, Shar
 import { useEffect, useRef, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
+import { canBroadcast } from "@/lib/broadcast"
 import { canShareLive, closesAnother, deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "@/lib/live"
 import { computeStandings, placesMovedByScaling, winners } from "@/lib/standings"
 import { deleteTournament, saveTournament } from "@/lib/storage"
@@ -327,7 +328,7 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
                 <Pencil className="size-5 text-primary" />
                 Edit names
               </button>
-              {canShareLive && (
+              {canShareLive && canBroadcast(tournament) && (
                 <button
                   type="button"
                   // Going live takes the broadcast from any other game: say so first.
@@ -335,7 +336,7 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
                   className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
                 >
                   <Radio className="size-5 text-primary" />
-                  {tournament.finished ? "Broadcast link" : "Broadcast live"}
+                  Broadcast live
                 </button>
               )}
             </>

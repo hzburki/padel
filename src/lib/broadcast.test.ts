@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { followedFromHome, followedLive, followTimeLeft, broadcastsClosedBy } from "./broadcast"
+import { canBroadcast, followedFromHome, followedLive, followTimeLeft, broadcastsClosedBy, sentOnSave } from "./broadcast"
 import type { SavedEvent } from "./types"
 
 const HOUR = 60 * 60 * 1000
@@ -33,12 +33,46 @@ describe("one broadcast at a time", () => {
     expect(broadcastsClosedBy({ a: "1", b: "1", c: "ended" }, game({ id: "new" }))).toEqual(["a", "b"])
   })
 
-  it("closes nothing when a finished game's result is put online", () => {
-    expect(broadcastsClosedBy({ old: "1" }, game({ id: "new", finished: true }))).toEqual([])
-  })
-
   it("closes the other game when a closed game is broadcast again", () => {
     expect(broadcastsClosedBy({ old: "closed", other: "1" }, game({ id: "old" }))).toEqual(["other"])
+  })
+})
+
+describe("a game can be broadcast", () => {
+  it("while it is being played", () => {
+    expect(canBroadcast(game())).toBe(true)
+  })
+
+  it("but not once it is finished", () => {
+    expect(canBroadcast(game({ finished: true }))).toBe(false)
+  })
+
+  it("and never from a friend's copy", () => {
+    expect(canBroadcast(friends())).toBe(false)
+  })
+})
+
+describe("a save is sent to friends", () => {
+  it("never for a game that was not broadcast", () => {
+    expect(sentOnSave(null, game())).toBe(false)
+    expect(sentOnSave(null, game({ finished: true }))).toBe(false)
+  })
+
+  it("every time while the game is being broadcast, the finished game included", () => {
+    expect(sentOnSave("1", game())).toBe(true)
+    expect(sentOnSave("1", game({ finished: true }))).toBe(true)
+  })
+
+  it("not while another game has taken over the broadcast", () => {
+    expect(sentOnSave("closed", game())).toBe(false)
+  })
+
+  it("once more when a game whose broadcast was closed is finished", () => {
+    expect(sentOnSave("closed", game({ finished: true }))).toBe(true)
+  })
+
+  it("no more once the finished game has gone out", () => {
+    expect(sentOnSave("ended", game({ finished: true }))).toBe(false)
   })
 })
 
