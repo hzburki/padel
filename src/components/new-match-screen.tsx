@@ -104,7 +104,6 @@ export function NewMatchScreen({
           onChange={(e) => setName(e.target.value)}
           onKeyDown={enterMovesOn(0)}
           enterKeyHint="next"
-          autoComplete="off"
         />
       </Section>
 
@@ -121,7 +120,6 @@ export function NewMatchScreen({
                 placeholder={`Player ${side * 2 + seat + 1}`}
                 aria-label={`Team ${side + 1}, player ${seat + 1}`}
                 enterKeyHint={side === 1 && seat === 1 ? "done" : "next"}
-                autoComplete="off"
                 autoCapitalize="words"
               />
             ))}

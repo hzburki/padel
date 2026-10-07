@@ -145,7 +145,6 @@ export function NewTournamentScreen({
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          autoComplete="off"
         />
       </Section>
 
@@ -180,7 +179,6 @@ export function NewTournamentScreen({
             onChange={(e) => setDraft(e.target.value)}
             placeholder={players.length === 0 ? "First player's name" : "Next player"}
             enterKeyHint="next"
-            autoComplete="off"
             autoCapitalize="words"
             className="pr-16"
           />

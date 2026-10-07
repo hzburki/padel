@@ -34,7 +34,6 @@ export function RenameForm({
         id="tournament-name"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        autoComplete="off"
       />
 
       <p className="mt-5 mb-2 px-1 text-sm font-semibold text-muted-foreground">Players</p>
@@ -51,7 +50,6 @@ export function RenameForm({
             disabled={locked}
             aria-label={`Player ${i + 1}`}
             onChange={(e) => setPlayerNames((all) => all.map((x, j) => (j === i ? e.target.value : x)))}
-            autoComplete="off"
             autoCapitalize="words"
           />
         ))}
