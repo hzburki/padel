@@ -9,14 +9,30 @@ import type { SavedEvent } from "./types"
 // Firestore after every save, and anyone with the link watches that copy.
 // The copy on the organiser's phone stays the real one.
 //
-// Local emulators only for now (`npm run emulators`) — there is no Firebase
-// project yet. The host is the page's own, so a phone on the same Wi-Fi
-// reaches the emulators on this machine.
-const app = initializeApp({ projectId: "demo-padel", apiKey: "demo" })
+// A build talks to the Firebase project named in `.env`; the dev server
+// talks to the local emulators (`npm run emulators`). The emulators' host is
+// the page's own, so a phone on the same Wi-Fi reaches them on this machine.
+const project = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+}
+const emulators = { projectId: "demo-padel", apiKey: "demo" }
+
+// False in a build made without the `.env` values: there is nowhere to send
+// a game, so the screens hide the share button and links open nothing.
+export const canShareLive = import.meta.env.DEV || Boolean(project.apiKey && project.projectId)
+
+// Without the values Firebase still needs something to start with; nothing
+// is ever sent to it.
+const app = initializeApp(import.meta.env.DEV || !canShareLive ? emulators : project)
 const auth = getAuth(app)
 const db = getFirestore(app)
-connectAuthEmulator(auth, `http://${location.hostname}:9099`, { disableWarnings: true })
-connectFirestoreEmulator(db, location.hostname, 8080)
+if (import.meta.env.DEV) {
+  connectAuthEmulator(auth, `http://${location.hostname}:9099`, { disableWarnings: true })
+  connectFirestoreEmulator(db, location.hostname, 8080)
+}
 
 // Which events this phone has shared: "1" while later saves still send a
 // copy, "ended" once the finished game has gone out and nothing more will.
@@ -90,7 +106,7 @@ export function openGame(
     if (closed) return
     // The organiser's own game, even when opened from their own link.
     if (saved && !saved.shared) return show(saved, !saved.finished && isSending(id))
-    if (saved?.finished || (!saved && !fromLink)) return show(saved, false)
+    if (saved?.finished || (!saved && !fromLink) || !canShareLive) return show(saved, false)
 
     let latest = saved
     if (saved) show(saved, false)

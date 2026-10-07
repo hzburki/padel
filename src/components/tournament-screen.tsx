@@ -2,7 +2,7 @@ import { ChevronDown, Ellipsis, LoaderCircle, Pencil, Radio, Repeat, Scale, Shar
 import { useEffect, useRef, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
-import { deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "@/lib/live"
+import { canShareLive, deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "@/lib/live"
 import { computeStandings, placesMovedByScaling, winners } from "@/lib/standings"
 import { deleteTournament, saveTournament } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, renameTournament, setScore, unscoredMatchCount } from "@/lib/tournament"
@@ -181,7 +181,10 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
 
   const shownMatch = shown && tournament.rounds[shown.round]?.matches.find((m) => m.court === shown.court)
 
-  const playAgain = () => nav.push({ name: "new", from: previousSetup(tournament) })
+  const playAgain = () => {
+    setConfirm(null)
+    nav.push({ name: "new", from: previousSetup(tournament) })
+  }
 
   const footer = tournament.finished ? (
     <div className="grid grid-cols-2 gap-2">
@@ -324,15 +327,28 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
                 <Pencil className="size-5 text-primary" />
                 Edit names
               </button>
-              <button
-                type="button"
-                onClick={shareLink}
-                className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
-              >
-                <Radio className="size-5 text-primary" />
-                {tournament.finished ? "Share link" : "Share live link"}
-              </button>
+              {canShareLive && (
+                <button
+                  type="button"
+                  onClick={shareLink}
+                  className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
+                >
+                  <Radio className="size-5 text-primary" />
+                  {tournament.finished ? "Broadcast link" : "Broadcast live"}
+                </button>
+              )}
             </>
+          )}
+          {/* A finished tournament has this in its footer. */}
+          {!tournament.finished && (
+            <button
+              type="button"
+              onClick={playAgain}
+              className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
+            >
+              <Repeat className="size-5 text-primary" />
+              Play again
+            </button>
           )}
           <button
             type="button"

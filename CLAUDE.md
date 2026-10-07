@@ -24,11 +24,18 @@ A mobile-first PWA for casual padel among friends. Two kinds of game, picked on 
 
 No other padel format (no Mexicano, no classic draws, no box leagues) is in scope.
 
-**Local-only.** There is no backend, no accounts, no sync, no network calls. All tournament and match state
-lives in the browser (IndexedDB for the games; `localStorage` is fine for small UI prefs). This is a hard
-constraint, not a v1 shortcut — the app must fully work offline, including a cold start with no connection.
-Do not introduce a server, an API client, or a hosted database. Treat "export/import a tournament as a JSON
-file" as the sharing mechanism if sharing is ever needed.
+**Local-first.** All tournament and match state lives in the browser (IndexedDB for the games;
+`localStorage` is fine for small UI prefs). There are no user accounts and no sync. The app must fully work
+offline, including a cold start with no connection — this is a hard constraint, not a v1 shortcut.
+
+**One exception: broadcasting a game.** When the organiser taps "Broadcast live", a copy of that game goes to
+Firestore and friends with the link follow it live. Nothing is sent before that tap, and tapping it is the
+organiser's consent to store that game online. The copy on the organiser's phone stays the real one; the
+online copy is only ever overwritten from it. The organiser's browser signs in anonymously, which is what
+lets only them update or delete the copy (`firestore.rules`). All of it lives in `src/lib/live.ts`: the dev
+server uses the local emulators (`npm run emulators`), a build uses the project in the `VITE_FIREBASE_*`
+values, and without them the broadcast button is hidden. Do not add any other network call, server or hosted
+database, and never make a screen depend on the connection.
 
 **Mobile-first.** The primary surface is a phone held one-handed, courtside, by someone entering scores
 between games. Design for thumb reach, large tap targets, and glanceable standings. Desktop is a
@@ -48,6 +55,8 @@ If something needs a sentence, write one short one, not three.
   wrapping them to change a style. Add more with `npx shadcn@latest add <name>`.
 - **oxlint**, not ESLint — that is what the Vite template ships now.
 - **Vitest** for the pure logic in `src/lib/`.
+- **Firebase** (anonymous Auth + Firestore), only for sharing a game by link. The site itself is hosted on
+  Cloudflare Pages, not Firebase Hosting.
 - `vite-plugin-pwa` (autoUpdate) for the service worker and manifest.
 - Path alias `@/` → `src/`. TypeScript 6 dropped `baseUrl`, so `paths` are relative to the tsconfig; the
   same alias is repeated in `vite.config.ts`.

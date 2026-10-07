@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, MonitorDown, Plus, Podium, Repeat, Smartphone } from "lucide-react"
+import { ChevronDown, ChevronRight, CircleDashed, MonitorDown, Plus, Podium, Repeat, Smartphone } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
@@ -37,6 +37,10 @@ export function TournamentListScreen() {
   const others = events?.filter((e) => e !== playing) ?? []
   const listed = others.filter((e) => filter === "all" || e.kind === filter)
   const open = (e: SavedEvent) => nav.push({ name: e.kind === "match" ? "match" : "tournament", id: e.id })
+  // A new game with the same people and settings. The game it starts from
+  // stays as it is, finished or not.
+  const playAgain = (e: SavedEvent) =>
+    nav.push(e.kind === "match" ? { name: "new", fromMatch: previousMatchSetup(e) } : { name: "new", from: previousSetup(e) })
 
   return (
     <Screen
@@ -56,12 +60,25 @@ export function TournamentListScreen() {
         onInstall={canInstall() ? () => (install ? install() : setInstallHelp(true)) : undefined}
       >
         {/* One child or none, so the header adds no gap when nothing is on. */}
-        {playing &&
-          (playing.kind === "americano" ? (
-            <PlayingNow tournament={playing} onOpen={() => open(playing)} />
-          ) : (
-            <MatchPlayingNow match={playing} onOpen={() => open(playing)} />
-          ))}
+        {playing && (
+          <div className="relative">
+            {playing.kind === "americano" ? (
+              <PlayingNow tournament={playing} onOpen={() => open(playing)} />
+            ) : (
+              <MatchPlayingNow match={playing} onOpen={() => open(playing)} />
+            )}
+            {/* Level with the Playing now pill. Beside the card's button, not
+                inside it: buttons can't nest. */}
+            <button
+              type="button"
+              aria-label={`Play again with the players from ${playing.name}`}
+              onClick={() => playAgain(playing)}
+              className="absolute top-2.5 right-2.5 flex size-11 items-center justify-center rounded-full text-primary active:bg-muted"
+            >
+              <Repeat className="size-5" strokeWidth={2.5} />
+            </button>
+          </div>
+        )}
       </Hero>
 
       <InstallBanner />
@@ -101,24 +118,16 @@ export function TournamentListScreen() {
             {listed.map((t) => (
               <li key={t.id} className="relative">
                 <HistoryRow event={t} onOpen={() => open(t)} />
-                {t.finished && (
-                  // Under the date. Beside the row's button, not inside it: buttons
-                  // can't nest.
-                  <button
-                    type="button"
-                    aria-label={`Play again with the players from ${t.name}`}
-                    onClick={() =>
-                      nav.push(
-                        t.kind === "match"
-                          ? { name: "new", fromMatch: previousMatchSetup(t) }
-                          : { name: "new", from: previousSetup(t) },
-                      )
-                    }
-                    className="absolute right-2 bottom-1 flex size-11 items-center justify-center rounded-full text-primary active:bg-muted"
-                  >
-                    <Repeat className="size-5" strokeWidth={2.5} />
-                  </button>
-                )}
+                {/* Under the date. Beside the row's button, not inside it: buttons
+                    can't nest. */}
+                <button
+                  type="button"
+                  aria-label={`Play again with the players from ${t.name}`}
+                  onClick={() => playAgain(t)}
+                  className="absolute right-2 bottom-1 flex size-11 items-center justify-center rounded-full text-primary active:bg-muted"
+                >
+                  <Repeat className="size-5" strokeWidth={2.5} />
+                </button>
               </li>
             ))}
           </ul>
@@ -375,14 +384,30 @@ function HistoryRow({ event, onOpen }: { event: SavedEvent; onOpen: () => void }
               <SharedTag /> ·{" "}
             </>
           )}
+          {!event.finished && !event.shared && (
+            <>
+              <UnfinishedTag /> ·{" "}
+            </>
+          )}
           {match ? <MatchStatus match={event} /> : <Status tournament={event} />}
         </span>
       </span>
-      {/* As wide as the Play again icon that sits under it on finished rows. */}
+      {/* As wide as the Play again icon that sits under it. */}
       <span className="w-11 shrink-0 self-start pt-1 text-center text-[0.8125rem] whitespace-nowrap text-muted-foreground type-label">
         {date.toLocaleDateString(undefined, { day: "numeric", month: "short" })}
       </span>
     </button>
+  )
+}
+
+// Marks a game of your own that was left before it was finished. It can
+// still be opened and played on.
+function UnfinishedTag() {
+  return (
+    <span className="inline-flex items-center gap-1 align-bottom font-medium text-foreground">
+      <CircleDashed className="size-3.5" strokeWidth={2.5} aria-hidden />
+      Unfinished
+    </span>
   )
 }
 

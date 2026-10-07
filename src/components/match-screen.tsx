@@ -2,7 +2,7 @@ import { Ellipsis, LoaderCircle, Radio, Repeat, Share, Trash2, Undo2 } from "luc
 import { useEffect, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
-import { deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "@/lib/live"
+import { canShareLive, deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "@/lib/live"
 import {
   addPoint,
   gameSummary,
@@ -150,6 +150,11 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
     setSharing(false)
   }
 
+  const playAgain = () => {
+    setConfirm(null)
+    nav.push({ name: "new", fromMatch: previousMatchSetup(match) })
+  }
+
   const remove = async () => {
     setConfirm(null)
     await deleteTournament(match.id)
@@ -179,7 +184,7 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
               variant="secondary"
               size="lg"
               className="px-3"
-              onClick={() => nav.push({ name: "new", fromMatch: previousMatchSetup(match) })}
+              onClick={playAgain}
             >
               <Repeat className="size-5" />
               Play again
@@ -297,14 +302,25 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
 
       <Sheet open={confirm === "menu"} onClose={() => setConfirm(null)}>
         <div className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
-          {!readOnly && (
+          {!readOnly && canShareLive && (
             <button
               type="button"
               onClick={shareLink}
               className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
             >
               <Radio className="size-5 text-primary" />
-              {match.finished ? "Share link" : "Share live link"}
+              {match.finished ? "Broadcast link" : "Broadcast live"}
+            </button>
+          )}
+          {/* A finished match has this in its footer. */}
+          {!match.finished && (
+            <button
+              type="button"
+              onClick={playAgain}
+              className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
+            >
+              <Repeat className="size-5 text-primary" />
+              Play again
             </button>
           )}
           <button

@@ -16,7 +16,8 @@
 ---
 
 Padel is a small web app for casual padel, used from your phone between games. It installs to your home screen, needs
-no account, and keeps everything on your phone, so it works with no connection at all.
+no account, and keeps everything on your phone, so it works with no connection at all. Nothing leaves the phone
+unless you broadcast a game.
 
 ## What you can play
 
@@ -30,6 +31,8 @@ no account, and keeps everything on your phone, so it works with no connection a
 
 - Live standings for a tournament; set-by-set stats for a match.
 - A results image to share on WhatsApp or save when the game ends.
+- Broadcast a game by link, so friends can follow the score live. Broadcasting stores a copy of that game online; a
+  game that is never broadcast stays on your phone.
 - Play again with the same people and settings in one tap.
 - Saved after every score or point. Lock the phone or close the tab and nothing is lost.
 - A history of past games, filtered by kind.
@@ -110,6 +113,7 @@ npm run dev        # start the dev server
 npm test           # run the tests
 npm run build      # build for production into dist/
 npm run preview    # serve the build (needed to try offline mode and installing)
+npm run emulators  # local Firebase, for broadcasting a game from the dev server
 ```
 
 Built with React, Vite, TypeScript, Tailwind CSS and shadcn/ui. The rules live in plain functions in
@@ -124,6 +128,11 @@ It is a static site; any static host works. It is set up for Cloudflare Pages:
 | Build command | `npm run build` |
 | Build output directory | `dist` |
 | Environment variable | `VITE_SITE_URL` = the site's address, no trailing slash |
+| Environment variables | `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID` |
+
+The four Firebase values are for broadcasting a game. They come from a Firebase project with anonymous sign-in and
+Firestore turned on, and the rules in [`firestore.rules`](firestore.rules) published. Leave them out and the app
+still works; the broadcast button is hidden.
 
 Node is pinned in [`.node-version`](.node-version) and response headers live in
 [`public/_headers`](public/_headers). Do not add a `404.html`: without one, Pages serves the app for every
