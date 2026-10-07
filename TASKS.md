@@ -5,6 +5,7 @@ Claude: do not read, act on or edit this file unless asked to.
 
 ## To Do
 
+- [ ] If a Americano game is created with number of rounds where all players do not play the same numner of matches, we need to use the same logic to upscale/downscale the points which we already have for when a game is finished before all players have played the same number of matches. This is to ensure that the points are fair and accurate for all players.
 - [ ] When a user loses their internet connection while using the app we make a notable change to the UI to indicate that they are offline. This should be a clear and noticeable change, but it should not be disruptive to the user experience. 
 - [ ] We need to ensure as soon as the user regains their internet connection, the app should automatically detect this and update the UI to reflect that they are back online. This should be done in a way that is seamless and does not interrupt the user's workflow.
 - [ ] We need to sync the creator's data to Firebase if they were sharing a game. Similarly we need to sync data from Firebase to the user's link who was using a shared link. All this should happen in the background without any user intervention. 
