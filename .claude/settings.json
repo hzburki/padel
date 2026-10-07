@@ -2,10 +2,7 @@
   "permissions": {
     "allow": [
       "mcp__claude-in-chrome__tabs_context_mcp",
-      "ClaudeInChromeDomain(localhost:5199)",
       "mcp__claude-in-chrome__tabs_create_mcp",
-      "ClaudeInChromeDomain(localhost:8777)",
-      "ClaudeInChromeDomain(localhost:5198)"
     ]
   },
   "enabledPlugins": {
