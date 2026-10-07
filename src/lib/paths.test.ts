@@ -39,9 +39,9 @@ describe("legalPageAt", () => {
 })
 
 describe("livePath", () => {
-  it("puts a shared tournament at /live/t/<id> and a shared match at /live/m/<id>", () => {
-    expect(livePath("americano", "ab12")).toBe("/live/t/ab12")
-    expect(livePath("match", "ab12")).toBe("/live/m/ab12")
+  it("puts a shared tournament at /t/<id> and a shared match at /m/<id>", () => {
+    expect(livePath("americano", "ab12")).toBe("/t/ab12")
+    expect(livePath("match", "ab12")).toBe("/m/ab12")
   })
 
   it("gives a game the same link every time it is broadcast", () => {
@@ -56,13 +56,24 @@ describe("liveAt", () => {
   })
 
   it("accepts a trailing slash", () => {
-    expect(liveAt("/live/m/ab12/")).toEqual({ kind: "match", id: "ab12" })
+    expect(liveAt("/m/ab12/")).toEqual({ kind: "match", id: "ab12" })
+  })
+
+  it("reads an id of digits and lowercase letters", () => {
+    expect(liveAt("/t/k3q9a2cx7m")).toEqual({ kind: "americano", id: "k3q9a2cx7m" })
+  })
+
+  it("still opens a link sent before links were shortened, which starts with /live", () => {
+    expect(liveAt("/live/t/3f9a1c0b")).toEqual({ kind: "americano", id: "3f9a1c0b" })
+    expect(liveAt("/live/m/3f9a1c0b/")).toEqual({ kind: "match", id: "3f9a1c0b" })
   })
 
   it("is null for an address that is not a live link", () => {
     expect(liveAt("/")).toBeNull()
     expect(liveAt("/privacy")).toBeNull()
-    expect(liveAt("/live/m/")).toBeNull()
+    expect(liveAt("/m/")).toBeNull()
+    expect(liveAt("/x/ab12")).toBeNull()
     expect(liveAt("/live/x/ab12")).toBeNull()
+    expect(liveAt("/other/m/ab12")).toBeNull()
   })
 })

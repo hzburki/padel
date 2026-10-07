@@ -138,10 +138,10 @@ describe("broadcasting a game", () => {
     expect(isSending("a")).toBe(true)
   })
 
-  it("returns the link friends open: the site, then /live/t/<id> or /live/m/<id>", async () => {
-    expect(await shareLive(own("a"))).toBe("https://padel.test/live/t/a")
+  it("returns the link friends open: the site, then /t/<id> or /m/<id>", async () => {
+    expect(await shareLive(own("a"))).toBe("https://padel.test/t/a")
     expect(await shareLive(own("b", { kind: "match" } as Partial<SavedEvent>))).toBe(
-      "https://padel.test/live/m/b",
+      "https://padel.test/m/b",
     )
   })
 
@@ -288,7 +288,7 @@ describe("one broadcast at a time", () => {
   it("still switches when only the closing can't be sent", async () => {
     await shareLive(own("a"))
     vi.mocked(setDoc).mockResolvedValueOnce().mockRejectedValueOnce(new Error("offline"))
-    await expect(shareLive(own("b"))).resolves.toBe("https://padel.test/live/t/b")
+    await expect(shareLive(own("b"))).resolves.toBe("https://padel.test/t/b")
     await settle()
     expect(isSending("a")).toBe(false)
     expect(isSending("b")).toBe(true)
