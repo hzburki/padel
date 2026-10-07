@@ -1,9 +1,11 @@
-import { ChevronDown, ChevronRight, MonitorDown, Plus, Podium, Repeat, Smartphone } from "lucide-react"
+import { ChevronDown, ChevronRight, CircleDashed, MonitorDown, Plus, Podium, Repeat, Smartphone } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
 import { formatSets, replay, teamName } from "@/lib/set-match"
 import { previousMatchSetup } from "@/lib/set-match-setup"
+import { followedFromHome } from "@/lib/broadcast"
+import { openGame } from "@/lib/live"
 import { computeStandings, formatPoints, joinNames, winners } from "@/lib/standings"
 import { listTournaments } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, unscoredMatchCount } from "@/lib/tournament"
@@ -11,10 +13,13 @@ import type { SavedEvent, SetMatch, Tournament } from "@/lib/types"
 import { BallIcon } from "./ball-icon"
 import { CourtIcon } from "./court-icon"
 import { CourtLines } from "./court-lines"
-import { canInstall, InstallBanner, InstallHelp, isPhone, useInstallPrompt } from "./install-banner"
+import { InstallBanner, InstallHelp } from "./install-banner"
+import { canInstall, isPhone, useInstallPrompt } from "./install-prompt"
+import { LiveBadge } from "./live-badge"
 import { Screen } from "./screen"
+import { SharedTag } from "./shared-tag"
 import { Sheet } from "./sheet"
-import { useIsTopScreen, useNav } from "./stack-navigator"
+import { useIsTopScreen, useNav } from "./nav"
 
 export function TournamentListScreen() {
   const nav = useNav<Route>()
@@ -26,15 +31,51 @@ export function TournamentListScreen() {
 
   // Reload whenever this screen comes back into view, so a game just
   // created or scored shows up to date.
+  const [loadedAt, setLoadedAt] = useState(0)
   useEffect(() => {
-    if (isTop) listTournaments().then(setEvents)
+    if (!isTop) return
+    listTournaments().then((all) => {
+      setEvents(all)
+      setLoadedAt(Date.now())
+    })
   }, [isTop])
 
-  // The newest unfinished game gets the spotlight; the rest are listed.
-  const playing = events?.find((e) => !e.finished)
+  // Unfinished games are opened the way their own screen opens them, so a
+  // game is live here exactly when it is live there: sent from this phone,
+  // or followed on a friend's. A followed game also brings its newest score.
+  // A friend's game from hours ago is left alone (followedFromHome).
+  const [live, setLive] = useState<ReadonlySet<string>>(new Set())
+  const unfinished = events?.filter((e) => followedFromHome(e, loadedAt)).map((e) => e.id).join() ?? ""
+  useEffect(() => {
+    if (!isTop || unfinished === "") return
+    const stops = unfinished.split(",").map((id) =>
+      openGame(id, false, (event, isLive) => {
+        if (event) setEvents((all) => all?.map((e) => (e.id === id ? event : e)) ?? null)
+        setLive((ids) => {
+          if (ids.has(id) === isLive) return ids
+          const next = new Set(ids)
+          if (isLive) next.add(id)
+          else next.delete(id)
+          return next
+        })
+      }),
+    )
+    return () => {
+      stops.forEach((stop) => stop())
+      setLive(new Set())
+    }
+  }, [isTop, unfinished])
+
+  // The newest unfinished game gets the spotlight; the rest are listed. A
+  // friend's game is never the spotlight: there is nothing to continue.
+  const playing = events?.find((e) => !e.finished && !e.shared)
   const others = events?.filter((e) => e !== playing) ?? []
   const listed = others.filter((e) => filter === "all" || e.kind === filter)
   const open = (e: SavedEvent) => nav.push({ name: e.kind === "match" ? "match" : "tournament", id: e.id })
+  // A new game with the same people and settings. The game it starts from
+  // stays as it is, finished or not.
+  const playAgain = (e: SavedEvent) =>
+    nav.push(e.kind === "match" ? { name: "new", fromMatch: previousMatchSetup(e) } : { name: "new", from: previousSetup(e) })
 
   return (
     <Screen
@@ -53,8 +94,27 @@ export function TournamentListScreen() {
         howItWorks={events?.length === 0 ? "open" : "collapsible"}
         onInstall={canInstall() ? () => (install ? install() : setInstallHelp(true)) : undefined}
       >
-        {playing?.kind === "americano" && <PlayingNow tournament={playing} onOpen={() => open(playing)} />}
-        {playing?.kind === "match" && <MatchPlayingNow match={playing} onOpen={() => open(playing)} />}
+        {/* One child or none, so the header adds no gap when nothing is on. */}
+        {playing && (
+          <div className="relative">
+            {live.has(playing.id) && <LiveBadge />}
+            {playing.kind === "americano" ? (
+              <PlayingNow tournament={playing} onOpen={() => open(playing)} />
+            ) : (
+              <MatchPlayingNow match={playing} onOpen={() => open(playing)} />
+            )}
+            {/* Level with the Playing now pill. Beside the card's button, not
+                inside it: buttons can't nest. */}
+            <button
+              type="button"
+              aria-label={`Play again with the players from ${playing.name}`}
+              onClick={() => playAgain(playing)}
+              className="absolute top-2.5 right-2.5 flex size-11 items-center justify-center rounded-full text-primary active:bg-muted"
+            >
+              <Repeat className="size-5" strokeWidth={2.5} />
+            </button>
+          </div>
+        )}
       </Hero>
 
       <InstallBanner />
@@ -63,7 +123,8 @@ export function TournamentListScreen() {
 
       {others.length > 0 && (
         <section className="mt-8">
-          <div className="mb-3 flex items-center gap-3 px-1">
+          {/* Room under the filter for a Live badge on the first row. */}
+          <div className="mb-5 flex items-center gap-3 px-1">
             <h2 className="flex-1 text-[1.375rem] type-display">History</h2>
             {/* The phone's own picker behind a pill: nothing to build or to
                 get wrong on a small screen. */}
@@ -72,7 +133,7 @@ export function TournamentListScreen() {
                 aria-label="Show"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as typeof filter)}
-                className="h-9 appearance-none rounded-full bg-secondary pr-8 pl-3.5 text-sm text-primary outline-none type-label focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+                className="h-11 appearance-none rounded-full bg-secondary pr-8 pl-3.5 text-sm text-primary outline-none type-label focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
               >
                 <option value="all">All</option>
                 <option value="americano">Americano</option>
@@ -90,28 +151,23 @@ export function TournamentListScreen() {
               {filter === "match" ? "No matches here yet." : "No Americano tournaments here yet."}
             </p>
           )}
-          <ul className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px] empty:hidden">
+          {/* Not clipped: the Live badge sits on a row's top border. The end
+              rows round their own corners instead. */}
+          <ul className="divide-y rounded-3xl bg-card border-[1.5px] empty:hidden">
             {listed.map((t) => (
               <li key={t.id} className="relative">
+                {live.has(t.id) && !t.finished && <LiveBadge />}
                 <HistoryRow event={t} onOpen={() => open(t)} />
-                {t.finished && (
-                  // Under the date. Beside the row's button, not inside it: buttons
-                  // can't nest.
-                  <button
-                    type="button"
-                    aria-label={`Play again with the players from ${t.name}`}
-                    onClick={() =>
-                      nav.push(
-                        t.kind === "match"
-                          ? { name: "new", fromMatch: previousMatchSetup(t) }
-                          : { name: "new", from: previousSetup(t) },
-                      )
-                    }
-                    className="absolute right-2 bottom-1 flex size-11 items-center justify-center rounded-full text-primary active:bg-muted"
-                  >
-                    <Repeat className="size-5" strokeWidth={2.5} />
-                  </button>
-                )}
+                {/* Under the date. Beside the row's button, not inside it: buttons
+                    can't nest. */}
+                <button
+                  type="button"
+                  aria-label={`Play again with the players from ${t.name}`}
+                  onClick={() => playAgain(t)}
+                  className="absolute right-2 bottom-1 flex size-11 items-center justify-center rounded-full text-primary active:bg-muted"
+                >
+                  <Repeat className="size-5" strokeWidth={2.5} />
+                </button>
               </li>
             ))}
           </ul>
@@ -119,14 +175,14 @@ export function TournamentListScreen() {
       )}
 
       {/* Quiet links at the very end of the page. */}
-      <nav className="mt-10 flex justify-center gap-1 text-xs text-muted-foreground/70">
-        <button type="button" className="px-2 py-2" onClick={() => nav.push({ name: "legal", page: "terms" })}>
+      <nav className="mt-8.5 flex justify-center text-xs text-muted-foreground/70">
+        <button type="button" className="px-3 py-3.5" onClick={() => nav.push({ name: "legal", page: "terms" })}>
           Terms
         </button>
-        <span className="py-2" aria-hidden>
+        <span className="py-3.5" aria-hidden>
           ·
         </span>
-        <button type="button" className="px-2 py-2" onClick={() => nav.push({ name: "legal", page: "privacy" })}>
+        <button type="button" className="px-3 py-3.5" onClick={() => nav.push({ name: "legal", page: "privacy" })}>
           Privacy
         </button>
       </nav>
@@ -152,7 +208,7 @@ function Hero({
   const showSteps = howItWorks === "open" || expanded
 
   return (
-    <div className="relative -mx-4 overflow-hidden rounded-b-2xl bg-primary px-5 pt-[calc(env(safe-area-inset-top)+1.75rem)] pb-6 text-primary-foreground">
+    <div className="relative -mx-4 overflow-hidden rounded-b-2xl bg-primary px-5 pt-[calc(env(safe-area-inset-top)+1.75rem)] pb-3 text-primary-foreground">
       <CourtLines />
       {onInstall && (
         <button
@@ -180,7 +236,7 @@ function Hero({
             type="button"
             aria-expanded={expanded}
             onClick={() => setExpanded((e) => !e)}
-            className="mt-3 -ml-1 flex items-center gap-1 rounded-sm px-1 py-1.5 text-sm font-semibold text-primary-foreground/90 active:bg-white/10"
+            className="-mt-0.5 -mb-1.5 -ml-1 flex items-center gap-1 rounded-sm px-1 py-3 text-sm font-semibold text-primary-foreground/90 active:bg-white/10"
           >
             How it works
             <ChevronDown
@@ -202,17 +258,18 @@ function Hero({
           </div>
         </div>
 
-        {children && <div className="mt-6">{children}</div>}
+        {children && <div className="mt-2.5">{children}</div>}
+        {/* A quiet credit on a row of its own. Under a card it sits as far
+            below as "How it works" sits above. */}
+        <a
+          href="https://hzburki.com"
+          target="_blank"
+          rel="noopener"
+          className={`ml-auto block w-fit text-[0.6875rem] leading-none text-primary-foreground/45 ${children ? "mt-4" : "mt-2"}`}
+        >
+          hzburki.com
+        </a>
       </div>
-      {/* A quiet credit tucked into the corner of the court. */}
-      <a
-        href="https://hzburki.com"
-        target="_blank"
-        rel="noopener"
-        className="absolute right-5 bottom-1 py-1 text-[0.6875rem] text-primary-foreground/45"
-      >
-        hzburki.com
-      </a>
     </div>
   )
 }
@@ -350,7 +407,7 @@ function HistoryRow({ event, onOpen }: { event: SavedEvent; onOpen: () => void }
   const match = event.kind === "match"
   const Icon = match ? CourtIcon : Podium
   return (
-    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 py-3.5 pr-2 pl-3.5 text-left active:bg-muted">
+    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 py-3.5 pr-2 pl-3.5 text-left active:bg-muted [li:first-child>&]:rounded-t-[calc(1.5rem-1.5px)] [li:last-child>&]:rounded-b-[calc(1.5rem-1.5px)]">
       {/* The tile says what kind of game it was: lime for a match. */}
       <span
         className={`flex size-13 shrink-0 items-center justify-center rounded-2xl ${
@@ -362,14 +419,35 @@ function HistoryRow({ event, onOpen }: { event: SavedEvent; onOpen: () => void }
       <span className="min-w-0 flex-1">
         <span className="block truncate text-lg type-label">{event.name}</span>
         <span className="block truncate text-sm text-muted-foreground">
+          {event.shared && (
+            <>
+              <SharedTag /> ·{" "}
+            </>
+          )}
+          {!event.finished && !event.shared && (
+            <>
+              <UnfinishedTag /> ·{" "}
+            </>
+          )}
           {match ? <MatchStatus match={event} /> : <Status tournament={event} />}
         </span>
       </span>
-      {/* As wide as the Play again icon that sits under it on finished rows. */}
+      {/* As wide as the Play again icon that sits under it. */}
       <span className="w-11 shrink-0 self-start pt-1 text-center text-[0.8125rem] whitespace-nowrap text-muted-foreground type-label">
         {date.toLocaleDateString(undefined, { day: "numeric", month: "short" })}
       </span>
     </button>
+  )
+}
+
+// Marks a game of your own that was left before it was finished. It can
+// still be opened and played on.
+function UnfinishedTag() {
+  return (
+    <span className="inline-flex items-center gap-1 align-bottom font-medium text-foreground">
+      <CircleDashed className="size-3.5" strokeWidth={2.5} aria-hidden />
+      Unfinished
+    </span>
   )
 }
 

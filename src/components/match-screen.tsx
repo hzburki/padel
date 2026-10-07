@@ -1,7 +1,9 @@
-import { Ellipsis, Repeat, Share, Trash2, Undo2 } from "lucide-react"
+import { Ellipsis, LoaderCircle, Radio, Repeat, Share, Trash2, Undo2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
+import { canBroadcast } from "@/lib/broadcast"
+import { canShareLive, closesAnother, deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "@/lib/live"
 import {
   addPoint,
   gameSummary,
@@ -14,28 +16,47 @@ import {
 } from "@/lib/set-match"
 import { previousMatchSetup } from "@/lib/set-match-setup"
 import { matchStats } from "@/lib/set-match-stats"
-import { deleteTournament, loadTournament, saveTournament } from "@/lib/storage"
+import { deleteTournament, saveTournament } from "@/lib/storage"
 import type { SetMatch, Side } from "@/lib/types"
 import { Congrats } from "./congrats"
+import { LiveBadge } from "./live-badge"
 import { renderMatchShareCard } from "./match-share-card"
 import { Screen } from "./screen"
 import { shareOrDownload } from "./share-card"
 import { Sheet } from "./sheet"
-import { useNav } from "./stack-navigator"
+import { SharedTag } from "./shared-tag"
+import { useNav } from "./nav"
+import { Toast } from "./toast"
 
-export function MatchScreen({ id }: { id: string }) {
+// watch: opened from a shared link, so the match may not be on this phone
+// yet.
+export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean }) {
   const nav = useNav<Route>()
+  const toNotFound = nav.replace
   const [match, setMatch] = useState<SetMatch | null | undefined>(undefined)
   // Which sheet is open.
-  const [confirm, setConfirm] = useState<"menu" | "finish" | "delete" | "congrats" | null>(null)
+  const [confirm, setConfirm] = useState<"menu" | "broadcast" | "finish" | "delete" | "congrats" | null>(null)
   const [saveError, setSaveError] = useState(false)
   // The full card to share, and a score-only preview for the screen.
   const [image, setImage] = useState<{ blob: Blob; previewUrl: string } | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+  // Being sent from this phone, or followed on a friend's.
+  const [live, setLive] = useState(false)
+  // The link is being made.
+  const [sharing, setSharing] = useState(false)
 
-  useEffect(() => {
-    // A tournament has its own screen; here it counts as not found.
-    loadTournament(id).then((saved) => setMatch(saved?.kind === "match" ? saved : null))
-  }, [id])
+  useEffect(
+    () =>
+      openGame(id, watch, (saved, following) => {
+        // A tournament has its own screen; here it counts as not found.
+        const m = saved?.kind === "match" ? saved : null
+        // A link that leads nowhere gets the 404 page, saying why.
+        if (!m && watch) return toNotFound({ name: "notFound", path: location.pathname, message: "This link doesn't lead to a game. The organiser may have deleted it, or part of the link is missing." })
+        setMatch(m)
+        setLive(following)
+      }),
+    [id, watch, toNotFound],
+  )
 
   // Render the share image ahead of time, so the Share tap can hand it to
   // the share sheet immediately (iOS only allows that during the tap).
@@ -57,7 +78,14 @@ export function MatchScreen({ id }: { id: string }) {
     }
   }, [match])
 
-  if (match === undefined) return <Screen title="">{null}</Screen>
+  if (match === undefined) {
+    return (
+      <Screen title="">
+        {/* A friend's game has to be fetched first. */}
+      {watch && <LoaderCircle className="mx-auto mt-24 size-9 animate-spin text-primary" />}
+      </Screen>
+    )
+  }
   if (match === null) {
     return (
       <Screen title="Not found">
@@ -71,6 +99,10 @@ export function MatchScreen({ id }: { id: string }) {
   const byGames = match.scoreBy === "games"
   // What one tap adds to the log, and so what undo takes back.
   const unit = byGames ? "game" : "point"
+  // A friend's copy: nothing about it can be changed here.
+  const readOnly = match.shared === true
+  // Scores are still being sent. Once finished, nothing changes any more.
+  const showLive = live && !match.finished
 
   // Save straight away: the phone may be locked or the tab killed any moment.
   const update = async (next: SetMatch) => {
@@ -79,6 +111,7 @@ export function MatchScreen({ id }: { id: string }) {
     try {
       await saveTournament(next)
       setSaveError(false)
+      pushLive(next)
     } catch {
       setSaveError(true)
     }
@@ -95,9 +128,42 @@ export function MatchScreen({ id }: { id: string }) {
     shareOrDownload(image.blob, filename, match.name)
   }
 
+  // Put a copy online and copy the link to it; the organiser pastes it
+  // wherever they like. From then on every save sends the copy again
+  // (pushLive).
+  const shareLink = async () => {
+    setConfirm(null)
+    setSharing(true)
+    const online = shareLive(match)
+    try {
+      // The copy is started during the tap, before the link exists: iOS
+      // refuses one that starts after waiting on the network.
+      const link = online.then((url) => new Blob([url], { type: "text/plain" }))
+      await navigator.clipboard.write([new ClipboardItem({ "text/plain": link })])
+      setToast("Link copied!")
+    } catch {
+      // The copy can fail with the game already online.
+      const isOnline = await online.then(
+        () => true,
+        () => false,
+      )
+      setToast(isOnline ? "Couldn't copy the link. Try again" : "No connection. Try again")
+    }
+    // The badge follows the game, not the copy.
+    setLive(isSending(match.id))
+    setSharing(false)
+  }
+
+  const playAgain = () => {
+    setConfirm(null)
+    nav.push({ name: "new", fromMatch: previousMatchSetup(match) })
+  }
+
   const remove = async () => {
     setConfirm(null)
     await deleteTournament(match.id)
+    // Not waited for: with no connection it would never come back.
+    deleteLive(match.id).catch(() => {})
     nav.back()
   }
 
@@ -122,7 +188,7 @@ export function MatchScreen({ id }: { id: string }) {
               variant="secondary"
               size="lg"
               className="px-3"
-              onClick={() => nav.push({ name: "new", fromMatch: previousMatchSetup(match) })}
+              onClick={playAgain}
             >
               <Repeat className="size-5" />
               Play again
@@ -132,7 +198,7 @@ export function MatchScreen({ id }: { id: string }) {
               Share
             </Button>
           </div>
-        ) : (
+        ) : readOnly ? undefined : (
           <div className="space-y-2">
             <Button
               variant="ghost"
@@ -176,15 +242,24 @@ export function MatchScreen({ id }: { id: string }) {
           The last {unit} isn't saved on this phone yet. It's still shown here, and the next {unit} will try again.
         </p>
       )}
-      <div className="pt-2">
-        {match.finished ? (
-          // The share image's own scoreboard stands in for the live one.
-          <div className="min-h-48 overflow-hidden rounded-3xl bg-primary">
-            {image && <img src={image.previewUrl} alt="Final score" className="block w-full" />}
-          </div>
-        ) : (
-          <Scoreboard match={match} state={state} />
-        )}
+      {readOnly && (
+        <p className="pt-3 text-sm text-muted-foreground">
+          <SharedTag /> with you. Only the organiser can change it.
+        </p>
+      )}
+      {/* Room above the card for the badge that sits on its border. */}
+      <div className={showLive ? "pt-4" : "pt-2"}>
+        <div className="relative">
+          {showLive && <LiveBadge />}
+          {match.finished ? (
+            // The share image's own scoreboard stands in for the live one.
+            <div className="min-h-48 overflow-hidden rounded-3xl bg-primary">
+              {image && <img src={image.previewUrl} alt="Final score" className="block w-full" />}
+            </div>
+          ) : (
+            <Scoreboard match={match} state={state} />
+          )}
+        </div>
       </div>
       {decided ? (
         <>
@@ -196,6 +271,15 @@ export function MatchScreen({ id }: { id: string }) {
         </>
       ) : (
         <SetGames match={match} set={state.sets[state.sets.length - 1]} number={state.sets.length} newestFirst />
+      )}
+
+      <Toast message={toast} onDone={() => setToast(null)} />
+      {/* Putting the game online can take a moment; nothing else can be
+          tapped until the link is ready. */}
+      {sharing && (
+        <div role="status" aria-label="Creating the link" className="fixed inset-0 z-50 flex items-center justify-center bg-background/70">
+          <LoaderCircle className="size-9 animate-spin text-primary" />
+        </div>
       )}
 
       <Sheet open={confirm === "finish"} onClose={() => setConfirm(null)}>
@@ -222,6 +306,28 @@ export function MatchScreen({ id }: { id: string }) {
 
       <Sheet open={confirm === "menu"} onClose={() => setConfirm(null)}>
         <div className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
+          {canShareLive && canBroadcast(match) && (
+            <button
+              type="button"
+              // Going live takes the broadcast from any other game: say so first.
+              onClick={closesAnother(match) ? () => setConfirm("broadcast") : shareLink}
+              className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
+            >
+              <Radio className="size-5 text-primary" />
+              Broadcast live
+            </button>
+          )}
+          {/* A finished match has this in its footer. */}
+          {!match.finished && (
+            <button
+              type="button"
+              onClick={playAgain}
+              className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
+            >
+              <Repeat className="size-5 text-primary" />
+              Play again
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setConfirm("delete")}
@@ -233,9 +339,31 @@ export function MatchScreen({ id }: { id: string }) {
         </div>
       </Sheet>
 
+      <Sheet open={confirm === "broadcast"} onClose={() => setConfirm(null)}>
+        <p className="text-2xl type-display">Broadcast this game?</p>
+        <p className="mt-1 text-muted-foreground">
+          Your other broadcast closes. Its link keeps the last score.
+        </p>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirm(null)}>
+            Cancel
+          </Button>
+          <Button size="lg" className="px-3" onClick={shareLink}>
+            Broadcast
+          </Button>
+        </div>
+      </Sheet>
+
       <Sheet open={confirm === "delete"} onClose={() => setConfirm(null)}>
         <p className="text-2xl type-display">Delete {match.name}?</p>
-        <p className="mt-1 text-muted-foreground">Every {unit} will be removed from this phone.</p>
+        <p className="mt-1 text-muted-foreground">
+          This can't be undone.{" "}
+          {readOnly
+            ? "Only your copy is removed; the organiser still has the match."
+            : hasLink(match.id)
+              ? "The link stops working, but friends who opened it keep their copy until they delete it themselves."
+              : `Every ${unit} will be removed from this phone.`}
+        </p>
         <div className="mt-5 grid grid-cols-2 gap-2">
           <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirm(null)}>
             Cancel

@@ -113,6 +113,17 @@ function other(side: Side): Side {
   return side === 0 ? 1 : 0
 }
 
+// The team in front: the winner once the match is decided; before that the
+// team with more sets, then with more games in the set being played. Null
+// when they are level.
+export function ahead(state: MatchState): Side | null {
+  if (state.winner !== null) return state.winner
+  const games = state.sets[state.sets.length - 1].games
+  const lead = state.setsWon[0] - state.setsWon[1] || games[0] - games[1]
+  if (lead === 0) return null
+  return lead > 0 ? 0 : 1
+}
+
 // A pair's name wherever the match is shown: "Ali & Sara".
 export function teamName(team: [string, string]): string {
   return team.join(" & ")

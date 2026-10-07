@@ -195,3 +195,25 @@ html[data-typing] [role="dialog"] > :last-child {
     transform: translate(var(--drift), 260px) rotate(var(--spin));
   }
 }
+
+/* The "turn your phone upright" picture: the phone starts on its side,
+   turns upright, and waits there a moment. */
+@keyframes turn-upright {
+  0%,
+  20% {
+    transform: rotate(-90deg);
+  }
+  60%,
+  100% {
+    transform: rotate(0);
+  }
+}
+
+/* No scrollbars anywhere: they take width from the page on desktop, and a
+   phone only flashes them. Everything still scrolls by touch, wheel and keys. */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}

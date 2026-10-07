@@ -45,6 +45,9 @@ export interface Tournament {
   // Every round is generated at creation; scores fill in as they are played.
   rounds: Round[]
   finished: boolean
+  // Set on a copy opened from a friend's link. It can be read here, not
+  // changed: only the organiser's phone holds the real game.
+  shared?: true
 }
 
 // One 2 v 2 match played in sets. Sides are 0 and 1, indexing `teams`.
@@ -77,6 +80,7 @@ export interface SetMatch {
   // worked out from it.
   points: Side[]
   finished: boolean
+  shared?: true // a copy from a friend's link, as on a tournament
 }
 
 export type SavedEvent = Tournament | SetMatch

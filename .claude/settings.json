@@ -1,4 +1,19 @@
 {
+  "permissions": {
+    "allow": [
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__claude-in-chrome__tabs_create_mcp",
+      "ClaudeInChromeDomain(localhost:5199)",
+      "ClaudeInChromeDomain([::1]:5199)",
+      "ClaudeInChromeDomain(localhost:5198)",
+      "ClaudeInChromeDomain([::1]:5198)",
+      "ClaudeInChromeDomain(localhost:5301)",
+      "ClaudeInChromeDomain([::1]:5301)",
+      "ClaudeInChromeDomain(127.0.0.1:5173)",
+      "ClaudeInChromeDomain(192.168.18.55:5173)",
+      "mcp__claude-in-chrome__browser_batch"
+    ]
+  },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true
   }

@@ -122,7 +122,9 @@ export function ScoreEntry({
         ))}
       </div>
 
-      <div className="mt-4 flex gap-2">
+      {/* Stays at the bottom of the sheet while the numbers scroll under it.
+          The margins let it cover the sheet's own padding down to the edge. */}
+      <div className="sticky bottom-0 -mx-4 mt-1 -mb-[calc(env(safe-area-inset-bottom)+1rem)] flex gap-2 bg-background px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
         {match.score && (
           <Button variant="ghost" size="lg" className="flex-1 px-3 text-destructive" onClick={onClear}>
             Clear score

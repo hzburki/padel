@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   addPoint,
+  ahead,
   formatLength,
   formatSets,
   gameSummary,
@@ -216,6 +217,25 @@ describe("the match", () => {
 
   it("leaves a set with no game played out of the set scores", () => {
     expect(formatSets(replay(advantage, SET_TO_FIRST))).toBe("6–0")
+  })
+})
+
+describe("the team ahead", () => {
+  it("is the winner once the match is decided", () => {
+    expect(ahead(replay(advantage, [...SET_TO_SECOND, ...SET_TO_SECOND]))).toBe(1)
+  })
+
+  it("is the team with more sets while the match is still on", () => {
+    expect(ahead(replay(advantage, [...SET_TO_SECOND, ...games("000")]))).toBe(1)
+  })
+
+  it("is the team with more games in the set being played when the sets are level", () => {
+    expect(ahead(replay(advantage, [...SET_TO_FIRST, ...SET_TO_SECOND, ...games("011")]))).toBe(1)
+  })
+
+  it("is nobody when sets and games are level, whatever the points in the game", () => {
+    expect(ahead(replay(advantage, []))).toBeNull()
+    expect(ahead(replay(advantage, [...games("01"), ...pts("00")]))).toBeNull()
   })
 })
 

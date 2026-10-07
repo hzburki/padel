@@ -23,5 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 
+# Firebase emulator logs
+*-debug.log
+
 # Local environment (deployed address for link previews)
 .env
+
+# Screenshot run: diff images of the screens that changed
+test-results

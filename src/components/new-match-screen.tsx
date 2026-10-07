@@ -12,7 +12,7 @@ import { Hint, Section, Stepper } from "./new-tournament-screen"
 import { Screen } from "./screen"
 import { Segmented } from "./segmented"
 import { Sheet } from "./sheet"
-import { useBackHandler, useNav } from "./stack-navigator"
+import { useBackHandler, useNav } from "./nav"
 
 const NO_NAMES: SetMatch["teams"] = [
   ["", ""],

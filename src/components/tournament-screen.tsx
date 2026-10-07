@@ -1,46 +1,66 @@
-import { ChevronDown, Ellipsis, Pencil, Repeat, Share, Trash2 } from "lucide-react"
+import { ChevronDown, Ellipsis, LoaderCircle, Pencil, Radio, Repeat, Scale, Share, Trash2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
-import { computeStandings, winners } from "@/lib/standings"
-import { deleteTournament, loadTournament, saveTournament } from "@/lib/storage"
+import { canBroadcast } from "@/lib/broadcast"
+import { canShareLive, closesAnother, deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "@/lib/live"
+import { computeStandings, placesMovedByScaling, winners } from "@/lib/standings"
+import { deleteTournament, saveTournament } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, renameTournament, setScore, unscoredMatchCount } from "@/lib/tournament"
 import type { Match, PlayerId, Score, Tournament } from "@/lib/types"
 import { Screen } from "./screen"
 import { ScoreEntry } from "./score-entry"
 import { Congrats } from "./congrats"
+import { LiveBadge } from "./live-badge"
 import { RenameForm } from "./rename-form"
 import { renderShareCard, shareOrDownload } from "./share-card"
 import { Sheet } from "./sheet"
-import { useNav } from "./stack-navigator"
+import { SharedTag } from "./shared-tag"
+import { useNav } from "./nav"
+import { Toast } from "./toast"
 import { StandingsTable } from "./standings-table"
 
 type Tab = "rounds" | "standings"
 type Editing = { round: number; court: number }
 
-export function TournamentScreen({ id }: { id: string }) {
+// watch: opened from a shared link, so the tournament may not be on this
+// phone yet.
+export function TournamentScreen({ id, watch = false }: { id: string; watch?: boolean }) {
   const nav = useNav<Route>()
+  const toNotFound = nav.replace
   const [tournament, setTournament] = useState<Tournament | null | undefined>(undefined)
   const [editing, setEditing] = useState<Editing | null>(null)
   const [saveError, setSaveError] = useState(false)
   const [tab, setTab] = useState<Tab>("rounds")
   // Which sheet (other than score entry) is open.
-  const [confirm, setConfirm] = useState<"menu" | "rename" | "finish" | "delete" | "congrats" | null>(null)
+  const [confirm, setConfirm] = useState<"menu" | "rename" | "broadcast" | "finish" | "delete" | "congrats" | "scaling" | null>(
+    null,
+  )
   // The full card to share, and a top-three preview for the screen.
   const [image, setImage] = useState<{ blob: Blob; previewUrl: string } | null>(null)
   // The last opened match, kept after closing so the sheet still has
   // content while it slides away.
   const [shown, setShown] = useState<Editing | null>(null)
   const fullStandings = useRef<HTMLHeadingElement>(null)
+  const [toast, setToast] = useState<string | null>(null)
+  // Being sent from this phone, or followed on a friend's.
+  const [live, setLive] = useState(false)
+  // The link is being made.
+  const [sharing, setSharing] = useState(false)
 
-  useEffect(() => {
-    loadTournament(id).then((saved) => {
-      // A match has its own screen; here it counts as not found.
-      const t = saved?.kind === "americano" ? saved : null
-      setTournament(t)
-      if (t?.finished) setTab("standings")
-    })
-  }, [id])
+  useEffect(
+    () =>
+      openGame(id, watch, (saved, following) => {
+        // A match has its own screen; here it counts as not found.
+        const t = saved?.kind === "americano" ? saved : null
+        // A link that leads nowhere gets the 404 page, saying why.
+        if (!t && watch) return toNotFound({ name: "notFound", path: location.pathname, message: "This link doesn't lead to a game. The organiser may have deleted it, or part of the link is missing." })
+        setTournament(t)
+        setLive(following)
+        if (t?.finished) setTab("standings")
+      }),
+    [id, watch, toNotFound],
+  )
 
   // Render the share image ahead of time, so the Share tap can hand it to
   // the share sheet immediately (iOS only allows that during the tap).
@@ -67,7 +87,20 @@ export function TournamentScreen({ id }: { id: string }) {
     }
   }, [tournament])
 
-  if (tournament === undefined) return <Screen title="">{null}</Screen>
+  // Rounds scrolls itself to the round being played; standings always
+  // start at the top, whatever the scroll was.
+  useEffect(() => {
+    if (tab === "standings") fullStandings.current?.closest("main")?.scrollTo({ top: 0 })
+  }, [tab])
+
+  if (tournament === undefined) {
+    return (
+      <Screen title="">
+        {/* A friend's game has to be fetched first. */}
+      {watch && <LoaderCircle className="mx-auto mt-24 size-9 animate-spin text-primary" />}
+      </Screen>
+    )
+  }
   if (tournament === null) {
     return (
       <Screen title="Not found">
@@ -79,6 +112,18 @@ export function TournamentScreen({ id }: { id: string }) {
   const nameOf = new Map(tournament.players.map((p) => [p.id, p.name]))
   const team = (ids: PlayerId[]) => ids.map((i) => nameOf.get(i)).join(" & ")
   const unscored = unscoredMatchCount(tournament)
+  // A friend's copy: nothing about it can be changed here.
+  const readOnly = tournament.shared === true
+  // Scores are still being sent. Once finished, nothing changes any more.
+  const showLive = live && !tournament.finished
+  const playerIds = tournament.players.map((p) => p.id)
+  const final = tournament.finished || unscored === 0
+  const standings = computeStandings(playerIds, tournament.rounds, { final })
+  // Who the scaling for fewer games moved up or down; nobody before the end.
+  const moved = final ? placesMovedByScaling(playerIds, tournament.rounds) : undefined
+  // Not everyone has played the same number of games, or might not have by
+  // the end: worth explaining how that is evened out.
+  const unevenGames = unscored > 0 || new Set(standings.map((r) => r.played)).size > 1
 
   // Save straight away: the phone may be locked or the tab killed any moment.
   const update = async (next: Tournament) => {
@@ -86,6 +131,7 @@ export function TournamentScreen({ id }: { id: string }) {
     try {
       await saveTournament(next)
       setSaveError(false)
+      pushLive(next)
     } catch {
       setSaveError(true)
     }
@@ -106,6 +152,8 @@ export function TournamentScreen({ id }: { id: string }) {
   const remove = async () => {
     setConfirm(null)
     await deleteTournament(tournament.id)
+    // Not waited for: with no connection it would never come back.
+    deleteLive(tournament.id).catch(() => {})
     nav.back()
   }
 
@@ -115,9 +163,38 @@ export function TournamentScreen({ id }: { id: string }) {
     shareOrDownload(image.blob, filename, tournament.name)
   }
 
+  // Put a copy online and copy the link to it; the organiser pastes it
+  // wherever they like. From then on every save sends the copy again
+  // (pushLive).
+  const shareLink = async () => {
+    setConfirm(null)
+    setSharing(true)
+    const online = shareLive(tournament)
+    try {
+      // The copy is started during the tap, before the link exists: iOS
+      // refuses one that starts after waiting on the network.
+      const link = online.then((url) => new Blob([url], { type: "text/plain" }))
+      await navigator.clipboard.write([new ClipboardItem({ "text/plain": link })])
+      setToast("Link copied!")
+    } catch {
+      // The copy can fail with the game already online.
+      const isOnline = await online.then(
+        () => true,
+        () => false,
+      )
+      setToast(isOnline ? "Couldn't copy the link. Try again" : "No connection. Try again")
+    }
+    // The badge follows the game, not the copy.
+    setLive(isSending(tournament.id))
+    setSharing(false)
+  }
+
   const shownMatch = shown && tournament.rounds[shown.round]?.matches.find((m) => m.court === shown.court)
 
-  const playAgain = () => nav.push({ name: "new", from: previousSetup(tournament) })
+  const playAgain = () => {
+    setConfirm(null)
+    nav.push({ name: "new", from: previousSetup(tournament) })
+  }
 
   const footer = tournament.finished ? (
     <div className="grid grid-cols-2 gap-2">
@@ -130,7 +207,7 @@ export function TournamentScreen({ id }: { id: string }) {
         Share
       </Button>
     </div>
-  ) : tab === "standings" || unscored === 0 ? (
+  ) : readOnly ? undefined : tab === "standings" || unscored === 0 ? (
     <Button
       size="lg"
       variant={unscored === 0 ? "ball" : "secondary"}
@@ -164,10 +241,16 @@ export function TournamentScreen({ id }: { id: string }) {
           The last score couldn't be saved on this phone. It's still shown here; enter it again to retry.
         </p>
       )}
+      {readOnly && (
+        <p className="pt-3 text-sm text-muted-foreground">
+          <SharedTag /> with you. Only the organiser can change it.
+        </p>
+      )}
       {tab === "rounds" ? (
         <RoundsList
           tournament={tournament}
-          locked={tournament.finished}
+          locked={tournament.finished || readOnly}
+          live={showLive}
           team={team}
           onEdit={(round, court) => {
             setEditing({ round, court })
@@ -185,24 +268,46 @@ export function TournamentScreen({ id }: { id: string }) {
               <button
                 type="button"
                 onClick={() => fullStandings.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                className="mx-auto mt-2 flex items-center gap-1 py-2 text-sm font-medium text-primary"
+                className="mx-auto mt-1 flex items-center gap-1 py-3 text-sm font-medium text-primary"
               >
                 Full standings
                 <ChevronDown className="size-4" />
               </button>
             </div>
           )}
-          <h2 ref={fullStandings} className="mb-3 scroll-mt-2 px-1 text-[1.375rem] type-display">
-            {tournament.finished ? "Full standings" : "Standings so far"}
-          </h2>
-          <StandingsTable
-            rows={computeStandings(
-              tournament.players.map((p) => p.id),
-              tournament.rounds,
-              { final: tournament.finished || unscored === 0 },
+          <div className="mb-1 flex items-center justify-between">
+            <h2 ref={fullStandings} className="scroll-mt-2 px-1 text-[1.375rem] type-display">
+              {tournament.finished ? "Full standings" : "Standings so far"}
+            </h2>
+            {unevenGames ? (
+              // Scales: points are evened out between players. The label says for whom.
+              <button
+                type="button"
+                aria-label="How points are counted when players have played fewer games"
+                onClick={() => setConfirm("scaling")}
+                className="flex h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-primary active:bg-muted"
+              >
+                <Scale className="size-4.5" strokeWidth={2.5} />
+                Fewer games
+              </button>
+            ) : (
+              // Keeps the heading where it is when there is nothing to explain.
+              <span className="h-11" />
             )}
-            nameOf={nameOf}
-          />
+          </div>
+          <div className="relative">
+            {showLive && <LiveBadge />}
+            <StandingsTable rows={standings} nameOf={nameOf} moved={moved} />
+          </div>
+        </div>
+      )}
+
+      <Toast message={toast} onDone={() => setToast(null)} />
+      {/* Putting the game online can take a moment; nothing else can be
+          tapped until the link is ready. */}
+      {sharing && (
+        <div role="status" aria-label="Creating the link" className="fixed inset-0 z-50 flex items-center justify-center bg-background/70">
+          <LoaderCircle className="size-9 animate-spin text-primary" />
         </div>
       )}
 
@@ -222,14 +327,40 @@ export function TournamentScreen({ id }: { id: string }) {
 
       <Sheet open={confirm === "menu"} onClose={() => setConfirm(null)}>
         <div className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
-          <button
-            type="button"
-            onClick={() => setConfirm("rename")}
-            className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
-          >
-            <Pencil className="size-5 text-primary" />
-            Edit names
-          </button>
+          {!readOnly && (
+            <>
+              <button
+                type="button"
+                onClick={() => setConfirm("rename")}
+                className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
+              >
+                <Pencil className="size-5 text-primary" />
+                Edit names
+              </button>
+              {canShareLive && canBroadcast(tournament) && (
+                <button
+                  type="button"
+                  // Going live takes the broadcast from any other game: say so first.
+                  onClick={closesAnother(tournament) ? () => setConfirm("broadcast") : shareLink}
+                  className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
+                >
+                  <Radio className="size-5 text-primary" />
+                  Broadcast live
+                </button>
+              )}
+            </>
+          )}
+          {/* A finished tournament has this in its footer. */}
+          {!tournament.finished && (
+            <button
+              type="button"
+              onClick={playAgain}
+              className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
+            >
+              <Repeat className="size-5 text-primary" />
+              Play again
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setConfirm("delete")}
@@ -274,6 +405,37 @@ export function TournamentScreen({ id }: { id: string }) {
         </div>
       </Sheet>
 
+      <Sheet open={confirm === "scaling"} onClose={() => setConfirm(null)}>
+        <p className="text-2xl type-display">Fewer games played</p>
+        <p className="mt-1 text-muted-foreground">Points are scaled up to the most games anyone played.</p>
+        {/* A worked example, set out like one in a textbook. */}
+        <div className="mt-4 overflow-hidden rounded-3xl border-[1.5px] bg-card">
+          <p className="border-b px-4 py-2 text-xs font-medium text-muted-foreground">
+            Example: 12 points in 4 games, others played 5
+          </p>
+          <dl className="divide-y">
+            {(
+              [
+                ["12 ÷ 4", "3", "points a game"],
+                ["3 × 5", "15", "points that count"],
+              ] as const
+            ).map(([sum, result, unit]) => (
+              <div key={sum} className="flex items-baseline gap-2 px-4 py-3">
+                <dt className="text-[1.75rem] text-muted-foreground type-display">{sum} =</dt>
+                <dd className="text-[1.75rem] type-display">{result}</dd>
+                <dd className="ml-auto text-sm text-muted-foreground">{unit}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        {!tournament.finished && (
+          <p className="mt-3 text-sm text-muted-foreground">Only once the tournament is finished.</p>
+        )}
+        <Button size="lg" className="mt-5" onClick={() => setConfirm(null)}>
+          Got it
+        </Button>
+      </Sheet>
+
       <Sheet open={confirm === "congrats"} onClose={() => setConfirm(null)}>
         <Congrats
           winnerNames={winners(
@@ -289,9 +451,31 @@ export function TournamentScreen({ id }: { id: string }) {
         />
       </Sheet>
 
+      <Sheet open={confirm === "broadcast"} onClose={() => setConfirm(null)}>
+        <p className="text-2xl type-display">Broadcast this game?</p>
+        <p className="mt-1 text-muted-foreground">
+          Your other broadcast closes. Its link keeps the last score.
+        </p>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirm(null)}>
+            Cancel
+          </Button>
+          <Button size="lg" className="px-3" onClick={shareLink}>
+            Broadcast
+          </Button>
+        </div>
+      </Sheet>
+
       <Sheet open={confirm === "delete"} onClose={() => setConfirm(null)}>
         <p className="text-2xl type-display">Delete {tournament.name}?</p>
-        <p className="mt-1 text-muted-foreground">The schedule and every score will be removed from this phone.</p>
+        <p className="mt-1 text-muted-foreground">
+          This can't be undone.{" "}
+          {readOnly
+            ? "Only your copy is removed; the organiser still has the tournament."
+            : hasLink(tournament.id)
+              ? "The link stops working, but friends who opened it keep their copy until they delete it themselves."
+              : "The schedule and every score will be removed from this phone."}
+        </p>
         <div className="mt-5 grid grid-cols-2 gap-2">
           <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirm(null)}>
             Cancel
@@ -339,16 +523,21 @@ function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
 function RoundsList({
   tournament,
   locked,
+  live,
   team,
   onEdit,
 }: {
   tournament: Tournament
-  locked: boolean // finished: scores are read-only
+  live: boolean // scores are still being sent: the round being played says so
+  locked: boolean // finished or being watched: scores are read-only
   team: (ids: PlayerId[]) => string
   onEdit: (round: number, court: number) => void
 }) {
-  const current = locked ? -1 : currentRoundIndex(tournament)
+  const current = tournament.finished ? -1 : currentRoundIndex(tournament)
   const currentRef = useRef<HTMLLIElement>(null)
+  // With every round scored the last one carries the badge: scores can
+  // still change until the tournament is finished.
+  const liveRound = Math.min(current, tournament.rounds.length - 1)
   const nameOf = new Map(tournament.players.map((p) => [p.id, p.name]))
 
   // Open on the round being played, not round 1.
@@ -366,25 +555,28 @@ function RoundsList({
               <span className="rounded-full bg-accent px-2.5 py-1 text-xs font-bold text-accent-foreground">Playing now</span>
             )}
           </div>
-          <div
-            className={`divide-y overflow-hidden rounded-3xl bg-card ${
-              r === current ? "border-2 border-foreground" : "border-[1.5px]"
-            }`}
-          >
-            {round.matches.map((m) => (
-              <MatchRow
-                key={m.court}
-                match={m}
-                team={team}
-                current={r === current}
-                onTap={locked ? undefined : () => onEdit(r, m.court)}
-              />
-            ))}
-            {round.benched.length > 0 && (
-              <p className="px-4 py-2.5 text-sm text-muted-foreground">
-                Sitting out: {round.benched.map((i) => nameOf.get(i)).join(", ")}
-              </p>
-            )}
+          <div className="relative">
+            {live && r === liveRound && <LiveBadge />}
+            <div
+              className={`divide-y overflow-hidden rounded-3xl bg-card ${
+                r === current ? "border-2 border-foreground" : "border-[1.5px]"
+              }`}
+            >
+              {round.matches.map((m) => (
+                <MatchRow
+                  key={m.court}
+                  match={m}
+                  team={team}
+                  current={r === current}
+                  onTap={locked ? undefined : () => onEdit(r, m.court)}
+                />
+              ))}
+              {round.benched.length > 0 && (
+                <p className="px-4 py-2.5 text-sm text-muted-foreground">
+                  Sitting out: {round.benched.map((i) => nameOf.get(i)).join(", ")}
+                </p>
+              )}
+            </div>
           </div>
         </li>
       ))}
@@ -401,7 +593,7 @@ function MatchRow({
   match: Match
   team: (ids: PlayerId[]) => string
   current: boolean
-  onTap?: () => void // missing when the tournament is finished
+  onTap?: () => void // missing when the tournament is finished or being watched
 }) {
   const s = match.score
   const aWon = s !== null && s.a > s.b

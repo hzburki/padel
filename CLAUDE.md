@@ -24,15 +24,31 @@ A mobile-first PWA for casual padel among friends. Two kinds of game, picked on 
 
 No other padel format (no Mexicano, no classic draws, no box leagues) is in scope.
 
-**Local-only.** There is no backend, no accounts, no sync, no network calls. All tournament and match state
-lives in the browser (IndexedDB for the games; `localStorage` is fine for small UI prefs). This is a hard
-constraint, not a v1 shortcut — the app must fully work offline, including a cold start with no connection.
-Do not introduce a server, an API client, or a hosted database. Treat "export/import a tournament as a JSON
-file" as the sharing mechanism if sharing is ever needed.
+**Local-first.** All tournament and match state lives in the browser (IndexedDB for the games;
+`localStorage` is fine for small UI prefs). There are no user accounts and no sync. The app must fully work
+offline, including a cold start with no connection — this is a hard constraint, not a v1 shortcut.
+
+**One exception: broadcasting a game.** When the organiser taps "Broadcast live", a copy of that game goes to
+Firestore and friends with the link follow it live. Nothing is sent before that tap, and tapping it is the
+organiser's consent to store that game online. The copy on the organiser's phone stays the real one; the
+online copy is only ever overwritten from it. The organiser's browser signs in anonymously, which is what
+lets only them update or delete the copy (`firestore.rules`). All of it lives in `src/lib/live.ts`: the dev
+server uses the local emulators (`npm run emulators`), a build uses the project in the `VITE_FIREBASE_*`
+values, and without them the broadcast button is hidden. Do not add any other network call, server or hosted
+database, and never make a screen depend on the connection.
+
+**Local Firebase only, unless told otherwise.** When coding or testing on localhost, use the local emulators
+and nothing else. Do not point the app at the hosted Firebase project, and do not read, write or deploy to it
+(rules, data, config), unless the user explicitly says to for that task. A go-ahead covers that one task, not
+the ones after it.
 
 **Mobile-first.** The primary surface is a phone held one-handed, courtside, by someone entering scores
 between games. Design for thumb reach, large tap targets, and glanceable standings. Desktop is a
 nice-to-have that falls out of a responsive layout.
+
+**Few words, more visuals.** Keep the text on every screen to the minimum. Nobody reads a paragraph
+courtside. Show it instead: an icon, a number, a badge, a worked example set out like one in a textbook.
+If something needs a sentence, write one short one, not three.
 
 ## Stack
 
@@ -44,7 +60,11 @@ nice-to-have that falls out of a responsive layout.
   wrapping them to change a style. Add more with `npx shadcn@latest add <name>`.
 - **oxlint**, not ESLint — that is what the Vite template ships now.
 - **Vitest** for the pure logic in `src/lib/`.
+- **Firebase** (anonymous Auth + Firestore), only for sharing a game by link. The site itself is hosted on
+  Cloudflare Pages, not Firebase Hosting.
 - `vite-plugin-pwa` (autoUpdate) for the service worker and manifest.
+- **Playwright** (`@playwright/test`) only for `npm run shots`. The walk is `shots/screens.shots.ts`, the
+  games it starts from `shots/seed.ts`. Never replace a stored image without the user's yes (`/shots`).
 - Path alias `@/` → `src/`. TypeScript 6 dropped `baseUrl`, so `paths` are relative to the tsconfig; the
   same alias is repeated in `vite.config.ts`.
 
@@ -57,10 +77,33 @@ npm run preview      # serve the build — the only way to exercise the service 
 npm run lint         # oxlint
 npm test             # vitest run
 npm run test:watch
+npm run shots        # walk every screen and compare it with its image in shots/images
 
 npx vitest run src/lib/americano.test.ts           # one file
 npx vitest run -t "benches the player"             # one test by name
 ```
+
+## Testing in the browser
+
+Three app ports, and no others. Port 5173 is the user's own dev server — never start, stop or test on it.
+
+| Port | Start it with                                  | Use it for                                          |
+| ---- | ---------------------------------------------- | --------------------------------------------------- |
+| 5199 | `npm run dev -- --port 5199 --strictPort`      | The organiser: every feature, start to finish       |
+| 5198 | `npm run dev -- --port 5198 --strictPort`      | A friend following a broadcast from 5199            |
+| 5301 | `npm run preview -- --port 5301 --strictPort`  | The build: service worker, offline, install         |
+
+- Always pass `--strictPort`. Without it Vite quietly moves to the next free port. If a port is taken, find
+  what holds it and reuse or stop it; don't pick a new number.
+- Each port is its own origin, so it has its own IndexedDB and its own anonymous sign-in. That is why the
+  friend needs 5198: on 5199 they would be the organiser. It also means games from an earlier session are
+  still there — clear the site data, or start a new game, before trusting what is on screen.
+- Broadcasting needs `npm run emulators` running (Auth 9099, Firestore 8080, both fixed in `firebase.json`
+  and `src/lib/live.ts`).
+- **Never broadcast on 5301.** A build reads `.env`, which holds the hosted project, so a broadcast there
+  goes to real Firebase. Test broadcasting on 5199 and 5198 only.
+- Test at phone size (390 × 844) first.
+- Stop the servers you started when you are done.
 
 ## Domain: Americano
 
@@ -118,6 +161,23 @@ One match between two fixed pairs, with ordinary tennis-style scoring. The rules
 - The rules are fixed once the match starts — changing them would re-read every point already played.
 - A decided match is not finished until the organiser confirms it, so the last point can still be undone.
 - Not tracked: who serves, and how long the match took.
+
+## Writing code
+
+These hold for every change, however small.
+
+- **Easy to read.** Write for the person reading it later: clear names, short functions, no clever tricks.
+- **The simplest thing that works.** Solve the problem asked, not the ones it might grow into. No extra
+  options, layers or settings "for later".
+- **Leave no dead code.** If a change leaves a function, component, type, prop, import, style or test with
+  nothing using it, delete it in the same change. Don't comment it out or keep it "just in case".
+- **Test new and changed code.** When you change a rule in `src/lib/`, add or update its tests in the same
+  change. See "Tests are the explanation" below for how to name them.
+- **Run the tests yourself.** After changing anything that already exists, run `npm test` and
+  `npm run lint` before saying it is done. Report a failure as a failure.
+- **Document when the feature is done.** Once the code is written, update `README.md` for anything a
+  player or a developer would notice. Update `CLAUDE.md`, or any other doc, only if a rule or instruction
+  in it is now wrong or missing.
 
 ## Delivering code the user can review
 

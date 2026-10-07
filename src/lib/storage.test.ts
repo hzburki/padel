@@ -65,6 +65,15 @@ describe("migrate", () => {
     expect(migrate(structuredClone(older))).toEqual({ ...match, scoreBy: "points" })
   })
 
+  it("keeps the mark on a copy that came from a friend's link", () => {
+    expect(migrate({ ...tournament, shared: true })).toHaveProperty("shared", true)
+    expect(migrate({ ...match, shared: true })).toHaveProperty("shared", true)
+  })
+
+  it("leaves a game made on this phone without that mark", () => {
+    expect(migrate(tournament)).not.toHaveProperty("shared")
+  })
+
   it("is on version 2 today", () => {
     expect(CURRENT_VERSION).toBe(2)
   })

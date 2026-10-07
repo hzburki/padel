@@ -16,7 +16,8 @@
 ---
 
 Padel is a small web app for casual padel, used from your phone between games. It installs to your home screen, needs
-no account, and keeps everything on your phone, so it works with no connection at all.
+no account, and keeps everything on your phone, so it works with no connection at all. Nothing leaves the phone
+unless you broadcast a game.
 
 ## What you can play
 
@@ -30,9 +31,18 @@ no account, and keeps everything on your phone, so it works with no connection a
 
 - Live standings for a tournament; set-by-set stats for a match.
 - A results image to share on WhatsApp or save when the game ends.
+- Broadcast a game by link, so friends can follow the score live. Broadcasting stores a copy of that game online; a
+  game that is never broadcast stays on your phone. Only a game still being played can be broadcast; once it is
+  finished, its link shows the final result. Deleting a broadcast game takes the online copy away; friends who
+  opened the link keep theirs as a finished game.
+  With no connection the Live badge turns to a grey Offline, and broadcasting says so instead of waiting.
+  Scores entered with no connection reach friends once it is back, even if the app was closed in between.
+  The link is short: the site, then `/t/` or `/m/` and the game's 10-character id.
 - Play again with the same people and settings in one tap.
 - Saved after every score or point. Lock the phone or close the tab and nothing is lost.
 - A history of past games, filtered by kind.
+- Made for a phone held upright. Turn a phone on its side and the app asks you to turn it back; tablets and
+  computers show the same phone-width column either way.
 
 ## How Americano standings work
 
@@ -110,7 +120,16 @@ npm run dev        # start the dev server
 npm test           # run the tests
 npm run build      # build for production into dist/
 npm run preview    # serve the build (needed to try offline mode and installing)
+npm run emulators  # local Firebase, for broadcasting a game from the dev server
+npm run shots      # compare every screen with its stored screenshot
 ```
+
+`npm run shots` opens the app at phone, tablet and desktop size, walks through its screens and compares
+each one with the image in [`shots/images/`](shots/images/). A screen that changed fails the run and leaves
+a picture of the difference in `test-results/`. If the change was meant, store the new images with
+`npm run shots -- --update-snapshots`. The first time, download its browser with
+`npx playwright install chromium`. The images were made on a Mac; another system draws text a little
+differently and needs its own.
 
 Built with React, Vite, TypeScript, Tailwind CSS and shadcn/ui. The rules live in plain functions in
 [`src/lib/`](src/lib/), each with a test file whose test names read as the rules themselves.
@@ -124,6 +143,11 @@ It is a static site; any static host works. It is set up for Cloudflare Pages:
 | Build command | `npm run build` |
 | Build output directory | `dist` |
 | Environment variable | `VITE_SITE_URL` = the site's address, no trailing slash |
+| Environment variables | `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID` |
+
+The four Firebase values are for broadcasting a game. They come from a Firebase project with anonymous sign-in and
+Firestore turned on, and the rules in [`firestore.rules`](firestore.rules) published. Leave them out and the app
+still works; the broadcast button is hidden.
 
 Node is pinned in [`.node-version`](.node-version) and response headers live in
 [`public/_headers`](public/_headers). Do not add a `404.html`: without one, Pages serves the app for every

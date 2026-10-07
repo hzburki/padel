@@ -3,11 +3,12 @@ import { Screen } from "./screen";
 const PAGES = {
   privacy: {
     title: "Privacy policy",
-    lead: "There isn't one. This is an offline, vibe-coded app made for fun.",
+    lead: "It's a short one. This is a vibe-coded app made for fun.",
     points: [
-      "Your tournaments live on this phone and nowhere else. There's no server, no account and no tracking.",
-      "Nobody sees your scores unless you share the picture yourself.",
-      "If you clear your browser data, your tournaments go with it. That's the whole policy.",
+      "Your games live on this phone and nowhere else, until you broadcast one. There's no account and no tracking.",
+      "Broadcasting a game stores a copy of it, its names and scores, in an online database, so friends with the link can follow it. By tapping Broadcast you agree to that.",
+      "Nobody sees your scores unless you share the picture or broadcast the game yourself.",
+      "If you clear your browser data, the games on this phone go with it. That's the whole policy.",
     ],
   },
   terms: {
