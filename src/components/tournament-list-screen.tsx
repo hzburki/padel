@@ -13,6 +13,7 @@ import { CourtIcon } from "./court-icon"
 import { CourtLines } from "./court-lines"
 import { canInstall, InstallBanner, InstallHelp, isPhone, useInstallPrompt } from "./install-banner"
 import { Screen } from "./screen"
+import { SharedTag } from "./shared-tag"
 import { Sheet } from "./sheet"
 import { useIsTopScreen, useNav } from "./stack-navigator"
 
@@ -30,8 +31,9 @@ export function TournamentListScreen() {
     if (isTop) listTournaments().then(setEvents)
   }, [isTop])
 
-  // The newest unfinished game gets the spotlight; the rest are listed.
-  const playing = events?.find((e) => !e.finished)
+  // The newest unfinished game gets the spotlight; the rest are listed. A
+  // friend's game is never the spotlight: there is nothing to continue.
+  const playing = events?.find((e) => !e.finished && !e.shared)
   const others = events?.filter((e) => e !== playing) ?? []
   const listed = others.filter((e) => filter === "all" || e.kind === filter)
   const open = (e: SavedEvent) => nav.push({ name: e.kind === "match" ? "match" : "tournament", id: e.id })
@@ -368,6 +370,11 @@ function HistoryRow({ event, onOpen }: { event: SavedEvent; onOpen: () => void }
       <span className="min-w-0 flex-1">
         <span className="block truncate text-lg type-label">{event.name}</span>
         <span className="block truncate text-sm text-muted-foreground">
+          {event.shared && (
+            <>
+              <SharedTag /> ·{" "}
+            </>
+          )}
           {match ? <MatchStatus match={event} /> : <Status tournament={event} />}
         </span>
       </span>

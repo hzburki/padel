@@ -5,7 +5,8 @@ import { useNav } from "./stack-navigator"
 
 // Shown for an address the app does not have. Space instead of a court:
 // navy sky, a few stars, and a droid whose body is a padel ball.
-export function NotFoundScreen() {
+// message: what went wrong, in plain words, when the app knows.
+export function NotFoundScreen({ message }: { message?: string }) {
   const nav = useNav()
   return (
     <Screen
@@ -31,9 +32,7 @@ export function NotFoundScreen() {
           </h1>
         </div>
       </div>
-      <p className="mx-auto mt-6 max-w-72 text-center text-muted-foreground">
-        This page isn't here either. You can go about your business. Move along.
-      </p>
+      {message && <p className="mx-auto mt-6 max-w-80 text-center text-lg font-bold">{message}</p>}
     </Screen>
   )
 }

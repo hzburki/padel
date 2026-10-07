@@ -23,5 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# Firebase emulator logs
+*-debug.log
+
 # Local environment (deployed address for link previews)
 .env
