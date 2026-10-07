@@ -133,7 +133,7 @@ export function TournamentListScreen() {
                 aria-label="Show"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as typeof filter)}
-                className="h-9 appearance-none rounded-full bg-secondary pr-8 pl-3.5 text-sm text-primary outline-none type-label focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+                className="h-11 appearance-none rounded-full bg-secondary pr-8 pl-3.5 text-sm text-primary outline-none type-label focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
               >
                 <option value="all">All</option>
                 <option value="americano">Americano</option>
@@ -175,14 +175,14 @@ export function TournamentListScreen() {
       )}
 
       {/* Quiet links at the very end of the page. */}
-      <nav className="mt-10 flex justify-center gap-1 text-xs text-muted-foreground/70">
-        <button type="button" className="px-2 py-2" onClick={() => nav.push({ name: "legal", page: "terms" })}>
+      <nav className="mt-8.5 flex justify-center text-xs text-muted-foreground/70">
+        <button type="button" className="px-3 py-3.5" onClick={() => nav.push({ name: "legal", page: "terms" })}>
           Terms
         </button>
-        <span className="py-2" aria-hidden>
+        <span className="py-3.5" aria-hidden>
           ·
         </span>
-        <button type="button" className="px-2 py-2" onClick={() => nav.push({ name: "legal", page: "privacy" })}>
+        <button type="button" className="px-3 py-3.5" onClick={() => nav.push({ name: "legal", page: "privacy" })}>
           Privacy
         </button>
       </nav>
@@ -236,7 +236,7 @@ function Hero({
             type="button"
             aria-expanded={expanded}
             onClick={() => setExpanded((e) => !e)}
-            className="mt-1 -ml-1 flex items-center gap-1 rounded-sm px-1 py-1.5 text-sm font-semibold text-primary-foreground/90 active:bg-white/10"
+            className="-mt-0.5 -mb-1.5 -ml-1 flex items-center gap-1 rounded-sm px-1 py-3 text-sm font-semibold text-primary-foreground/90 active:bg-white/10"
           >
             How it works
             <ChevronDown

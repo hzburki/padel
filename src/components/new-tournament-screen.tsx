@@ -262,7 +262,7 @@ export function NewTournamentScreen({
               : roundsOff === "fewer"
                 ? "Some pairs won't get to partner up."
                 : "Some pairs will partner up twice."}{" "}
-            <button type="button" className="font-medium text-primary" onClick={() => setRoundsChosen(null)}>
+            <button type="button" className="-my-3 inline-block py-3 font-medium text-primary" onClick={() => setRoundsChosen(null)}>
               Use {suggested} rounds
             </button>
           </Hint>
@@ -435,7 +435,7 @@ function RoundsWarning({
           )}
         </div>
       ) : (
-        <button type="button" className="mt-2 py-2 text-sm font-medium text-primary" onClick={() => setDetails(true)}>
+        <button type="button" className="mt-1 py-3 text-sm font-medium text-primary" onClick={() => setDetails(true)}>
           See details
         </button>
       )}

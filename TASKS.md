@@ -5,10 +5,17 @@ Claude: do not read, act on or edit this file unless asked to.
 
 ## In Progress
 
+- [ ] Test the web app on all different screen sizes and resolutions to ensure that it is responsive and works well on all devices. This includes testing on desktop, tablet, and mobile devices, as well as different browsers. Store screenshots for yourself, compare them and fix any inconsistencies or issues that arise. This is important to ensure that the app provides a consistent and high-quality user experience across all platforms.
+  - [x] A phone turned on its side shows "turn your phone upright" instead of a squeezed app
+  - [x] Save score stays in view on the score sheet while the numbers scroll
+  - [x] Standings open at the top of the table
+  - [x] Small buttons get a 44px tap area
+  - [x] Run the same sweep in Safari's and Firefox's engines
+  - [ ] Check on a real phone: turn it sideways and back (iPhone Safari, Android Chrome); type a player's name on Android and see no "turn upright" appear; score a 32-point game in the installed iPhone app and see Save score clear of the home bar
+
 ## To Do
 
-- [ ] Separate data stored in Firestore for production and development. 
-- [ ] Test the web app on all different screen sizes and resolutions to ensure that it is responsive and works well on all devices. This includes testing on desktop, tablet, and mobile devices, as well as different browsers. Store screenshots for yourself, compare them and fix any inconsistencies or issues that arise. This is important to ensure that the app provides a consistent and high-quality user experience across all platforms.
+- [ ] Should we use "/private/tmp/claude-501/-Users-hzburki-Code-side-projects-padel/26c143f9-5657-4262-b872-1f5b9a09ef7b/scratchpad/sweep/sweep.mjs" and use it for snapshot? We can create a command for it. Store all the images in the repo. Push them to git. When we run it matches the exisitng pages with existing images. If they do not match it throws an error and the LLM can take over. If images don't exist the LLM can be sent the new screenshots to review once, fix errors and store them in the repo? 
 
 ## Backlog
 
@@ -24,6 +31,7 @@ Claude: do not read, act on or edit this file unless asked to.
 - [ ] Can we also change the og description and title for the shared link so that user knows which game its for? If not, then leave it. This is not a priority. If this is not possible ignore it and move it to backlog.
   - Needs a server: a Cloudflare Pages function on /t/* and /m/* that reads the game and fills in the tags. Not possible on a purely static site.
 - [ ] When typing a name the keyboard has a huge empty space on top of it so the visible screen is too small. Check the red area highlighted in the screenshot. This is on iOS I have not tested on android. But both platforms need to have minimum space required to separate the keyboard from the visible screen. This is a UX issue and needs to be fixed.
+- [ ] Separate data stored in Firestore for production and development. 
 
 ## Done
 

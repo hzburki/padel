@@ -87,6 +87,12 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
     }
   }, [tournament])
 
+  // Rounds scrolls itself to the round being played; standings always
+  // start at the top, whatever the scroll was.
+  useEffect(() => {
+    if (tab === "standings") fullStandings.current?.closest("main")?.scrollTo({ top: 0 })
+  }, [tab])
+
   if (tournament === undefined) {
     return (
       <Screen title="">
@@ -262,7 +268,7 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
               <button
                 type="button"
                 onClick={() => fullStandings.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                className="mx-auto mt-2 flex items-center gap-1 py-2 text-sm font-medium text-primary"
+                className="mx-auto mt-1 flex items-center gap-1 py-3 text-sm font-medium text-primary"
               >
                 Full standings
                 <ChevronDown className="size-4" />

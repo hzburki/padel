@@ -3,6 +3,7 @@ import { LegalScreen } from "@/components/legal-screen"
 import { MatchScreen } from "@/components/match-screen"
 import { NotFoundScreen } from "@/components/not-found-screen"
 import { NewGameScreen } from "@/components/new-game-screen"
+import { RotatePrompt } from "@/components/rotate-prompt"
 import { StackNavigator } from "@/components/stack-navigator"
 import { TournamentListScreen } from "@/components/tournament-list-screen"
 import { TournamentScreen } from "@/components/tournament-screen"
@@ -62,5 +63,10 @@ function routeAt(pathname: string): Route | null {
 
 export default function App() {
   useCenterFocusedField()
-  return <StackNavigator initial={HOME} render={render} pathOf={pathOf} routeAt={routeAt} />
+  return (
+    <>
+      <StackNavigator initial={HOME} render={render} pathOf={pathOf} routeAt={routeAt} />
+      <RotatePrompt />
+    </>
+  )
 }

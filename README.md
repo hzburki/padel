@@ -41,6 +41,8 @@ unless you broadcast a game.
 - Play again with the same people and settings in one tap.
 - Saved after every score or point. Lock the phone or close the tab and nothing is lost.
 - A history of past games, filtered by kind.
+- Made for a phone held upright. Turn a phone on its side and the app asks you to turn it back; tablets and
+  computers show the same phone-width column either way.
 
 ## How Americano standings work
 
