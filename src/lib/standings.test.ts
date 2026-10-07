@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { computeStandings, formatPoints, joinNames, winners } from "./standings"
+import { computeStandings, formatPoints, joinNames, placesMovedByScaling, winners } from "./standings"
 import type { Match, PlayerId, Round } from "./types"
 
 const ids = (n: number): PlayerId[] => Array.from({ length: n }, (_, i) => `p${i + 1}`)
@@ -128,6 +128,22 @@ describe("computeStandings", () => {
     it("uses the scaled points for ranking", () => {
       const ranked = order(computeStandings(ids(5), rounds, { final: true }))
       expect(ranked.indexOf("p5")).toBeLessThan(ranked.indexOf("p3")) // 16 vs 14
+    })
+
+    it("says who moved up and who moved down because of the scaling", () => {
+      // Unscaled p3 (14) is ahead of p5 (8); scaled, p5 (16) passes p3.
+      const moved = placesMovedByScaling(ids(5), rounds)
+      expect(moved.get("p5")).toBe(1)
+      expect(moved.get("p3")).toBe(-1)
+    })
+
+    it("leaves out players whose place the scaling did not change", () => {
+      const moved = placesMovedByScaling(ids(5), rounds)
+      expect([...moved.keys()].sort()).toEqual(["p3", "p5"]) // p4 was scaled too, but stayed last
+    })
+
+    it("moves nobody when everyone played the same number of games", () => {
+      expect(placesMovedByScaling(ids(4), [round(match("p1 p2", 10, 6, "p3 p4"))]).size).toBe(0)
     })
 
     it("does not scale anyone in live standings during the tournament", () => {

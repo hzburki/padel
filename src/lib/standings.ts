@@ -96,6 +96,19 @@ export function computeStandings(
   return ordered
 }
 
+// How many places each player moved in the final standings because points
+// were scaled up for those with fewer games: 1 is one place up, -1 one
+// place down. Players whose place did not change are left out.
+export function placesMovedByScaling(players: PlayerId[], rounds: Round[]): Map<PlayerId, number> {
+  const unscaled = new Map(computeStandings(players, rounds).map((row) => [row.playerId, row.rank]))
+  const moved = new Map<PlayerId, number>()
+  for (const row of computeStandings(players, rounds, { final: true })) {
+    const places = unscaled.get(row.playerId)! - row.rank
+    if (places !== 0) moved.set(row.playerId, places)
+  }
+  return moved
+}
+
 // Each tied player's record against the others in the tie: +1 for every
 // match won against one of them, -1 for every match lost, 0 for a draw.
 // Partners don't count — only matches where they stood on opposite sides.
