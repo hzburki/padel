@@ -105,7 +105,12 @@ async function open(id: string, fromLink = false) {
   return { shown, close, last: () => shown[shown.length - 1] }
 }
 
+const HOUR = 60 * 60 * 1000
+
 beforeEach(() => {
+  // The games here are created at 0, and so is the clock: none is too old
+  // to follow unless a test moves the time on.
+  vi.useFakeTimers({ toFake: ["Date"], now: 0 })
   fake.flags.clear()
   fake.saved.clear()
   fake.pageListeners.clear()
@@ -401,6 +406,64 @@ describe("following a friend's game", () => {
     close()
     await settle()
     expect(fake.listeners).toHaveLength(0)
+  })
+})
+
+describe("a friend's game that is 4 hours old", () => {
+  it("stops being followed the moment it turns 4 hours old, and is no longer live", async () => {
+    const { last } = await open("a", true)
+    vi.useFakeTimers({ now: HOUR })
+    fake.listeners[0].next(copy(game("a")))
+    expect(last().live).toBe(true)
+    vi.advanceTimersByTime(3 * HOUR - 1)
+    expect(listening()).toHaveLength(1)
+    vi.advanceTimersByTime(1)
+    expect(listening()).toHaveLength(0)
+    expect(last()).toEqual({ event: { ...game("a"), shared: true }, live: false })
+  })
+
+  it("has its newest score read once when opened from a link, then is let go", async () => {
+    vi.setSystemTime(5 * HOUR)
+    const { last } = await open("a", true)
+    fake.listeners[0].next(copy(game("a", { name: "newest" })))
+    expect(saveTournament).toHaveBeenCalledWith({ ...game("a", { name: "newest" }), shared: true })
+    expect(last()).toEqual({ event: { ...game("a", { name: "newest" }), shared: true }, live: false })
+    expect(listening()).toHaveLength(0)
+  })
+
+  it("brings the result to a saved copy that never saw the game finish", async () => {
+    own("a", { shared: true })
+    vi.setSystemTime(5 * HOUR)
+    const { last } = await open("a")
+    fake.listeners[0].next(copy(game("a", { finished: true })))
+    expect(last().event?.finished).toBe(true)
+    expect(listening()).toHaveLength(0)
+  })
+
+  it("is not live even while the organiser is still broadcasting it", async () => {
+    vi.setSystemTime(5 * HOUR)
+    const { last } = await open("a", true)
+    fake.listeners[0].next(copy(game("a")))
+    expect(last().live).toBe(false)
+  })
+
+  it("is not listened to again when the page comes back", async () => {
+    vi.setSystemTime(5 * HOUR)
+    await open("a", true)
+    fake.listeners[0].next(copy(game("a")))
+    hidePage(true)
+    hidePage(false)
+    expect(listening()).toHaveLength(0)
+  })
+
+  it("tells a screen that has closed nothing when the 4 hours run out", async () => {
+    const { close, shown } = await open("a", true)
+    vi.useFakeTimers({ now: HOUR })
+    fake.listeners[0].next(copy(game("a")))
+    close()
+    const told = shown.length
+    vi.advanceTimersByTime(10 * HOUR)
+    expect(shown).toHaveLength(told)
   })
 })
 

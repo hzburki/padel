@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app"
 import { connectAuthEmulator, getAuth, signInAnonymously } from "firebase/auth"
 import { connectFirestoreEmulator, deleteDoc, doc, getFirestore, onSnapshot, setDoc } from "firebase/firestore"
-import { broadcastsClosedBy, followedLive, type SharedGames } from "./broadcast"
+import { broadcastsClosedBy, followedLive, followTimeLeft, type SharedGames } from "./broadcast"
 import { livePath } from "./paths"
 import { loadTournament, migrate, saveTournament } from "./storage"
 import type { SavedEvent } from "./types"
@@ -126,6 +126,8 @@ export async function deleteLive(id: string): Promise<void> {
 // so it is still there with no connection or after the organiser deletes
 // theirs. Once it is finished nothing more can change, so following stops.
 // A closed broadcast is still followed, in case it is picked up again.
+// Following also stops when the game gets too old (followTimeLeft): opened
+// after that, its newest score is read once and it is not live.
 export function openGame(
   id: string,
   fromLink: boolean, // opened from a shared link, so it may not be saved here yet
@@ -142,9 +144,11 @@ export function openGame(
     let latest = saved
     if (saved) show(saved, false)
     let unsubscribe = () => {}
+    let tooOld: ReturnType<typeof setTimeout> | undefined
     // Nothing more will come, or the screen closed: stop for good.
     const end = () => {
       document.removeEventListener("visibilitychange", onVisibility)
+      clearTimeout(tooOld)
       unsubscribe()
     }
     const follow = () =>
@@ -159,8 +163,14 @@ export function openGame(
             return show(latest, false)
           }
           void saveTournament(latest)
-          show(latest, followedLive(latest, snapshot.get("closed") === true))
-          if (latest.finished) end()
+          const left = followTimeLeft(latest, Date.now())
+          show(latest, left > 0 && followedLive(latest, snapshot.get("closed") === true))
+          if (left === 0) return end()
+          clearTimeout(tooOld)
+          tooOld = setTimeout(() => {
+            end()
+            show(latest, false)
+          }, left)
         },
         () => show(latest, false),
       )

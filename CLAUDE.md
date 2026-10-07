@@ -37,6 +37,11 @@ server uses the local emulators (`npm run emulators`), a build uses the project 
 values, and without them the broadcast button is hidden. Do not add any other network call, server or hosted
 database, and never make a screen depend on the connection.
 
+**Local Firebase only, unless told otherwise.** When coding or testing on localhost, use the local emulators
+and nothing else. Do not point the app at the hosted Firebase project, and do not read, write or deploy to it
+(rules, data, config), unless the user explicitly says to for that task. A go-ahead covers that one task, not
+the ones after it.
+
 **Mobile-first.** The primary surface is a phone held one-handed, courtside, by someone entering scores
 between games. Design for thumb reach, large tap targets, and glanceable standings. Desktop is a
 nice-to-have that falls out of a responsive layout.
@@ -74,6 +79,28 @@ npm run test:watch
 npx vitest run src/lib/americano.test.ts           # one file
 npx vitest run -t "benches the player"             # one test by name
 ```
+
+## Testing in the browser
+
+Three app ports, and no others. Port 5173 is the user's own dev server — never start, stop or test on it.
+
+| Port | Start it with                                  | Use it for                                          |
+| ---- | ---------------------------------------------- | --------------------------------------------------- |
+| 5199 | `npm run dev -- --port 5199 --strictPort`      | The organiser: every feature, start to finish       |
+| 5198 | `npm run dev -- --port 5198 --strictPort`      | A friend following a broadcast from 5199            |
+| 5301 | `npm run preview -- --port 5301 --strictPort`  | The build: service worker, offline, install         |
+
+- Always pass `--strictPort`. Without it Vite quietly moves to the next free port. If a port is taken, find
+  what holds it and reuse or stop it; don't pick a new number.
+- Each port is its own origin, so it has its own IndexedDB and its own anonymous sign-in. That is why the
+  friend needs 5198: on 5199 they would be the organiser. It also means games from an earlier session are
+  still there — clear the site data, or start a new game, before trusting what is on screen.
+- Broadcasting needs `npm run emulators` running (Auth 9099, Firestore 8080, both fixed in `firebase.json`
+  and `src/lib/live.ts`).
+- **Never broadcast on 5301.** A build reads `.env`, which holds the hosted project, so a broadcast there
+  goes to real Firebase. Test broadcasting on 5199 and 5198 only.
+- Test at phone size (390 × 844) first.
+- Stop the servers you started when you are done.
 
 ## Domain: Americano
 

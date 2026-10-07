@@ -23,14 +23,21 @@ export function followedLive(event: SavedEvent, closed: boolean): boolean {
   return !event.finished && !closed
 }
 
-// How long the home screen keeps following a friend's game after it was
-// created. A game left unfinished would otherwise be followed for ever.
-// Opening the game itself still follows it, however old.
-const FOLLOW_FROM_HOME_FOR = 4 * 60 * 60 * 1000
+// How long a friend's game is followed after it was created. A game left
+// unfinished would otherwise hold a connection open for ever.
+const FOLLOW_FOR = 4 * 60 * 60 * 1000
+
+// How many more milliseconds a friend's game is followed: none once it is
+// finished or too old. Past that its score is read once when it is opened,
+// and no connection is kept.
+export function followTimeLeft(event: SavedEvent, now: number): number {
+  if (event.finished) return 0
+  return Math.max(0, event.createdAt + FOLLOW_FOR - now)
+}
 
 // Whether the home screen should open this game to see if it is live. Its
 // own games cost nothing to check; a friend's opens a connection.
 export function followedFromHome(event: SavedEvent, now: number): boolean {
   if (event.finished) return false
-  return !event.shared || now - event.createdAt < FOLLOW_FROM_HOME_FOR
+  return !event.shared || followTimeLeft(event, now) > 0
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { followedFromHome, followedLive, broadcastsClosedBy } from "./broadcast"
+import { followedFromHome, followedLive, followTimeLeft, broadcastsClosedBy } from "./broadcast"
 import type { SavedEvent } from "./types"
 
 const HOUR = 60 * 60 * 1000
@@ -53,6 +53,22 @@ describe("a friend's copy is live", () => {
 
   it("and not once the game is finished", () => {
     expect(followedLive(friends({ finished: true }), false)).toBe(false)
+  })
+})
+
+describe("a friend's game is followed", () => {
+  it("for 4 hours from when it was created", () => {
+    expect(followTimeLeft(friends(), 0)).toBe(4 * HOUR)
+    expect(followTimeLeft(friends({ createdAt: HOUR }), 2 * HOUR)).toBe(3 * HOUR)
+  })
+
+  it("no longer once it is 4 hours old, however much later it is opened", () => {
+    expect(followTimeLeft(friends(), 4 * HOUR)).toBe(0)
+    expect(followTimeLeft(friends(), 30 * HOUR)).toBe(0)
+  })
+
+  it("no longer once it is finished, however new", () => {
+    expect(followTimeLeft(friends({ finished: true }), HOUR)).toBe(0)
   })
 })
 
