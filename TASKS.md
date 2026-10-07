@@ -7,8 +7,6 @@ Claude: do not read, act on or edit this file unless asked to.
 
 ## To Do
 
-- [ ] We need to ensure as soon as the user regains their internet connection, the app should automatically detect this and update the UI to reflect that they are back online. This should be done in a way that is seamless and does not interrupt the user's workflow. **(This this feature before coding I think it is already working like this)**
-- [ ] We need to sync the creator's data to Firebase if they were sharing a game. Similarly we need to sync data from Firebase to the user's link who was using a shared link. All this should happen in the background without any user intervention. **(This this feature before coding I think it is already working like this)** 
 - [ ] Separate data stored in Firestore for production and development. 
 - [ ] Test the web app on all different screen sizes and resolutions to ensure that it is responsive and works well on all devices. This includes testing on desktop, tablet, and mobile devices, as well as different browsers. Store screenshots for yourself, compare them and fix any inconsistencies or issues that arise. This is important to ensure that the app provides a consistent and high-quality user experience across all platforms.
 
@@ -49,3 +47,8 @@ Claude: do not read, act on or edit this file unless asked to.
 - [x] When a user loses their internet connection while using the app we make a notable change to the UI to indicate that they are offline. This should be a clear and noticeable change, but it should not be disruptive to the user experience. **(This this feature before coding I think it is already working like this)**
   - [x] The Live badge turns to a grey Offline with no connection, and back by itself
   - [x] Broadcast live with no connection says so at once; on a dead connection the spinner closes after 5 seconds
+- [x] We need to ensure as soon as the user regains their internet connection, the app should automatically detect this and update the UI to reflect that they are back online. This should be done in a way that is seamless and does not interrupt the user's workflow. **(This this feature before coding I think it is already working like this)**
+  - [x] Tested, no code needed: the badge goes back to Live and the score catches up about a second after the connection returns, with no reload
+- [x] We need to sync the creator's data to Firebase if they were sharing a game. Similarly we need to sync data from Firebase to the user's link who was using a shared link. All this should happen in the background without any user intervention. **(This this feature before coding I think it is already working like this)** 
+  - [x] Tested, no code needed: with the app left open, both sides catch up by themselves when the connection returns
+  - [x] Scores entered with no connection are sent again when the app starts, in case it was closed before they went

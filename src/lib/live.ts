@@ -131,6 +131,18 @@ export function pushLive(event: SavedEvent): void {
     .catch(() => {})
 }
 
+// Call when the app starts: sends again every game whose saves are sent to
+// friends (sentOnSave). A score entered with no connection waits in memory
+// for the connection, and is lost if the app is closed first; this makes
+// up for it. Never throws.
+export function resendLive(): void {
+  for (const id of Object.keys(sharedGames())) {
+    loadTournament(id)
+      .then((event) => event && pushLive(event))
+      .catch(() => {})
+  }
+}
+
 // Call when the organiser deletes an event: takes the online copy away too,
 // so the link stops working. Friends keep what they already saved, as a
 // finished game. The phone remembers the delete until it has gone through:

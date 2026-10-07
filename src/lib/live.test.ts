@@ -61,7 +61,17 @@ vi.mock("./storage", () => ({
 }))
 
 import { deleteDoc, setDoc } from "firebase/firestore"
-import { closesAnother, deleteLive, finishDeletes, hasLink, isSending, openGame, pushLive, shareLive } from "./live"
+import {
+  closesAnother,
+  deleteLive,
+  finishDeletes,
+  hasLink,
+  isSending,
+  openGame,
+  pushLive,
+  resendLive,
+  shareLive,
+} from "./live"
 import { saveTournament } from "./storage"
 
 // Only the fields live.ts reads.
@@ -333,6 +343,53 @@ describe("one broadcast at a time", () => {
     await settle()
     expect(isSending("a")).toBe(false)
     expect(isSending("b")).toBe(true)
+  })
+})
+
+describe("when the app starts", () => {
+  it("sends the game being broadcast again, in case its last scores never went out", async () => {
+    await shareLive(own("a"))
+    own("a", { name: "scored with no connection" })
+    resendLive()
+    await settle()
+    expect(sent("a")).toHaveLength(2)
+    expect(JSON.parse(sent("a")[1].json).name).toBe("scored with no connection")
+  })
+
+  it("sends nothing when no game was ever broadcast", async () => {
+    own("a")
+    resendLive()
+    await settle()
+    expect(setDoc).not.toHaveBeenCalled()
+  })
+
+  it("sends nothing for a game whose broadcast was closed", async () => {
+    await shareLive(own("a"))
+    await shareLive(own("b"))
+    await settle()
+    vi.mocked(setDoc).mockClear()
+    resendLive()
+    await settle()
+    expect(sent("a")).toEqual([])
+    expect(sent("b")).toHaveLength(1)
+  })
+
+  it("sends a finished game whose result never went out, then no more", async () => {
+    await shareLive(own("a"))
+    own("a", { finished: true })
+    resendLive()
+    await settle()
+    resendLive()
+    await settle()
+    expect(sent("a")).toHaveLength(2)
+  })
+
+  it("sends nothing for a broadcast game that is no longer on this phone", async () => {
+    await shareLive(own("a"))
+    fake.saved.delete("a")
+    resendLive()
+    await settle()
+    expect(sent("a")).toHaveLength(1)
   })
 })
 
