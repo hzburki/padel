@@ -209,14 +209,14 @@ function Hero({
           </div>
         </div>
 
-        {children && <div className="mt-4">{children}</div>}
-        {/* A quiet credit on a row of its own, so it keeps the same gap from
-            whatever is above it. */}
+        {children && <div className="mt-2.5">{children}</div>}
+        {/* A quiet credit on a row of its own. Under a card it sits as far
+            below as "How it works" sits above. */}
         <a
           href="https://hzburki.com"
           target="_blank"
           rel="noopener"
-          className="mt-2 ml-auto block w-fit text-[0.6875rem] leading-none text-primary-foreground/45"
+          className={`ml-auto block w-fit text-[0.6875rem] leading-none text-primary-foreground/45 ${children ? "mt-4" : "mt-2"}`}
         >
           hzburki.com
         </a>
