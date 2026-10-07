@@ -34,6 +34,10 @@ file" as the sharing mechanism if sharing is ever needed.
 between games. Design for thumb reach, large tap targets, and glanceable standings. Desktop is a
 nice-to-have that falls out of a responsive layout.
 
+**Few words, more visuals.** Keep the text on every screen to the minimum. Nobody reads a paragraph
+courtside. Show it instead: an icon, a number, a badge, a worked example set out like one in a textbook.
+If something needs a sentence, write one short one, not three.
+
 ## Stack
 
 - React 19 + Vite 8 + TypeScript 6
