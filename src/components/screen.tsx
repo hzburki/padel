@@ -1,6 +1,6 @@
 import { ChevronLeft, House } from "lucide-react"
 import type { ReactNode } from "react"
-import { useNav } from "./stack-navigator"
+import { useNav } from "./nav"
 
 // One full-height screen: a header, a body that scrolls on its own, and an
 // optional footer pinned above the home indicator, where the thumb rests.

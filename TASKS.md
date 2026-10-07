@@ -5,22 +5,21 @@ Claude: do not read, act on or edit this file unless asked to.
 
 ## In Progress
 
+- [ ] Do not allow to broadcast finished games. 
+
 ## To Do
 
-- [ ] Do not allow to broadcast finished games. 
 - [ ] When I delete a game, which is being broadcasted with other users. The firebsase connection should be closed. Live badge should be removed. As for the game just mark it as finished for the users. Keep the data and scores on their device. On the creators phone we simply delete everything. Also delete everything from firebase once the data has been synced to the users device. In this case use the score upscaling logic to ensure that the scores are fair and accurate for all players on the viewers device.
 - [ ] When typing a name the keyboard has a huge empty space on top of it so the visible screen is too small. Check the red area highlighted in the screenshot. This is on iOS I have not tested on android. But both platforms need to have minimum space required to separate the keyboard from the visible screen. This is a UX issue and needs to be fixed.
-- [ ] Add a rule for the project to always use the local firebase when develoing on localhost unless I say explicitly to use the production firebase. 
 - [ ] Create a short link for the shared/broadcast link for users to share. 
 - [ ] Can we also change the og description and title for the shared link so that user knows which game its for? If not, then leave it. This is not a priority. 
-- [ ] When a user loses their internet connection while using the app we make a notable change to the UI to indicate that they are offline. This should be a clear and noticeable change, but it should not be disruptive to the user experience. 
-- [ ] We need to ensure as soon as the user regains their internet connection, the app should automatically detect this and update the UI to reflect that they are back online. This should be done in a way that is seamless and does not interrupt the user's workflow. 
-- [ ] We need to sync the creator's data to Firebase if they were sharing a game. Similarly we need to sync data from Firebase to the user's link who was using a shared link. All this should happen in the background without any user intervention. 
-- [ ] Do an audit of Firebase. This should include rules for proper authentication and authorization. Take a look at the code to configuration code. It should look at the data storage schema. It should take a look at all the queries and subscriptions created in the code. Ensure everything is secure. Nothing extra is being set or called or read. Minimize API calls to Firebase. Lastly all Firebase related code should be following the best practices and guidelines.
-
+- [ ] When a user loses their internet connection while using the app we make a notable change to the UI to indicate that they are offline. This should be a clear and noticeable change, but it should not be disruptive to the user experience. **(This this feature before coding I think it is already working like this)**
+- [ ] We need to ensure as soon as the user regains their internet connection, the app should automatically detect this and update the UI to reflect that they are back online. This should be done in a way that is seamless and does not interrupt the user's workflow. **(This this feature before coding I think it is already working like this)**
+- [ ] We need to sync the creator's data to Firebase if they were sharing a game. Similarly we need to sync data from Firebase to the user's link who was using a shared link. All this should happen in the background without any user intervention. **(This this feature before coding I think it is already working like this)** 
 
 ## Backlog
 
+- [ ] Do an audit of Firebase. This should include rules for proper authentication and authorization. Take a look at the code to configuration code. It should look at the data storage schema. It should take a look at all the queries and subscriptions created in the code. Ensure everything is secure. Nothing extra is being set or called or read. Minimize API calls to Firebase. Lastly all Firebase related code should be following the best practices and guidelines.
 - [ ] Do a security audit of the app. Ensure Firebae is safe and secure. No environment variables or sensitive data should be exposed in the client code. 
 - [ ] Make sure no one can inject any code in the app or access the data stored in the local storage for any other user. 
 - [ ] Ensure one user who is not permitted to access another user's data on Firebase cannot do so by manipulating the URL or any other means

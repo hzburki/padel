@@ -15,7 +15,7 @@ import { RenameForm } from "./rename-form"
 import { renderShareCard, shareOrDownload } from "./share-card"
 import { Sheet } from "./sheet"
 import { SharedTag } from "./shared-tag"
-import { useNav } from "./stack-navigator"
+import { useNav } from "./nav"
 import { Toast } from "./toast"
 import { StandingsTable } from "./standings-table"
 

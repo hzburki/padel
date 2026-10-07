@@ -23,7 +23,7 @@ import type { ScoringMode } from "@/lib/types"
 import { Screen } from "./screen"
 import { Segmented } from "./segmented"
 import { Sheet } from "./sheet"
-import { useBackHandler, useNav } from "./stack-navigator"
+import { useBackHandler, useNav } from "./nav"
 
 
 export function NewTournamentScreen({

@@ -13,12 +13,13 @@ import type { SavedEvent, SetMatch, Tournament } from "@/lib/types"
 import { BallIcon } from "./ball-icon"
 import { CourtIcon } from "./court-icon"
 import { CourtLines } from "./court-lines"
-import { canInstall, InstallBanner, InstallHelp, isPhone, useInstallPrompt } from "./install-banner"
+import { InstallBanner, InstallHelp } from "./install-banner"
+import { canInstall, isPhone, useInstallPrompt } from "./install-prompt"
 import { LiveBadge } from "./live-badge"
 import { Screen } from "./screen"
 import { SharedTag } from "./shared-tag"
 import { Sheet } from "./sheet"
-import { useIsTopScreen, useNav } from "./stack-navigator"
+import { useIsTopScreen, useNav } from "./nav"
 
 export function TournamentListScreen() {
   const nav = useNav<Route>()
@@ -30,8 +31,13 @@ export function TournamentListScreen() {
 
   // Reload whenever this screen comes back into view, so a game just
   // created or scored shows up to date.
+  const [loadedAt, setLoadedAt] = useState(0)
   useEffect(() => {
-    if (isTop) listTournaments().then(setEvents)
+    if (!isTop) return
+    listTournaments().then((all) => {
+      setEvents(all)
+      setLoadedAt(Date.now())
+    })
   }, [isTop])
 
   // Unfinished games are opened the way their own screen opens them, so a
@@ -39,7 +45,7 @@ export function TournamentListScreen() {
   // or followed on a friend's. A followed game also brings its newest score.
   // A friend's game from hours ago is left alone (followedFromHome).
   const [live, setLive] = useState<ReadonlySet<string>>(new Set())
-  const unfinished = events?.filter((e) => followedFromHome(e, Date.now())).map((e) => e.id).join() ?? ""
+  const unfinished = events?.filter((e) => followedFromHome(e, loadedAt)).map((e) => e.id).join() ?? ""
   useEffect(() => {
     if (!isTop || unfinished === "") return
     const stops = unfinished.split(",").map((id) =>

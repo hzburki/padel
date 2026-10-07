@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { useBackHandler } from "./stack-navigator"
+import { useBackHandler } from "./nav"
 
 const DURATION = 300
 const EASE = "cubic-bezier(0.32, 0.72, 0, 1)"

@@ -159,6 +159,23 @@ One match between two fixed pairs, with ordinary tennis-style scoring. The rules
 - A decided match is not finished until the organiser confirms it, so the last point can still be undone.
 - Not tracked: who serves, and how long the match took.
 
+## Writing code
+
+These hold for every change, however small.
+
+- **Easy to read.** Write for the person reading it later: clear names, short functions, no clever tricks.
+- **The simplest thing that works.** Solve the problem asked, not the ones it might grow into. No extra
+  options, layers or settings "for later".
+- **Leave no dead code.** If a change leaves a function, component, type, prop, import, style or test with
+  nothing using it, delete it in the same change. Don't comment it out or keep it "just in case".
+- **Test new and changed code.** When you change a rule in `src/lib/`, add or update its tests in the same
+  change. See "Tests are the explanation" below for how to name them.
+- **Run the tests yourself.** After changing anything that already exists, run `npm test` and
+  `npm run lint` before saying it is done. Report a failure as a failure.
+- **Document when the feature is done.** Once the code is written, update `README.md` for anything a
+  player or a developer would notice. Update `CLAUDE.md`, or any other doc, only if a rule or instruction
+  in it is now wrong or missing.
+
 ## Delivering code the user can review
 
 The user wants to understand every change. Big mixed diffs make that impossible. These rules keep review

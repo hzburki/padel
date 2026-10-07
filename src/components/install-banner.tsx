@@ -1,27 +1,7 @@
 import { Download } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-
-// Chrome's install event; TypeScript's DOM types don't have it.
-interface InstallPromptEvent extends Event {
-  prompt: () => Promise<void>
-}
-
-// Chrome can fire this before React mounts, so it's caught as soon as this
-// module loads and kept until the banner asks for it. Browsers without it
-// (iOS Safari, Firefox) never show the banner.
-let deferred: InstallPromptEvent | null = null
-const listeners = new Set<() => void>()
-const changed = () => listeners.forEach((l) => l())
-window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault() // our banner replaces Chrome's own mini bar
-  deferred = e as InstallPromptEvent
-  changed()
-})
-window.addEventListener("appinstalled", () => {
-  deferred = null
-  changed()
-})
+import { useInstallPrompt } from "./install-prompt"
 
 // "Not now" hides the banner for a week, not forever.
 const DISMISSED_KEY = "installDismissedAt"
@@ -33,31 +13,6 @@ function snoozed(): boolean {
     return at > 0 && Date.now() - at < SNOOZE_MS
   } catch {
     return false
-  }
-}
-
-// The browser's install dialog, when it offers one. `install` is null when it
-// doesn't: not Chrome or Edge, already installed, or already used.
-export function useInstallPrompt(): { install: (() => Promise<void>) | null } {
-  const [event, setEvent] = useState(deferred)
-
-  useEffect(() => {
-    const update = () => setEvent(deferred)
-    listeners.add(update)
-    update()
-    return () => {
-      listeners.delete(update)
-    }
-  }, [])
-
-  if (!event) return { install: null }
-  // Chrome lets each event open its dialog once; after that it's spent.
-  return {
-    install: async () => {
-      deferred = null
-      changed()
-      await event.prompt()
-    },
   }
 }
 
@@ -93,22 +48,6 @@ export function InstallBanner() {
       </div>
     </section>
   )
-}
-
-// Chrome, Edge and other Chromium browsers can install the app; Safari and
-// Firefox can't be asked to. Already installed counts as no.
-export function canInstall(): boolean {
-  const standalone =
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true
-  return "onbeforeinstallprompt" in window && !standalone
-}
-
-// Only asked where canInstall() is true, so this is always a Chromium
-// browser, which says outright whether it's on a phone.
-export function isPhone(): boolean {
-  const ua = navigator as Navigator & { userAgentData?: { mobile: boolean } }
-  return ua.userAgentData?.mobile ?? /Android|Mobi/.test(navigator.userAgent)
 }
 
 // For when the browser supports installing but isn't offering the dialog

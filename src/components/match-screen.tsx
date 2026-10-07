@@ -24,7 +24,7 @@ import { Screen } from "./screen"
 import { shareOrDownload } from "./share-card"
 import { Sheet } from "./sheet"
 import { SharedTag } from "./shared-tag"
-import { useNav } from "./stack-navigator"
+import { useNav } from "./nav"
 import { Toast } from "./toast"
 
 // watch: opened from a shared link, so the match may not be on this phone

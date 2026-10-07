@@ -2,7 +2,7 @@ import { House } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BallIcon } from "./ball-icon"
 import { Screen } from "./screen"
-import { useNav } from "./stack-navigator"
+import { useNav } from "./nav"
 
 // Shown for an address the app does not have. Space instead of a court:
 // navy sky, a few stars, and a droid whose body is a padel ball.
