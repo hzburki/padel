@@ -121,7 +121,15 @@ npm test           # run the tests
 npm run build      # build for production into dist/
 npm run preview    # serve the build (needed to try offline mode and installing)
 npm run emulators  # local Firebase, for broadcasting a game from the dev server
+npm run shots      # compare every screen with its stored screenshot
 ```
+
+`npm run shots` opens the app at phone, tablet and desktop size, walks through its screens and compares
+each one with the image in [`shots/images/`](shots/images/). A screen that changed fails the run and leaves
+a picture of the difference in `test-results/`. If the change was meant, store the new images with
+`npm run shots -- --update-snapshots`. The first time, download its browser with
+`npx playwright install chromium`. The images were made on a Mac; another system draws text a little
+differently and needs its own.
 
 Built with React, Vite, TypeScript, Tailwind CSS and shadcn/ui. The rules live in plain functions in
 [`src/lib/`](src/lib/), each with a test file whose test names read as the rules themselves.

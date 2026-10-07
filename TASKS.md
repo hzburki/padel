@@ -5,20 +5,13 @@ Claude: do not read, act on or edit this file unless asked to.
 
 ## In Progress
 
-- [ ] Test the web app on all different screen sizes and resolutions to ensure that it is responsive and works well on all devices. This includes testing on desktop, tablet, and mobile devices, as well as different browsers. Store screenshots for yourself, compare them and fix any inconsistencies or issues that arise. This is important to ensure that the app provides a consistent and high-quality user experience across all platforms.
-  - [x] A phone turned on its side shows "turn your phone upright" instead of a squeezed app
-  - [x] Save score stays in view on the score sheet while the numbers scroll
-  - [x] Standings open at the top of the table
-  - [x] Small buttons get a 44px tap area
-  - [x] Run the same sweep in Safari's and Firefox's engines
-  - [ ] Check on a real phone: turn it sideways and back (iPhone Safari, Android Chrome); type a player's name on Android and see no "turn upright" appear; score a 32-point game in the installed iPhone app and see Save score clear of the home bar
 
 ## To Do
 
-- [ ] Should we use "/private/tmp/claude-501/-Users-hzburki-Code-side-projects-padel/26c143f9-5657-4262-b872-1f5b9a09ef7b/scratchpad/sweep/sweep.mjs" and use it for snapshot? We can create a command for it. Store all the images in the repo. Push them to git. When we run it matches the exisitng pages with existing images. If they do not match it throws an error and the LLM can take over. If images don't exist the LLM can be sent the new screenshots to review once, fix errors and store them in the repo? 
 
 ## Backlog
 
+- [ ] Check on a real phone: turn it sideways and back (iPhone Safari, Android Chrome); type a player's name on Android and see no "turn upright" appear; score a 32-point game in the installed iPhone app and see Save score clear of the home bar
 - [ ] Do an audit of Firebase. This should include rules for proper authentication and authorization. Take a look at the code to configuration code. It should look at the data storage schema. It should take a look at all the queries and subscriptions created in the code. Ensure everything is secure. Nothing extra is being set or called or read. Minimize API calls to Firebase. Lastly all Firebase related code should be following the best practices and guidelines.
 - [ ] Do a security audit of the app. Ensure Firebae is safe and secure. No environment variables or sensitive data should be exposed in the client code. 
 - [ ] Make sure no one can inject any code in the app or access the data stored in the local storage for any other user. 
@@ -35,6 +28,12 @@ Claude: do not read, act on or edit this file unless asked to.
 
 ## Done
 
+- [x] Test the web app on all different screen sizes and resolutions to ensure that it is responsive and works well on all devices. This includes testing on desktop, tablet, and mobile devices, as well as different browsers. Store screenshots for yourself, compare them and fix any inconsistencies or issues that arise. This is important to ensure that the app provides a consistent and high-quality user experience across all platforms.
+  - [x] A phone turned on its side shows "turn your phone upright" instead of a squeezed app
+  - [x] Save score stays in view on the score sheet while the numbers scroll
+  - [x] Standings open at the top of the table
+  - [x] Small buttons get a 44px tap area
+  - [x] Run the same sweep in Safari's and Firefox's engines
 - [x] I shared a link for a game with a friend. It opened the game directly on the rounds screen. It had the "live" badge but when he pressed the back button to navigate to the "home" page. It showed the current game in the history. The game card has the "shared" text but it did not have the "live" badge on the home screen.
 - [x] What happens in this case. When a game is being broadcasted but then it is left for a new game which is also broadcasted. When are we going to cancel the firebase subscription and live status of the unfinished game?
 - [x] Let's make it so there is only 1 game being broadcasted from a device at any time. When a user broadcast a new game we tell them that the current broadcast will be closed. But what happens when I want to create a broadcast link for a game which was previously broadcasted? Will the same link be accessible? It should be. Do not create a new link for the same game.
@@ -60,3 +59,8 @@ Claude: do not read, act on or edit this file unless asked to.
 - [x] We need to sync the creator's data to Firebase if they were sharing a game. Similarly we need to sync data from Firebase to the user's link who was using a shared link. All this should happen in the background without any user intervention. **(This this feature before coding I think it is already working like this)** 
   - [x] Tested, no code needed: with the app left open, both sides catch up by themselves when the connection returns
   - [x] Scores entered with no connection are sent again when the app starts, in case it was closed before they went
+- [x] Should we use "/private/tmp/claude-501/-Users-hzburki-Code-side-projects-padel/26c143f9-5657-4262-b872-1f5b9a09ef7b/scratchpad/sweep/sweep.mjs" and use it for snapshot? We can create a command for it. Store all the images in the repo. Push them to git. When we run it matches the exisitng pages with existing images. If they do not match it throws an error and the LLM can take over. If images don't exist the LLM can be sent the new screenshots to review once, fix errors and store them in the repo? 
+  - [x] `npm run shots` walks every screen at phone, tablet and desktop size and compares each with a stored image
+  - [x] The seeded games are the same on every run (fixed date, fixed pairings)
+  - [x] The stored images are in the repo, and a changed screen fails the run with a diff image
+  - [x] `/shots` runs it and has Claude look at each mismatch

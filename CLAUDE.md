@@ -63,6 +63,8 @@ If something needs a sentence, write one short one, not three.
 - **Firebase** (anonymous Auth + Firestore), only for sharing a game by link. The site itself is hosted on
   Cloudflare Pages, not Firebase Hosting.
 - `vite-plugin-pwa` (autoUpdate) for the service worker and manifest.
+- **Playwright** (`@playwright/test`) only for `npm run shots`. The walk is `shots/screens.shots.ts`, the
+  games it starts from `shots/seed.ts`. Never replace a stored image without the user's yes (`/shots`).
 - Path alias `@/` → `src/`. TypeScript 6 dropped `baseUrl`, so `paths` are relative to the tsconfig; the
   same alias is repeated in `vite.config.ts`.
 
@@ -75,6 +77,7 @@ npm run preview      # serve the build — the only way to exercise the service 
 npm run lint         # oxlint
 npm test             # vitest run
 npm run test:watch
+npm run shots        # walk every screen and compare it with its image in shots/images
 
 npx vitest run src/lib/americano.test.ts           # one file
 npx vitest run -t "benches the player"             # one test by name
