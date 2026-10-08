@@ -1,13 +1,9 @@
 import * as React from "react"
 import { cn } from "cn"
 
-// No browser should offer saved details on a player's name, and no one value stops them all.
-// Safari offers "AutoFill Contact" unless the field says "off". Chrome ignores "off" on a field it
-// takes for a name and offers a saved card or address; it does obey a type it knows, and it has
-// nothing saved to offer for a one-time code.
-const noAutofill = /Chrome|CriOS|Edg/.test(navigator.userAgent) ? "one-time-code" : "off"
-
-function Input({ className, type, autoComplete = noAutofill, ...props }: React.ComponentProps<"input">) {
+// Chrome ignores autoComplete="off" on a field it takes for a name and offers a saved card or address.
+// It does obey a type it knows, and it has nothing saved to offer for a one-time code.
+function Input({ className, type, autoComplete = "one-time-code", ...props }: React.ComponentProps<"input">) {
   return (
     <input
       type={type}
