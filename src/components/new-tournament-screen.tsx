@@ -177,7 +177,7 @@ export function NewTournamentScreen({
             ref={draftRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder={players.length === 0 ? "First player" : "Next player"}
+            placeholder={players.length === 0 ? "First player's name" : "Next player"}
             enterKeyHint="next"
             autoCapitalize="words"
             className="pr-16"
