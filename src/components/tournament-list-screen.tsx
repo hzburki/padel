@@ -371,7 +371,7 @@ function MatchPlayingNow({ match, onOpen }: { match: SetMatch; onOpen: () => voi
 }
 
 function HowItWorks() {
-  const steps = ["Add your players and courts", "Enter scores courtside", "Share the final standings"]
+  const steps = ["Add your players and courts", "Enter scores courtside", "Share with your friends"]
   return (
     <ol className="space-y-2.5">
       {steps.map((step, i) => (
