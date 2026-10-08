@@ -140,6 +140,9 @@
   /* Only the part of the screen the keyboard doesn't cover (see
      center-focused-field.ts). */
   #root {
+    position: fixed;
+    inset-inline: 0;
+    top: var(--app-top, 0px);
     height: var(--app-height, 100%);
   }
   body {

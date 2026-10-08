@@ -23,8 +23,11 @@ Claude: do not read, act on or edit this file unless asked to.
 - [ ] Review all the repo for dead code. If you find any comment it, run the tests and ensure that the code is not being used anywhere. If it is not being used anywhere, delete it.
 - [ ] Can we also change the og description and title for the shared link so that user knows which game its for? If not, then leave it. This is not a priority. If this is not possible ignore it and move it to backlog.
   - Needs a server: a Cloudflare Pages function on /t/* and /m/* that reads the game and fills in the tags. Not possible on a purely static site.
-- [ ] When typing a name the keyboard has a huge empty space on top of it so the visible screen is too small. Check the red area highlighted in the screenshot. This is on iOS I have not tested on android. But both platforms need to have minimum space required to separate the keyboard from the visible screen. This is a UX issue and needs to be fixed.
 - [ ] Separate data stored in Firestore for production and development. 
+- [ ] When typing a name the keyboard has a huge empty space on top of it so the visible screen is too small. Check the red area highlighted in the screenshot. This is on iOS I have not tested on android. But both platforms need to have minimum space required to separate the keyboard from the visible screen. This is a UX issue and needs to be fixed.
+  - [x] The app follows the visible part of the screen instead of scrolling the page back to the top
+  - [ ] Check on a real iPhone, in Chrome and in Safari: tap the player field on New game and see no white gap above the keyboard, and Create still in view
+  - [ ] Check on an Android phone: same field, no gap
 
 ## Done
 

@@ -3,9 +3,9 @@ import { useEffect } from "react"
 // Keeps the text field being typed into in the middle of the visible screen,
 // above the on-screen keyboard, in every form and sheet.
 //
-// 1. The app is sized to the visual viewport (the part the keyboard doesn't
-//    cover), exposed as --app-height. Android resizes the page itself
-//    (interactive-widget in index.html); iOS needs this.
+// 1. The app is pinned to the visual viewport (the part the keyboard doesn't
+//    cover), exposed as --app-top and --app-height. Android resizes the page
+//    itself (interactive-widget in index.html); iOS needs this.
 // 2. When a field gets focus, its scroll container scrolls it to the centre.
 // 3. While it stays focused, any change in the form's size (e.g. another
 //    player added above it) re-centres it.
@@ -29,7 +29,8 @@ function centre(field: HTMLElement, behavior: ScrollBehavior) {
   const c = container.getBoundingClientRect()
   const f = field.getBoundingClientRect()
   // Only the part of the container that's actually visible counts.
-  const visibleBottom = Math.min(c.bottom, window.visualViewport?.height ?? window.innerHeight)
+  const vv = window.visualViewport
+  const visibleBottom = Math.min(c.bottom, vv ? vv.offsetTop + vv.height : window.innerHeight)
   const middle = (c.top + visibleBottom) / 2
   const delta = f.top + f.height / 2 - middle
   if (Math.abs(delta) > 4) container.scrollBy({ top: delta, behavior })
@@ -43,8 +44,9 @@ export function useCenterFocusedField() {
     const fitToViewport = () => {
       if (!vv) return
       root.style.setProperty("--app-height", `${vv.height}px`)
-      // iOS pans the whole page to show the field; undo that, we scroll ourselves.
-      if (window.scrollY !== 0) window.scrollTo(0, 0)
+      // iOS slides the visible part down the page to show the field. Follow it:
+      // scrolling the page back leaves Chrome on iOS with a gap above the keyboard.
+      root.style.setProperty("--app-top", `${vv.offsetTop}px`)
     }
 
     let observer: ResizeObserver | null = null
