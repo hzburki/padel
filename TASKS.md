@@ -26,7 +26,7 @@ Claude: do not read, act on or edit this file unless asked to.
 - [ ] Separate data stored in Firestore for production and development. 
 - [ ] When typing a name the keyboard has a huge empty space on top of it so the visible screen is too small. Check the red area highlighted in the screenshot. This is on iOS I have not tested on android. But both platforms need to have minimum space required to separate the keyboard from the visible screen. This is a UX issue and needs to be fixed.
   - [x] The app follows the visible part of the screen instead of scrolling the page back to the top
-  - [ ] Check on a real iPhone, in Chrome and in Safari: tap the player field on New game and see no white gap above the keyboard, and Create still in view
+  - [x] Check on a real iPhone, in Chrome and in Safari: tap the player field on New game and see no white gap above the keyboard, and Create still in view
   - [ ] Check on an Android phone: same field, no gap
 
 ## Done
