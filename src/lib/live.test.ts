@@ -31,6 +31,7 @@ const fake = vi.hoisted(() => {
     pageListeners,
     saved: new Map<string, unknown>(), // the games on this phone
     listeners: [] as Listener[], // every Firestore listener ever opened
+    otherTabs: new Map<string, () => void>(), // by game id: what to call when another tab changes it
   }
 })
 
@@ -58,6 +59,10 @@ vi.mock("./storage", () => ({
   loadTournament: async (id: string) => fake.saved.get(id) ?? null,
   saveTournament: vi.fn(async (event: { id: string }) => void fake.saved.set(event.id, event)),
   migrate: (raw: unknown) => raw,
+  onChangedElsewhere: (id: string, changed: () => void) => {
+    fake.otherTabs.set(id, changed)
+    return () => void fake.otherTabs.delete(id)
+  },
 }))
 
 import { deleteDoc, setDoc } from "firebase/firestore"
@@ -129,6 +134,7 @@ beforeEach(() => {
   fake.saved.clear()
   fake.pageListeners.clear()
   fake.listeners.length = 0
+  fake.otherTabs.clear()
   fake.page.hidden = false
   vi.clearAllMocks()
 })
@@ -495,6 +501,59 @@ describe("opening your own game", () => {
     own("a")
     await open("a", true)
     expect(fake.listeners).toHaveLength(0)
+  })
+})
+
+describe("your own game open in two tabs", () => {
+  it("shows a score entered in the other tab", async () => {
+    own("a")
+    const { last } = await open("a")
+    const scored = own("a", { name: "scored in the other tab" })
+    fake.otherTabs.get("a")?.()
+    await settle()
+    expect(last().event).toEqual(scored)
+  })
+
+  it("stops being live once the other tab finishes it", async () => {
+    await shareLive(own("a"))
+    const { last } = await open("a")
+    expect(last().live).toBe(true)
+    own("a", { finished: true })
+    fake.otherTabs.get("a")?.()
+    await settle()
+    expect(last().live).toBe(false)
+  })
+
+  it("shows no game once the other tab deletes it", async () => {
+    own("a")
+    const { last } = await open("a")
+    fake.saved.delete("a")
+    fake.otherTabs.get("a")?.()
+    await settle()
+    expect(last()).toEqual({ event: null, live: false })
+  })
+
+  it("shows what changed while its tab was in the background, once it is back in front", async () => {
+    own("a")
+    const { last } = await open("a")
+    hidePage(true)
+    const scored = own("a", { name: "scored in the other tab" })
+    hidePage(false)
+    await settle()
+    expect(last().event).toEqual(scored)
+  })
+
+  it("stops listening to the other tab and to the page when its screen closes", async () => {
+    own("a")
+    const { close } = await open("a")
+    close()
+    expect(fake.otherTabs.has("a")).toBe(false)
+    expect(fake.pageListeners.size).toBe(0)
+  })
+
+  it("does not listen to other tabs for a friend's game", async () => {
+    await open("a", true)
+    expect(fake.otherTabs.has("a")).toBe(false)
   })
 })
 

@@ -40,6 +40,7 @@ unless you broadcast a game.
   The link is short: the site, then `/t/` or `/m/` and the game's 10-character id.
 - Play again with the same people and settings in one tap.
 - Saved after every score or point. Lock the phone or close the tab and nothing is lost.
+- The same game open in two tabs stays the same in both: a score entered in one shows in the other.
 - A history of past games, filtered by kind.
 - Made for a phone held upright. Turn a phone on its side and the app asks you to turn it back; tablets and
   computers show the same phone-width column either way.
