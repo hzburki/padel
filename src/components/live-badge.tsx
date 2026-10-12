@@ -1,14 +1,5 @@
 import { WifiOff } from "lucide-react"
-import { useSyncExternalStore } from "react"
-
-function onConnectionChange(changed: () => void) {
-  window.addEventListener("online", changed)
-  window.addEventListener("offline", changed)
-  return () => {
-    window.removeEventListener("online", changed)
-    window.removeEventListener("offline", changed)
-  }
-}
+import { useOnline } from "./online"
 
 // Marks the card of a game whose scores are still being sent to friends.
 // With no connection nothing is sent or received, so it says so instead,
@@ -16,7 +7,7 @@ function onConnectionChange(changed: () => void) {
 // It sits on the card's top border, so the element it is placed in must be
 // `relative`.
 export function LiveBadge() {
-  const online = useSyncExternalStore(onConnectionChange, () => navigator.onLine)
+  const online = useOnline()
   const colour = online ? "border-destructive text-destructive" : "border-muted-foreground text-muted-foreground"
   return (
     <span

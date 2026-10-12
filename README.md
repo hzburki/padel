@@ -38,6 +38,17 @@ unless you broadcast a game.
   With no connection the Live badge turns to a grey Offline, and broadcasting says so instead of waiting.
   Scores entered with no connection reach friends once it is back, even if the app was closed in between.
   The link is short: the site, then `/t/` or `/m/` and the game's 10-character id.
+  What is copied is a one-line message with the game's name, then the link.
+- Add an organiser: a second link, the watch link plus 8 characters, makes a friend an organiser too. They
+  score, undo, edit names, hand out both links and finish the game. Only the person who made the game can
+  delete it for everyone. From then on the game is kept online, so every organiser needs a connection to
+  change it: with none, the screen says "Offline. You can't change it until you're back." and what that phone
+  may do is greyed out. Two organisers scoring at the same moment both keep their score. With no connection,
+  "Broadcast live" and "Add an organiser" are greyed out too.
+  If the first organiser goes live with another game, a game with another organiser passes to one of them;
+  with none yet, it closes like any other broadcast.
+- A broadcast game finishes by itself 6 hours after it was made. There is no server doing this: each phone
+  works it out when it opens the game, and the first organiser's phone to do so finishes it for everyone.
 - Play again with the same people and settings in one tap.
 - Saved after every score or point. Lock the phone or close the tab and nothing is lost.
 - The same game open in two tabs stays the same in both: a score entered in one shows in the other, and so does its Live badge. A game made in one tab shows on the home screen of the other.
@@ -133,8 +144,10 @@ npm run shots      # in Chrome and Safari: compare every screen with its screens
   images with `npm run shots -- --update-snapshots`. The images are not in the repo: the first run on a
   machine makes them, and fails once for doing so.
 - At phone size it plays whole games by tapping (the `shots/flows-*.shots.ts` files): every kind of
-  Americano and of match from the first score to the result, the same game in two tabs, and a broadcast
-  followed by a friend.
+  Americano and of match from the first score to the result, the same game in two tabs, a broadcast
+  followed by a friend, and a game scored by friends from phones of their own.
+- It checks who may change a game online (`shots/rules.shots.ts`): the rules in `firestore.rules`, asked
+  directly on the local emulators.
 
 It starts the dev server and the local emulators itself, or uses the ones already running. The first time,
 download its browsers with `npx playwright install chromium webkit`. Add `--project phone-safari` to run one

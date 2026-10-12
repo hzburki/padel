@@ -1,6 +1,6 @@
 // What the game flows share: setting a game up and scoring it by tapping,
 // the way an organiser would.
-import { expect, type Locator, type Page } from "@playwright/test"
+import { expect, type Browser, type Locator, type Page, type PlaywrightWorkerArgs } from "@playwright/test"
 
 // A plain reload would bring back the screen stack kept in history.
 export async function home(page: Page) {
@@ -139,6 +139,23 @@ export async function finishMatch(page: Page) {
 
 // Sharing -----------------------------------------------------------------
 
+// The run starts as soon as the Firestore emulator answers, which is before
+// the Auth one does, and their first sign-in and write take seconds: longer
+// than the app waits for a game to go online. Do one of each first.
+export async function emulatorsReady(playwright: PlaywrightWorkerArgs["playwright"]) {
+  const request = await playwright.request.newContext()
+  await expect(async () => {
+    const reply = await request.post("http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo", { data: { returnSecureToken: true } })
+    const { localId, idToken } = await reply.json()
+    const written = await request.patch(`http://localhost:8080/v1/projects/demo-padel/databases/(default)/documents/live/warmup${Date.now()}`, {
+      headers: { Authorization: `Bearer ${idToken}` },
+      data: { fields: { owner: { stringValue: localId }, json: { stringValue: "{}" } } },
+    })
+    expect(written.ok()).toBe(true)
+  }).toPass({ timeout: 60_000 })
+  await request.dispose()
+}
+
 // Taps Broadcast live and returns the link the organiser would paste to
 // friends. Broadcasts go to the local emulators.
 export async function broadcast(page: Page, { kind = "t", closesAnother = false }: { kind?: "t" | "m"; closesAnother?: boolean } = {}) {
@@ -154,6 +171,55 @@ export async function broadcast(page: Page, { kind = "t", closesAnother = false 
     return `/${kind}/${key.slice(5)}`
   }, kind)
 }
+
+// Taps Add an organiser and returns the link the organiser would paste to
+// a friend who should organise too: the watch link, then the game's key.
+// `passes`: the other broadcast has another organiser, so it is left to them.
+export async function addScorer(
+  page: Page,
+  { kind = "t", closesAnother = false, passes = false }: { kind?: "t" | "m"; closesAnother?: boolean; passes?: boolean } = {},
+) {
+  await tap(page, 'button[aria-label="More"]')
+  await tap(page, 'button:has-text("Add an organiser")')
+  if (closesAnother) {
+    await expect(sheet(page).getByText(passes ? "Your other game passes to another organiser." : "Your other broadcast closes.")).toBeVisible()
+    await sheet(page).getByRole("button", { name: "Broadcast", exact: true }).click()
+  }
+  await expect(liveBadge(page).first()).toBeVisible()
+  const link = () =>
+    page.evaluate((kind) => {
+      const id = Object.keys(localStorage).find((k) => k.startsWith("live:") && localStorage.getItem(k) === "1")?.slice(5)
+      const key = id && localStorage.getItem(`score:${id}`)
+      return key ? `/${kind}/${id}/${key}` : null
+    }, kind)
+  await expect.poll(link).not.toBeNull()
+  return (await link())!
+}
+
+// The watch link of the same game: the organiser link without its key.
+export const watchLink = (scoreLink: string) => scoreLink.slice(0, scoreLink.lastIndexOf("/"))
+
+// A phone of its own: nothing stored, not the organiser.
+export const newPhone = async (browser: Browser) => (await browser.newContext()).newPage()
+
+// The clipboard belongs to the phone: stand in for it and keep the text.
+export async function catchCopy(page: Page) {
+  await page.addInitScript(() => {
+    class Item {
+      constructor(readonly parts: Record<string, Promise<Blob>>) {}
+    }
+    ;(window as unknown as { ClipboardItem: unknown }).ClipboardItem = Item
+    Object.defineProperty(navigator, "clipboard", {
+      value: {
+        write: async ([item]: Item[]) => {
+          ;(window as unknown as { copied: string }).copied = await (await item.parts["text/plain"]).text()
+        },
+      },
+    })
+  })
+}
+
+export const copied = (page: Page) => page.evaluate(() => (window as unknown as { copied: string }).copied)
 
 // The share sheet belongs to the phone: stand in for it and keep the file.
 export async function catchShare(page: Page) {

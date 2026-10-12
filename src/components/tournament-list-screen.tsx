@@ -33,14 +33,10 @@ export function TournamentListScreen() {
   // created or scored shows up to date. The same when another tab makes,
   // changes or deletes a game, and when this tab comes back to the front in
   // case it missed that.
-  const [loadedAt, setLoadedAt] = useState(0)
   useEffect(() => {
     if (!isTop) return
     const load = () => {
-      void listTournaments().then((all) => {
-        setEvents(all)
-        setLoadedAt(Date.now())
-      })
+      void listTournaments().then(setEvents)
     }
     const onVisible = () => {
       if (!document.hidden) load()
@@ -57,9 +53,8 @@ export function TournamentListScreen() {
   // Unfinished games are opened the way their own screen opens them, so a
   // game is live here exactly when it is live there: sent from this phone,
   // or followed on a friend's. A followed game also brings its newest score.
-  // A friend's game from hours ago is left alone (followedFromHome).
   const [live, setLive] = useState<ReadonlySet<string>>(new Set())
-  const unfinished = events?.filter((e) => followedFromHome(e, loadedAt)).map((e) => e.id).join() ?? ""
+  const unfinished = events?.filter((e) => followedFromHome(e)).map((e) => e.id).join() ?? ""
   useEffect(() => {
     if (!isTop || unfinished === "") return
     const stops = unfinished.split(",").map((id) =>

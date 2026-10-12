@@ -26,9 +26,16 @@ export function livePath(kind: "americano" | "match", id: string): string {
   return `/${kind === "match" ? "m" : "t"}/${id}`
 }
 
+// The address that also lets a friend score: the watch address, then the
+// game's score key.
+export function scorePath(kind: "americano" | "match", id: string, key: string): string {
+  return `${livePath(kind, id)}/${key}`
+}
+
 // The shared game an address points at, or null when it is not a live link.
+// `key` is there when the address is one for scoring.
 // Links sent before they were shortened start with /live and still open.
-export function liveAt(pathname: string): { kind: "americano" | "match"; id: string } | null {
-  const found = /^(?:\/live)?\/([tm])\/([0-9a-z]+)\/*$/.exec(pathname)
-  return found && { kind: found[1] === "m" ? "match" : "americano", id: found[2] }
+export function liveAt(pathname: string): { kind: "americano" | "match"; id: string; key?: string } | null {
+  const found = /^(?:\/live)?\/([tm])\/([0-9a-z]+)(?:\/([0-9a-z]+))?\/*$/.exec(pathname)
+  return found && { kind: found[1] === "m" ? "match" : "americano", id: found[2], ...(found[3] && { key: found[3] }) }
 }

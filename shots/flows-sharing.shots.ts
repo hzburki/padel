@@ -97,7 +97,7 @@ test("a broadcast Americano: a friend follows it, and the organiser scores from 
   const friend = await (await browser.newContext()).newPage()
   await friend.goto(link)
   await expect(friend.getByRole("heading", { name: "On air" })).toBeVisible()
-  await expect(friend.getByText("Only the organiser can change it.")).toBeVisible()
+  await expect(friend.getByText("Watch only.")).toBeVisible()
   await expect(liveBadge(friend).first()).toBeVisible()
   await expect(unscored(friend)).toHaveCount(0)
 
@@ -107,7 +107,7 @@ test("a broadcast Americano: a friend follows it, and the organiser scores from 
   // The organiser's own link, in another tab of the same browser, is still
   // their game: they can score from there too.
   await secondTab.goto(link)
-  await expect(secondTab.getByText("Only the organiser can change it.")).toHaveCount(0)
+  await expect(secondTab.getByText("Watch only.")).toHaveCount(0)
   await score(secondTab, unscored(secondTab).first(), 4)
   await expect(courts(page).nth(1)).toContainText("12")
   await expect(friend.locator('[aria-label^="Court"]').nth(1).locator("..")).toContainText("12")
@@ -138,7 +138,7 @@ test("a broadcast match: a friend follows every point and can change nothing", a
   const friend = await (await browser.newContext()).newPage()
   await friend.goto(link)
   await expect(friend.getByRole("heading", { name: "Match on air" })).toBeVisible()
-  await expect(friend.getByText("Only the organiser can change it.")).toBeVisible()
+  await expect(friend.getByText("Watch only.")).toBeVisible()
   await expect(liveBadge(friend).first()).toBeVisible()
   await expect(winButton(friend, 0)).toHaveCount(0)
   await expect(friend.getByRole("button", { name: /Undo last/ })).toHaveCount(0)

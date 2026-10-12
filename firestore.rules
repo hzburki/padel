@@ -6,21 +6,67 @@ service cloud.firestore {
     match /live/{id} {
       function wellFormed() {
         let data = request.resource.data;
-        return data.keys().hasOnly(['owner', 'json', 'closed'])
-          && data.owner == request.auth.uid
+        return data.keys().hasOnly(['owner', 'json', 'closed', 'handover'])
           // Set when the organiser moves the broadcast to another game.
           && (!('closed' in data) || data.closed == true)
+          // Set when the owner leaves the game to its other organisers.
+          && (!('handover' in data) || data.handover == true)
           && data.json is string
           && data.json.size() < 500000;
+      }
+      function isOwner() {
+        return resource.data.owner == request.auth.uid;
+      }
+      // A friend who opened the organiser link: see `scorers` below. The
+      // app calls them organisers: they score, rename and finish the game.
+      function isScorer() {
+        return exists(/databases/$(database)/documents/live/$(id)/scorers/$(request.auth.uid));
       }
 
       // Anyone holding the link can watch. No `list`: ids can't be browsed.
       allow get: if true;
-      // Whoever shares it first owns it; only they can update the score.
-      allow create: if request.auth != null && wellFormed();
-      allow update: if request.auth != null && resource.data.owner == request.auth.uid && wellFormed();
+      // Whoever shares it first owns it.
+      allow create: if request.auth != null && wellFormed() && request.resource.data.owner == request.auth.uid;
+      allow update: if request.auth != null && wellFormed() && (
+        // The organiser changes anything but who owns it.
+        (isOwner() && request.resource.data.owner == request.auth.uid)
+        // An added organiser changes the game itself and nothing else.
+        || (isScorer() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['json']))
+        // An added organiser becomes the owner of a game left to them.
+        || (isScorer()
+          && resource.data.get('handover', false) == true
+          && request.resource.data.owner == request.auth.uid
+          && !('handover' in request.resource.data))
+      );
       // Deleting the game on the organiser's phone takes this copy with it.
-      allow delete: if request.auth != null && resource.data.owner == request.auth.uid;
+      allow delete: if request.auth != null && isOwner();
+
+      function ownsGame() {
+        return request.auth != null
+          && get(/databases/$(database)/documents/live/$(id)).data.owner == request.auth.uid;
+      }
+
+      // The key that ends the game's organiser link, as the name of an empty
+      // document. Nobody can read it, so a friend with the watch link never
+      // learns it; the rule below only asks whether it is there.
+      match /keys/{key} {
+        allow create: if ownsGame() && request.resource.data.size() == 0;
+        allow delete: if ownsGame();
+      }
+
+      // One document per added organiser, named by their sign-in. They
+      // write it themselves, and it is only taken with the right key.
+      match /scorers/{uid} {
+        allow create, update: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['key'])
+          && request.resource.data.key is string
+          && request.resource.data.key.matches('^[0-9a-z]+$')
+          && exists(/databases/$(database)/documents/live/$(id)/keys/$(request.resource.data.key));
+        // The organiser sees whether anyone joined, and clears them out
+        // when the game is deleted.
+        allow read, delete: if ownsGame();
+      }
     }
   }
 }

@@ -17,6 +17,9 @@ Claude: do not read, act on or edit this file unless asked to.
 
 ## To Do
 
+- [ ] Show the +/- point difference in the match result card which is shared. Show it everywhere where we have space for it.
+- [ ] Add a banner on the home page to view latest features. It navigates to a page with its own URL which shows which features are pushed. When. What they do and how they work. 
+- [ ] When I want to change the rounds manually the app shows the alternate number of rounds only once. E.g. for 4 players the app suggest 3 rounds. When I change it to 4 the shows a warning that all players will not play equal matches. This is fine, but when I change the rounds to 6 the app still suggests to change it to 3 rounds instead of approving the choice because all players still play equal matches. This should also be accomodated in the initial suggestion the app gives when the user manually changes the number of rounds.  
 - [ ] From the 15-player Americano test: the app in the browser and the app on the home screen have different storage. This is iOS, not a bug: an iPhone gives a home-screen app its own storage apart from Safari, and code cannot join them. A game made in one is not in the other. Links always open in Safari, so an organiser running the game in the home-screen app who taps their own link gets a read-only "Shared" copy. Pick one:
   - [ ] A (recommended): a box on the home screen of the installed app to paste a link, so a friend can follow a broadcast there. Small, but it does not move the organiser's own game
   - [ ] B: move a game across, by exporting it from one and importing it into the other. The real fix for the organiser, but a new feature
