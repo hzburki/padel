@@ -1,9 +1,22 @@
-import { Ellipsis, LoaderCircle, Radio, Repeat, Share, Trash2, Undo2 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { Ellipsis, LoaderCircle, Radio, Repeat, Share, Trash2, Undo2, UserPlus, WifiOff } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
-import { canBroadcast } from "@/lib/broadcast"
-import { canShareLive, closesAnother, deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "@/lib/live"
+import {
+  canShare,
+  canShareLive,
+  changeLive,
+  changesOnline,
+  closesAnother,
+  deleteLive,
+  hasLink,
+  isChanging,
+  isSending,
+  openGame,
+  passesOn,
+  pushLive,
+  scoreLockOn,
+} from "@/lib/live"
 import {
   addPoint,
   gameSummary,
@@ -16,21 +29,23 @@ import {
 } from "@/lib/set-match"
 import { previousMatchSetup } from "@/lib/set-match-setup"
 import { matchStats } from "@/lib/set-match-stats"
-import { deleteTournament, saveTournament } from "@/lib/storage"
+import { deleteTournament, loadTournament, saveTournament } from "@/lib/storage"
 import type { SetMatch, Side } from "@/lib/types"
 import { Congrats } from "./congrats"
+import { copyLink } from "./copy-link"
 import { LiveBadge } from "./live-badge"
+import { useOnline } from "./online"
 import { renderMatchShareCard } from "./match-share-card"
 import { Screen } from "./screen"
 import { shareOrDownload } from "./share-card"
 import { Sheet } from "./sheet"
-import { SharedTag } from "./shared-tag"
+import { ScoreNote } from "./shared-tag"
 import { useNav } from "./nav"
-import { Toast } from "./toast"
+import { Toast, type ToastMessage } from "./toast"
 
 // watch: opened from a shared link, so the match may not be on this phone
-// yet.
-export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean }) {
+// yet. scoreKey: the end of that link when it makes a friend an organiser.
+export function MatchScreen({ id, watch = false, scoreKey }: { id: string; watch?: boolean; scoreKey?: string }) {
   const nav = useNav<Route>()
   const toNotFound = nav.replace
   const [match, setMatch] = useState<SetMatch | null | undefined>(undefined)
@@ -39,23 +54,40 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
   const [saveError, setSaveError] = useState(false)
   // The full card to share, and a score-only preview for the screen.
   const [image, setImage] = useState<{ blob: Blob; previewUrl: string } | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<ToastMessage | null>(null)
   // Being sent from this phone, or followed on a friend's.
   const [live, setLive] = useState(false)
   // The link is being made.
   const [sharing, setSharing] = useState(false)
+  // Which link the organiser asked for, while they are asked about their
+  // other broadcast, and whether that one passes to another organiser.
+  const [asked, setAsked] = useState<{ link: "watch" | "organise"; passes: boolean }>({ link: "watch", passes: false })
+  // Counts the links made here: the game is opened again after each, since
+  // an organiser link changes how it is followed.
+  const [links, setLinks] = useState(0)
+  const online = useOnline()
+  const wasShared = useRef(false)
 
   useEffect(
     () =>
-      openGame(id, watch, (saved, following) => {
-        // A tournament has its own screen; here it counts as not found.
-        const m = saved?.kind === "match" ? saved : null
-        // A link that leads nowhere gets the 404 page, saying why.
-        if (!m && watch) return toNotFound({ name: "notFound", path: location.pathname, message: "This link doesn't lead to a game. The organiser may have deleted it, or part of the link is missing." })
-        setMatch(m)
-        setLive(following)
-      }),
-    [id, watch, toNotFound],
+      openGame(
+        id,
+        watch,
+        (saved, following) => {
+          // A tournament has its own screen; here it counts as not found.
+          const m = saved?.kind === "match" ? saved : null
+          // A link that leads nowhere gets the 404 page, saying why.
+          if (!m && watch) return toNotFound({ name: "notFound", path: location.pathname, message: "This link doesn't lead to a game. The organiser may have deleted it, or part of the link is missing." })
+          // A friend's game that became this phone's: its owner left it to
+          // the other organisers.
+          if (wasShared.current && m && !m.shared) setToast({ text: "This game is yours now" })
+          wasShared.current = m?.shared === true
+          setMatch(m)
+          setLive(following)
+        },
+        scoreKey,
+      ),
+    [id, watch, scoreKey, toNotFound, links],
   )
 
   // Render the share image ahead of time, so the Share tap can hand it to
@@ -99,15 +131,35 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
   const byGames = match.scoreBy === "games"
   // What one tap adds to the log, and so what undo takes back.
   const unit = byGames ? "game" : "point"
-  // A friend's copy: nothing about it can be changed here.
-  const readOnly = match.shared === true
+  // A friend's game: deleting it here removes only this phone's copy.
+  const mine = match.shared !== true
+  // Why the match can't be changed here right now, if it can't. Only an
+  // organiser gets the buttons at all.
+  const lock = scoreLockOn(match, online)
+  // With no connection what this phone may do stays on screen, greyed out;
+  // what it may never do is not shown at all.
+  const offline = lock === "offline"
   // Scores are still being sent. Once finished, nothing changes any more.
   const showLive = live && !match.finished
 
   // Save straight away: the phone may be locked or the tab killed any moment.
-  const update = async (next: SetMatch) => {
+  // A match with other organisers is changed online instead, on top of
+  // whatever they entered meanwhile; the change shows here at once.
+  const update = async (change: (m: SetMatch) => SetMatch) => {
+    const next = change(match)
     if (next === match) return
     setMatch(next)
+    if (changesOnline(match)) {
+      try {
+        const saved = await changeLive(match.id, change)
+        if (!isChanging(match.id)) setMatch(saved)
+      } catch {
+        setToast({ text: "Not saved. Try again", failed: true })
+        const kept = await loadTournament(match.id)
+        if (kept?.kind === "match") setMatch(kept)
+      }
+      return
+    }
     try {
       await saveTournament(next)
       setSaveError(false)
@@ -119,7 +171,7 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
 
   const finish = () => {
     setConfirm("congrats")
-    update({ ...match, finished: true })
+    update((m) => ({ ...m, finished: true }))
   }
 
   const share = () => {
@@ -128,30 +180,27 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
     shareOrDownload(image.blob, filename, match.name)
   }
 
-  // Put a copy online and copy the link to it; the organiser pastes it
-  // wherever they like. From then on every save sends the copy again
-  // (pushLive).
-  const shareLink = async () => {
+  // Put a copy online and copy the message with its link: the one for
+  // watching, or the one that makes a friend an organiser too.
+  const shareLink = async (link: "watch" | "organise") => {
     setConfirm(null)
     setSharing(true)
-    const online = shareLive(match)
-    try {
-      // The copy is started during the tap, before the link exists: iOS
-      // refuses one that starts after waiting on the network.
-      const link = online.then((url) => new Blob([url], { type: "text/plain" }))
-      await navigator.clipboard.write([new ClipboardItem({ "text/plain": link })])
-      setToast("Link copied!")
-    } catch {
-      // The copy can fail with the game already online.
-      const isOnline = await online.then(
-        () => true,
-        () => false,
-      )
-      setToast(isOnline ? "Couldn't copy the link. Try again" : "No connection. Try again")
-    }
+    setToast(await copyLink(link, match))
     // The badge follows the game, not the copy.
     setLive(isSending(match.id))
     setSharing(false)
+    setLinks((n) => n + 1)
+  }
+
+  // Going live takes the broadcast from any other game: say so first.
+  const askOrShare = (link: "watch" | "organise") => {
+    if (!closesAnother(match)) return shareLink(link)
+    setAsked({ link, passes: false })
+    setConfirm("broadcast")
+    passesOn(match).then(
+      (passes) => setAsked({ link, passes }),
+      () => {},
+    )
   }
 
   const playAgain = () => {
@@ -198,13 +247,13 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
               Share
             </Button>
           </div>
-        ) : readOnly ? undefined : (
+        ) : lock === "watch" ? undefined : (
           <div className="space-y-2">
             <Button
               variant="ghost"
               className="mx-auto flex h-11 px-4 text-base font-medium text-primary"
-              disabled={match.points.length === 0}
-              onClick={() => update(undoPoint(match))}
+              disabled={offline || match.points.length === 0}
+              onClick={() => update(undoPoint)}
             >
               <Undo2 className="size-5" strokeWidth={2.5} />
               Undo last {unit}
@@ -212,7 +261,7 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
             {/* Finishing asks first, so a second tap meant as a point can't end
                 the match; until then the last point can still be undone. */}
             {decided ? (
-              <Button variant="ball" size="lg" onClick={() => setConfirm("finish")}>
+              <Button variant="ball" size="lg" disabled={offline} onClick={() => setConfirm("finish")}>
                 Finish match
               </Button>
             ) : (
@@ -222,8 +271,9 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
                   <button
                     key={side}
                     type="button"
-                    onClick={() => update(addPoint(match, side))}
-                    className="flex h-20 min-w-0 touch-manipulation flex-col items-center justify-center rounded-2xl bg-accent px-3 text-accent-foreground shadow-[inset_0_-3px_0_rgb(14_34_64/0.16)] transition-transform active:scale-[0.97] active:shadow-none"
+                    disabled={offline}
+                    onClick={() => update((m) => addPoint(m, side))}
+                    className="flex h-20 min-w-0 touch-manipulation flex-col items-center justify-center rounded-2xl bg-accent px-3 text-accent-foreground shadow-[inset_0_-3px_0_rgb(14_34_64/0.16)] transition-transform active:scale-[0.97] active:shadow-none disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none"
                   >
                     <span className="text-sm font-medium opacity-70">
                       {!byGames ? "Point for" : state.current.tiebreak ? "Tie-break for" : "Game for"}
@@ -242,11 +292,7 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
           The last {unit} isn't saved on this phone yet. It's still shown here, and the next {unit} will try again.
         </p>
       )}
-      {readOnly && (
-        <p className="pt-3 text-sm text-muted-foreground">
-          <SharedTag /> with you. Only the organiser can change it.
-        </p>
-      )}
+      <ScoreNote shared={!mine} lock={lock} />
       {/* Room above the card for the badge that sits on its border. */}
       <div className={showLive ? "pt-4" : "pt-2"}>
         <div className="relative">
@@ -306,16 +352,31 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
 
       <Sheet open={confirm === "menu"} onClose={() => setConfirm(null)}>
         <div className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
-          {canShareLive && canBroadcast(match) && (
-            <button
-              type="button"
-              // Going live takes the broadcast from any other game: say so first.
-              onClick={closesAnother(match) ? () => setConfirm("broadcast") : shareLink}
-              className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
-            >
-              <Radio className="size-5 text-primary" />
-              Broadcast live
-            </button>
+          {canShareLive && canShare(match) && (
+            <>
+              <button
+                type="button"
+                // A game can't be put online with no connection.
+                disabled={!online}
+                onClick={() => askOrShare("watch")}
+                className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted disabled:text-muted-foreground"
+              >
+                <Radio className={`size-5 ${online ? "text-primary" : ""}`} />
+                Broadcast live
+                {!online && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
+              </button>
+              <button
+                type="button"
+                // A game can't be put online with no connection.
+                disabled={!online}
+                onClick={() => askOrShare("organise")}
+                className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted disabled:text-muted-foreground"
+              >
+                <UserPlus className={`size-5 ${online ? "text-primary" : ""}`} />
+                Add an organiser
+                {!online && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
+              </button>
+            </>
           )}
           {/* A finished match has this in its footer. */}
           {!match.finished && (
@@ -342,13 +403,13 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
       <Sheet open={confirm === "broadcast"} onClose={() => setConfirm(null)}>
         <p className="text-2xl type-display">Broadcast this game?</p>
         <p className="mt-1 text-muted-foreground">
-          Your other broadcast closes. Its link keeps the last score.
+          {asked.passes ? "Your other game passes to another organiser." : "Your other broadcast closes. Its link keeps the last score."}
         </p>
         <div className="mt-5 grid grid-cols-2 gap-2">
           <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirm(null)}>
             Cancel
           </Button>
-          <Button size="lg" className="px-3" onClick={shareLink}>
+          <Button size="lg" className="px-3" onClick={() => shareLink(asked.link)}>
             Broadcast
           </Button>
         </div>
@@ -358,7 +419,7 @@ export function MatchScreen({ id, watch = false }: { id: string; watch?: boolean
         <p className="text-2xl type-display">Delete {match.name}?</p>
         <p className="mt-1 text-muted-foreground">
           This can't be undone.{" "}
-          {readOnly
+          {!mine
             ? "Only your copy is removed; the organiser still has the match."
             : hasLink(match.id)
               ? "The link stops working, but friends who opened it keep their copy until they delete it themselves."

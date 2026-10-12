@@ -1,31 +1,47 @@
-import { ChevronDown, Ellipsis, LoaderCircle, Pencil, Radio, Repeat, Scale, Share, Trash2 } from "lucide-react"
+import { ChevronDown, Ellipsis, LoaderCircle, Pencil, Radio, Repeat, Scale, Share, Trash2, UserPlus, WifiOff } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
-import { canBroadcast } from "@/lib/broadcast"
-import { canShareLive, closesAnother, deleteLive, hasLink, isSending, openGame, pushLive, shareLive } from "@/lib/live"
+import {
+  canShare,
+  canShareLive,
+  changeLive,
+  changesOnline,
+  closesAnother,
+  deleteLive,
+  hasLink,
+  isChanging,
+  isOrganiser,
+  isSending,
+  openGame,
+  passesOn,
+  pushLive,
+  scoreLockOn,
+} from "@/lib/live"
 import { computeStandings, placesMovedByScaling, winners } from "@/lib/standings"
-import { deleteTournament, saveTournament } from "@/lib/storage"
+import { deleteTournament, loadTournament, saveTournament } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, renameTournament, setScore, unscoredMatchCount } from "@/lib/tournament"
 import type { Match, PlayerId, Score, Tournament } from "@/lib/types"
 import { Screen } from "./screen"
 import { ScoreEntry } from "./score-entry"
 import { Congrats } from "./congrats"
+import { copyLink } from "./copy-link"
 import { LiveBadge } from "./live-badge"
+import { useOnline } from "./online"
 import { RenameForm } from "./rename-form"
 import { renderShareCard, shareOrDownload } from "./share-card"
 import { Sheet } from "./sheet"
-import { SharedTag } from "./shared-tag"
+import { ScoreNote } from "./shared-tag"
 import { useNav } from "./nav"
-import { Toast } from "./toast"
+import { Toast, type ToastMessage } from "./toast"
 import { StandingsTable } from "./standings-table"
 
 type Tab = "rounds" | "standings"
 type Editing = { round: number; court: number }
 
 // watch: opened from a shared link, so the tournament may not be on this
-// phone yet.
-export function TournamentScreen({ id, watch = false }: { id: string; watch?: boolean }) {
+// phone yet. scoreKey: the end of that link when it makes a friend an organiser.
+export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; watch?: boolean; scoreKey?: string }) {
   const nav = useNav<Route>()
   const toNotFound = nav.replace
   const [tournament, setTournament] = useState<Tournament | null | undefined>(undefined)
@@ -42,24 +58,41 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
   // content while it slides away.
   const [shown, setShown] = useState<Editing | null>(null)
   const fullStandings = useRef<HTMLHeadingElement>(null)
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<ToastMessage | null>(null)
   // Being sent from this phone, or followed on a friend's.
   const [live, setLive] = useState(false)
   // The link is being made.
   const [sharing, setSharing] = useState(false)
+  // Which link the organiser asked for, while they are asked about their
+  // other broadcast, and whether that one passes to another organiser.
+  const [asked, setAsked] = useState<{ link: "watch" | "organise"; passes: boolean }>({ link: "watch", passes: false })
+  // Counts the links made here: the game is opened again after each, since
+  // an organiser link changes how it is followed.
+  const [links, setLinks] = useState(0)
+  const online = useOnline()
+  const wasShared = useRef(false)
 
   useEffect(
     () =>
-      openGame(id, watch, (saved, following) => {
-        // A match has its own screen; here it counts as not found.
-        const t = saved?.kind === "americano" ? saved : null
-        // A link that leads nowhere gets the 404 page, saying why.
-        if (!t && watch) return toNotFound({ name: "notFound", path: location.pathname, message: "This link doesn't lead to a game. The organiser may have deleted it, or part of the link is missing." })
-        setTournament(t)
-        setLive(following)
-        if (t?.finished) setTab("standings")
-      }),
-    [id, watch, toNotFound],
+      openGame(
+        id,
+        watch,
+        (saved, following) => {
+          // A match has its own screen; here it counts as not found.
+          const t = saved?.kind === "americano" ? saved : null
+          // A link that leads nowhere gets the 404 page, saying why.
+          if (!t && watch) return toNotFound({ name: "notFound", path: location.pathname, message: "This link doesn't lead to a game. The organiser may have deleted it, or part of the link is missing." })
+          // A friend's game that became this phone's: its owner left it to
+          // the other organisers.
+          if (wasShared.current && t && !t.shared) setToast({ text: "This game is yours now" })
+          wasShared.current = t?.shared === true
+          setTournament(t)
+          setLive(following)
+          if (t?.finished) setTab("standings")
+        },
+        scoreKey,
+      ),
+    [id, watch, scoreKey, toNotFound, links],
   )
 
   // Render the share image ahead of time, so the Share tap can hand it to
@@ -112,8 +145,16 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
   const nameOf = new Map(tournament.players.map((p) => [p.id, p.name]))
   const team = (ids: PlayerId[]) => ids.map((i) => nameOf.get(i)).join(" & ")
   const unscored = unscoredMatchCount(tournament)
-  // A friend's copy: nothing about it can be changed here.
-  const readOnly = tournament.shared === true
+  // A friend's game: deleting it here removes only this phone's copy.
+  const mine = tournament.shared !== true
+  // Organisers score, rename, finish and hand out the links; anyone else
+  // only watches, and is never shown what they can't do.
+  const organiser = isOrganiser(tournament)
+  // Why the game can't be changed here right now, if it can't.
+  const lock = scoreLockOn(tournament, online)
+  // With no connection what this phone may do stays on screen, greyed out;
+  // what it may never do is not shown at all.
+  const offline = lock === "offline"
   // Scores are still being sent. Once finished, nothing changes any more.
   const showLive = live && !tournament.finished
   const playerIds = tournament.players.map((p) => p.id)
@@ -126,8 +167,22 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
   const unevenGames = unscored > 0 || new Set(standings.map((r) => r.played)).size > 1
 
   // Save straight away: the phone may be locked or the tab killed any moment.
-  const update = async (next: Tournament) => {
+  // A game with other organisers is changed online instead, on top of
+  // whatever they entered meanwhile; the change shows here at once.
+  const update = async (change: (t: Tournament) => Tournament) => {
+    const next = change(tournament)
     setTournament(next)
+    if (changesOnline(tournament)) {
+      try {
+        const saved = await changeLive(tournament.id, change)
+        if (!isChanging(tournament.id)) setTournament(saved)
+      } catch {
+        setToast({ text: "Not saved. Try again", failed: true })
+        const kept = await loadTournament(tournament.id)
+        if (kept?.kind === "americano") setTournament(kept)
+      }
+      return
+    }
     try {
       await saveTournament(next)
       setSaveError(false)
@@ -139,14 +194,15 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
 
   const saveScore = (score: Score | null) => {
     if (!editing) return
-    update(setScore(tournament, editing.round, editing.court, score))
+    const { round, court } = editing
+    update((t) => setScore(t, round, court, score))
     setEditing(null)
   }
 
   const finish = () => {
     setConfirm("congrats")
     setTab("standings")
-    update({ ...tournament, finished: true })
+    update((t) => ({ ...t, finished: true }))
   }
 
   const remove = async () => {
@@ -163,30 +219,27 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
     shareOrDownload(image.blob, filename, tournament.name)
   }
 
-  // Put a copy online and copy the link to it; the organiser pastes it
-  // wherever they like. From then on every save sends the copy again
-  // (pushLive).
-  const shareLink = async () => {
+  // Put a copy online and copy the message with its link: the one for
+  // watching, or the one that makes a friend an organiser too.
+  const shareLink = async (link: "watch" | "organise") => {
     setConfirm(null)
     setSharing(true)
-    const online = shareLive(tournament)
-    try {
-      // The copy is started during the tap, before the link exists: iOS
-      // refuses one that starts after waiting on the network.
-      const link = online.then((url) => new Blob([url], { type: "text/plain" }))
-      await navigator.clipboard.write([new ClipboardItem({ "text/plain": link })])
-      setToast("Link copied!")
-    } catch {
-      // The copy can fail with the game already online.
-      const isOnline = await online.then(
-        () => true,
-        () => false,
-      )
-      setToast(isOnline ? "Couldn't copy the link. Try again" : "No connection. Try again")
-    }
+    setToast(await copyLink(link, tournament))
     // The badge follows the game, not the copy.
     setLive(isSending(tournament.id))
     setSharing(false)
+    setLinks((n) => n + 1)
+  }
+
+  // Going live takes the broadcast from any other game: say so first.
+  const askOrShare = (link: "watch" | "organise") => {
+    if (!closesAnother(tournament)) return shareLink(link)
+    setAsked({ link, passes: false })
+    setConfirm("broadcast")
+    passesOn(tournament).then(
+      (passes) => setAsked({ link, passes }),
+      () => {},
+    )
   }
 
   const shownMatch = shown && tournament.rounds[shown.round]?.matches.find((m) => m.court === shown.court)
@@ -207,10 +260,11 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
         Share
       </Button>
     </div>
-  ) : readOnly ? undefined : tab === "standings" || unscored === 0 ? (
+  ) : !organiser ? undefined : tab === "standings" || unscored === 0 ? (
     <Button
       size="lg"
       variant={unscored === 0 ? "ball" : "secondary"}
+      disabled={offline}
       onClick={() => setConfirm("finish")}
     >
       Finish tournament
@@ -241,15 +295,12 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
           The last score couldn't be saved on this phone. It's still shown here; enter it again to retry.
         </p>
       )}
-      {readOnly && (
-        <p className="pt-3 text-sm text-muted-foreground">
-          <SharedTag /> with you. Only the organiser can change it.
-        </p>
-      )}
+      <ScoreNote shared={!mine} lock={lock} />
       {tab === "rounds" ? (
         <RoundsList
           tournament={tournament}
-          locked={tournament.finished || readOnly}
+          locked={tournament.finished || lock === "watch"}
+          disabled={offline}
           live={showLive}
           team={team}
           onEdit={(round, court) => {
@@ -327,26 +378,44 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
 
       <Sheet open={confirm === "menu"} onClose={() => setConfirm(null)}>
         <div className="divide-y overflow-hidden rounded-3xl bg-card border-[1.5px]">
-          {!readOnly && (
+          {organiser && (
             <>
               <button
                 type="button"
+                // Names are changed online once there are other organisers: not offline.
+                disabled={offline}
                 onClick={() => setConfirm("rename")}
-                className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
+                className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted disabled:text-muted-foreground"
               >
-                <Pencil className="size-5 text-primary" />
+                <Pencil className={`size-5 ${offline ? "" : "text-primary"}`} />
                 Edit names
+                {offline && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
               </button>
-              {canShareLive && canBroadcast(tournament) && (
-                <button
-                  type="button"
-                  // Going live takes the broadcast from any other game: say so first.
-                  onClick={closesAnother(tournament) ? () => setConfirm("broadcast") : shareLink}
-                  className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted"
-                >
-                  <Radio className="size-5 text-primary" />
-                  Broadcast live
-                </button>
+              {canShareLive && canShare(tournament) && (
+                <>
+                  <button
+                    type="button"
+                    // A game can't be put online with no connection.
+                    disabled={!online}
+                    onClick={() => askOrShare("watch")}
+                    className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted disabled:text-muted-foreground"
+                  >
+                    <Radio className={`size-5 ${online ? "text-primary" : ""}`} />
+                    Broadcast live
+                    {!online && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
+                  </button>
+                  <button
+                    type="button"
+                    // A game can't be put online with no connection.
+                    disabled={!online}
+                    onClick={() => askOrShare("organise")}
+                    className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted disabled:text-muted-foreground"
+                  >
+                    <UserPlus className={`size-5 ${online ? "text-primary" : ""}`} />
+                    Add an organiser
+                    {!online && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
+                  </button>
+                </>
               )}
             </>
           )}
@@ -378,7 +447,7 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
             tournament={tournament}
             onSave={(name, playerNames) => {
               setConfirm(null)
-              update(renameTournament(tournament, name, playerNames))
+              update((t) => renameTournament(t, name, playerNames))
             }}
           />
         )}
@@ -454,13 +523,13 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
       <Sheet open={confirm === "broadcast"} onClose={() => setConfirm(null)}>
         <p className="text-2xl type-display">Broadcast this game?</p>
         <p className="mt-1 text-muted-foreground">
-          Your other broadcast closes. Its link keeps the last score.
+          {asked.passes ? "Your other game passes to another organiser." : "Your other broadcast closes. Its link keeps the last score."}
         </p>
         <div className="mt-5 grid grid-cols-2 gap-2">
           <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirm(null)}>
             Cancel
           </Button>
-          <Button size="lg" className="px-3" onClick={shareLink}>
+          <Button size="lg" className="px-3" onClick={() => shareLink(asked.link)}>
             Broadcast
           </Button>
         </div>
@@ -470,7 +539,7 @@ export function TournamentScreen({ id, watch = false }: { id: string; watch?: bo
         <p className="text-2xl type-display">Delete {tournament.name}?</p>
         <p className="mt-1 text-muted-foreground">
           This can't be undone.{" "}
-          {readOnly
+          {!mine
             ? "Only your copy is removed; the organiser still has the tournament."
             : hasLink(tournament.id)
               ? "The link stops working, but friends who opened it keep their copy until they delete it themselves."
@@ -523,6 +592,7 @@ function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
 function RoundsList({
   tournament,
   locked,
+  disabled,
   live,
   team,
   onEdit,
@@ -530,6 +600,7 @@ function RoundsList({
   tournament: Tournament
   live: boolean // scores are still being sent: the round being played says so
   locked: boolean // finished or being watched: scores are read-only
+  disabled: boolean // scored online, with no connection: greyed out until it is back
   team: (ids: PlayerId[]) => string
   onEdit: (round: number, court: number) => void
 }) {
@@ -569,6 +640,7 @@ function RoundsList({
                   team={team}
                   current={r === current}
                   onTap={locked ? undefined : () => onEdit(r, m.court)}
+                  disabled={disabled}
                 />
               ))}
               {round.benched.length > 0 && (
@@ -589,11 +661,13 @@ function MatchRow({
   team,
   current,
   onTap,
+  disabled,
 }: {
   match: Match
   team: (ids: PlayerId[]) => string
   current: boolean
   onTap?: () => void // missing when the tournament is finished or being watched
+  disabled: boolean // the score can't be entered right now: its button is greyed out
 }) {
   const s = match.score
   const aWon = s !== null && s.a > s.b
@@ -602,8 +676,8 @@ function MatchRow({
 
   return (
     <Row
-      {...(onTap ? { type: "button" as const, onClick: onTap } : {})}
-      className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${onTap ? "active:bg-muted" : ""}`}
+      {...(onTap ? { type: "button" as const, onClick: onTap, disabled } : {})}
+      className={`group flex w-full items-center gap-3 px-4 py-3.5 text-left ${onTap ? "active:bg-muted" : ""}`}
     >
       <span
         className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-xl text-primary-foreground type-display"
@@ -627,14 +701,14 @@ function MatchRow({
           </span>
           {/* Saved scores stay editable until the tournament is finished. */}
           {onTap && (
-            <span className="-mr-1 flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
+            <span className="-mr-1 flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary group-disabled:opacity-40">
               <Pencil className="size-4" aria-label="Edit score" />
             </span>
           )}
         </>
       ) : onTap ? (
         <span
-          className={`flex h-11 shrink-0 items-center rounded-xl px-4 type-label ${
+          className={`flex h-11 shrink-0 items-center rounded-xl px-4 type-label group-disabled:opacity-40 ${
             current
               ? "bg-accent text-accent-foreground shadow-[inset_0_-3px_0_rgb(14_34_64/0.16)]"
               : "bg-secondary text-primary/70"

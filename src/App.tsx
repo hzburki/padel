@@ -7,16 +7,17 @@ import { RotatePrompt } from "@/components/rotate-prompt"
 import { StackNavigator } from "@/components/stack-navigator"
 import { TournamentListScreen } from "@/components/tournament-list-screen"
 import { TournamentScreen } from "@/components/tournament-screen"
-import { isHomePath, legalPageAt, legalPath, liveAt, livePath, type LegalPage } from "@/lib/paths"
+import { isHomePath, legalPageAt, legalPath, liveAt, livePath, scorePath, type LegalPage } from "@/lib/paths"
 import type { PreviousMatchSetup } from "@/lib/set-match-setup"
 import type { PreviousSetup } from "@/lib/tournament"
 
 export type Route =
   | { name: "home" }
   | { name: "new"; from?: PreviousSetup; fromMatch?: PreviousMatchSetup }
-  // watch: opened from a shared link — read-only, following the live copy.
-  | { name: "tournament"; id: string; watch?: boolean }
-  | { name: "match"; id: string; watch?: boolean }
+  // watch: opened from a shared link, following the live copy. scoreKey:
+  // the end of that link when it is one that lets a friend score.
+  | { name: "tournament"; id: string; watch?: boolean; scoreKey?: string }
+  | { name: "match"; id: string; watch?: boolean; scoreKey?: string }
   | { name: "legal"; page: LegalPage }
   // path: the address that was asked for. message: what went wrong, when
   // it is more than a mistyped address.
@@ -31,9 +32,9 @@ function render(route: Route) {
     case "new":
       return <NewGameScreen from={route.from} fromMatch={route.fromMatch} />
     case "tournament":
-      return <TournamentScreen id={route.id} watch={route.watch} />
+      return <TournamentScreen id={route.id} watch={route.watch} scoreKey={route.scoreKey} />
     case "match":
-      return <MatchScreen id={route.id} watch={route.watch} />
+      return <MatchScreen id={route.id} watch={route.watch} scoreKey={route.scoreKey} />
     case "legal":
       return <LegalScreen page={route.page} />
     case "notFound":
@@ -46,8 +47,10 @@ function render(route: Route) {
 // A wrong address keeps showing in the bar while its 404 screen is up.
 function pathOf(route: Route): string {
   if (route.name === "legal") return legalPath(route.page)
-  if (route.name === "tournament" && route.watch) return livePath("americano", route.id)
-  if (route.name === "match" && route.watch) return livePath("match", route.id)
+  if ((route.name === "tournament" || route.name === "match") && route.watch) {
+    const kind = route.name === "match" ? "match" : "americano"
+    return route.scoreKey ? scorePath(kind, route.id, route.scoreKey) : livePath(kind, route.id)
+  }
   return route.name === "notFound" ? route.path : "/"
 }
 
@@ -57,7 +60,7 @@ function routeAt(pathname: string): Route | null {
   const page = legalPageAt(pathname)
   if (page) return { name: "legal", page }
   const live = liveAt(pathname)
-  if (live) return { name: live.kind === "match" ? "match" : "tournament", id: live.id, watch: true }
+  if (live) return { name: live.kind === "match" ? "match" : "tournament", id: live.id, watch: true, scoreKey: live.key }
   return isHomePath(pathname) ? null : { name: "notFound", path: pathname }
 }
 

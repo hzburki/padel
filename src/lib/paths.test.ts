@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { isHomePath, legalPageAt, legalPath, liveAt, livePath } from "./paths"
+import { isHomePath, legalPageAt, legalPath, liveAt, livePath, scorePath } from "./paths"
 
 describe("legalPath", () => {
   it("puts the privacy policy at /privacy and the terms at /terms", () => {
@@ -66,6 +66,20 @@ describe("liveAt", () => {
   it("still opens a link sent before links were shortened, which starts with /live", () => {
     expect(liveAt("/live/t/3f9a1c0b")).toEqual({ kind: "americano", id: "3f9a1c0b" })
     expect(liveAt("/live/m/3f9a1c0b/")).toEqual({ kind: "match", id: "3f9a1c0b" })
+  })
+
+  it("reads the score key that scorePath put after the id", () => {
+    expect(scorePath("americano", "ab12", "k3y00000")).toBe("/t/ab12/k3y00000")
+    expect(liveAt(scorePath("americano", "ab12", "k3y00000"))).toEqual({ kind: "americano", id: "ab12", key: "k3y00000" })
+    expect(liveAt(scorePath("match", "ab12", "k3y00000") + "/")).toEqual({ kind: "match", id: "ab12", key: "k3y00000" })
+  })
+
+  it("has no key for a watch address", () => {
+    expect(liveAt("/t/ab12")).not.toHaveProperty("key")
+  })
+
+  it("is null when anything follows the score key", () => {
+    expect(liveAt("/t/ab12/k3y00000/more")).toBeNull()
   })
 
   it("is null for an address that is not a live link", () => {

@@ -37,6 +37,22 @@ server uses the local emulators (`npm run emulators`), a build uses the project 
 values, and without them the broadcast button is hidden. Do not add any other network call, server or hosted
 database, and never make a screen depend on the connection.
 
+**The exception inside the exception: a game with more than one organiser.** "Add an organiser" gives a
+second link (`/t/<id>/<key>`) that makes a friend an organiser too: they score, undo, edit names, hand out
+both links and finish the game. Only the person who made it can delete it for everyone. From the moment that
+link exists, the online copy is the real one: every organiser's phone, the first one's included, makes its
+change to the newest online copy (`changeLive`) and follows it, and no phone ever sends its whole copy over
+the top, because that wipes another organiser's score. So changing that game needs a connection: with none,
+the screen says so and greys out what the phone may do. What a phone may never do is not shown at all. If
+the first organiser goes live with another game, a game with another organiser passes to one of them. A
+game with no organiser link is untouched by all of this and still works fully offline. In the code the
+link's key is the score key and the added organisers are `scorers`. The rules are in `src/lib/broadcast.ts`
+(pure, tested) and `firestore.rules` (tested in `shots/rules.shots.ts`).
+
+**A broadcast game finishes by itself 6 hours after it was made** (`followTimeLeft`). Nothing runs on a
+server: each phone works it out from `createdAt` when it opens the game, and an organiser's phone finishes
+it online for everyone. A game that was never broadcast never ends by itself.
+
 **Local Firebase only, unless told otherwise.** When coding or testing on localhost, use the local emulators
 and nothing else. Do not point the app at the hosted Firebase project, and do not read, write or deploy to it
 (rules, data, config), unless the user explicitly says to for that task. A go-ahead covers that one task, not
