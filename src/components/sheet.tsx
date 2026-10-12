@@ -54,7 +54,7 @@ export function Sheet({
         ref={panel}
         role="dialog"
         aria-modal="true"
-        className="absolute inset-x-0 bottom-0 mx-auto max-h-[92%] max-w-md overflow-y-auto overscroll-contain rounded-t-2xl bg-background pb-[env(safe-area-inset-bottom)] shadow-2xl"
+        className="absolute inset-x-0 bottom-0 mx-auto max-h-[92%] max-w-md overflow-y-auto overscroll-contain rounded-t-2xl bg-background shadow-2xl"
       >
         {/* Drag handle: pull down to dismiss. */}
         <div
@@ -87,7 +87,10 @@ export function Sheet({
         >
           <div className="h-1.5 w-10 rounded-full bg-muted-foreground/25" />
         </div>
-        <div className="px-4 pb-4">{children}</div>
+        {/* The home-indicator gap is padding in here, not on the scrolling panel:
+            Safari keeps a sticky footer above the panel's own padding, which
+            pushed it up over the content. */}
+        <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">{children}</div>
       </div>
     </div>
   )

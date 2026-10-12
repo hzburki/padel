@@ -5,8 +5,27 @@ Claude: do not read, act on or edit this file unless asked to.
 
 ## In Progress
 
+- [ ] From the 15-player Americano test: the same game was open in two tabs of the same browser, and the organiser could edit it in one of them. Each tab kept its own copy and saved the whole game, so a score entered in a tab that was behind wiped the scores entered in the other.
+  - [x] Every save and delete is told to the other tabs, and they reload the game (`onChangedElsewhere` in `src/lib/storage.ts`, used by `openGame` in `src/lib/live.ts`)
+  - [x] Tested in two tabs at phone size: a score in each shows in the other, both are stored, and a delete in one shows "no longer on this phone" in the other
+  - [x] Review the change and commit it (`4427770` on `dev`)
+  - [x] A tab also reloads the game when it comes back to the front, in case it missed a change while in the background
+  - [x] Decide: is syncing the tabs enough, or should the second tab be locked? Syncing is enough. A lock needs the same tab-to-tab messages, and the organiser would have to work out which tab is the locked one
+  - [x] The Live badge follows across tabs: a broadcast started or closed in one tab shows in the other, on the game and on the home screen
+  - [x] The home list in the other tab shows a game made, changed or deleted in this one
+  - [x] An iPhone older than iOS 15.4 (no `BroadcastChannel`) loads the app; its tabs just don't sync. Not tried on such a phone
 
 ## To Do
+
+- [ ] From the 15-player Americano test: the app in the browser and the app on the home screen have different storage. This is iOS, not a bug: an iPhone gives a home-screen app its own storage apart from Safari, and code cannot join them. A game made in one is not in the other. Links always open in Safari, so an organiser running the game in the home-screen app who taps their own link gets a read-only "Shared" copy. Pick one:
+  - [ ] A (recommended): a box on the home screen of the installed app to paste a link, so a friend can follow a broadcast there. Small, but it does not move the organiser's own game
+  - [ ] B: move a game across, by exporting it from one and importing it into the other. The real fix for the organiser, but a new feature
+  - [ ] C: just say so, with one line on the install prompt that games do not carry over
+- [ ] From the 15-player Americano test: when everything ended some games were still live, and it is confusing which game you entered and which is actually live. A broadcast only stops being Live when the organiser taps Finish, broadcasts another game from the same storage, or the game turns 4 hours old. Entering the last score does not close it. Safari and the home-screen app each allow their own live game, so one phone can have two. Pick one:
+  - [ ] A (recommended): Live means recent. Show Live only if a score arrived in the last 20 minutes or so, otherwise "Paused". Needs a timestamp on the online copy, not on the stored game
+  - [ ] B: a Stop broadcast button in the game's menu. Only helps if the organiser remembers to tap it
+  - [ ] C: both
+  - [ ] Answer first: were you the organiser with several games of your own, or a friend who had opened several links? That decides whether the home list also needs a clearer mark for which game is yours
 
 
 ## Backlog

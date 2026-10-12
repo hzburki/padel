@@ -40,6 +40,7 @@ unless you broadcast a game.
   The link is short: the site, then `/t/` or `/m/` and the game's 10-character id.
 - Play again with the same people and settings in one tap.
 - Saved after every score or point. Lock the phone or close the tab and nothing is lost.
+- The same game open in two tabs stays the same in both: a score entered in one shows in the other, and so does its Live badge. A game made in one tab shows on the home screen of the other.
 - A history of past games, filtered by kind.
 - Made for a phone held upright. Turn a phone on its side and the app asks you to turn it back; tablets and
   computers show the same phone-width column either way.
@@ -121,15 +122,24 @@ npm test           # run the tests
 npm run build      # build for production into dist/
 npm run preview    # serve the build (needed to try offline mode and installing)
 npm run emulators  # local Firebase, for broadcasting a game from the dev server
-npm run shots      # compare every screen with its stored screenshot
+npm run shots      # in Chrome and Safari: compare every screen with its screenshot, and play whole games
 ```
 
-`npm run shots` opens the app at phone, tablet and desktop size, walks through its screens and compares
-each one with the image in [`shots/images/`](shots/images/). A screen that changed fails the run and leaves
-a picture of the difference in `test-results/`. If the change was meant, store the new images with
-`npm run shots -- --update-snapshots`. The first time, download its browser with
-`npx playwright install chromium`. The images were made on a Mac; another system draws text a little
-differently and needs its own.
+`npm run shots` does two things, each in Chrome's engine and in Safari's:
+
+- It opens the app at phone, tablet and desktop size, walks through its screens and compares each one with
+  the image in `shots/images/` (Safari's are in the folders ending `-safari`). A screen that changed fails
+  the run and leaves a picture of the difference in `test-results/`. If the change was meant, store the new
+  images with `npm run shots -- --update-snapshots`. The images are not in the repo: the first run on a
+  machine makes them, and fails once for doing so.
+- At phone size it plays whole games by tapping (the `shots/flows-*.shots.ts` files): every kind of
+  Americano and of match from the first score to the result, the same game in two tabs, and a broadcast
+  followed by a friend.
+
+It starts the dev server and the local emulators itself, or uses the ones already running. The first time,
+download its browsers with `npx playwright install chromium webkit`. Add `--project phone-safari` to run one
+size in one browser, or `flows` to only play the games. Safari's engine on a Mac is not an iPhone: the
+notch, the home bar and the installed app still need a real phone.
 
 Built with React, Vite, TypeScript, Tailwind CSS and shadcn/ui. The rules live in plain functions in
 [`src/lib/`](src/lib/), each with a test file whose test names read as the rules themselves.

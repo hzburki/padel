@@ -4,11 +4,14 @@ description: Run the screenshot check, look at every screen that no longer match
 disable-model-invocation: true
 ---
 
-Run `npm run shots` and deal with what it reports. It walks the app at phone, tablet and desktop size and
-compares each screen with its image in `shots/images/`. The walk is `shots/screens.shots.ts`, the games it
-starts from are `shots/seed.ts`.
+Run `npm run shots` and deal with what it reports. In Chrome's engine and in Safari's, it walks the app at
+phone, tablet and desktop size and compares each screen with its image in `shots/images/` (Safari's are in
+the folders ending `-safari`). The walk is `shots/screens.shots.ts`, the games it starts from are
+`shots/seed.ts`. At phone size it also plays whole games by tapping (`shots/flows-*.shots.ts`, shared steps
+in `shots/taps.ts`), with no images. The images are gitignored: they live on this machine only, so a fresh
+clone has none and its first run writes them all.
 
-It starts its own dev server on port 5199, or uses the one already there. It needs no emulators.
+It starts its own dev server on port 5199 and the local emulators, or uses the ones already there.
 
 ## 1. Run it
 
@@ -23,9 +26,12 @@ A failure is one of three things. Tell them apart before touching anything.
   changed in the code behind that screen.
 - **A screen has no stored image yet.** The run writes one and fails once. Open the new image and check it
   as you would in a design review: nothing cut off, nothing overlapping, nothing off-screen, tap targets a
-  thumb can hit. A new screen usually shows up at all three sizes; look at each.
+  thumb can hit. A new screen usually shows up at all three sizes and in both browsers; look at each.
 - **The walk broke.** A button it taps was renamed or moved, so it timed out. Fix the selector in
   `shots/screens.shots.ts`. This is the walk being out of date, not the app being wrong.
+- **A game flow failed.** Read what it expected and what the screen said. A renamed button or reworded
+  text is the flow being out of date; anything else is the app not doing what it should, in that browser.
+  Fix the app, never loosen the check.
 
 ## 3. Decide: bug or meant
 
@@ -60,7 +66,7 @@ don't skip a test to get a pass. If a screen differs from run to run with no cod
 
 ## Report
 
-- **Result:** how many screens matched, out of how many.
+- **Result:** how many screens matched, out of how many, and how many game flows passed, per browser.
 - **Bugs fixed:** one line each: the screen, what was wrong, what changed.
 - **Waiting on you:** the screens that changed on purpose, with what changed, until the user says yes.
 - **Replaced:** the stored images replaced after a yes.

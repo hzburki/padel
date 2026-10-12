@@ -3,7 +3,7 @@ import { connectAuthEmulator, getAuth, signInAnonymously } from "firebase/auth"
 import { connectFirestoreEmulator, deleteDoc, doc, getFirestore, onSnapshot, setDoc } from "firebase/firestore"
 import { broadcastsClosedBy, followedLive, followTimeLeft, sentOnSave, type SharedGames } from "./broadcast"
 import { livePath } from "./paths"
-import { loadTournament, migrate, saveTournament } from "./storage"
+import { loadTournament, migrate, onChangedElsewhere, saveTournament } from "./storage"
 import type { SavedEvent } from "./types"
 
 // Live sharing: the organiser's phone copies a tournament or match to
@@ -180,6 +180,9 @@ export function finishDeletes(): void {
 // A closed broadcast is still followed, in case it is picked up again.
 // Following also stops when the game gets too old (followTimeLeft): opened
 // after that, its newest score is read once and it is not live.
+//
+// The organiser's own game is shown again whenever another tab of this
+// browser changes it, or starts or closes its broadcast.
 export function openGame(
   id: string,
   fromLink: boolean, // opened from a shared link, so it may not be saved here yet
@@ -193,7 +196,34 @@ export function openGame(
     if (saved && !saved.shared) {
       // A result that never went out, finished with no connection, goes now.
       if (saved.finished) pushLive(saved)
-      return show(saved, !saved.finished && isSending(id))
+      const showOwn = (own: SavedEvent | null) => show(own, own !== null && !own.finished && isSending(id))
+      const showAgain = () => {
+        void loadTournament(id).then((own) => {
+          if (!closed) showOwn(own)
+        })
+      }
+      // Scored, renamed, finished or deleted in another tab: show that here.
+      const unlisten = onChangedElsewhere((changed) => {
+        if (changed === id) showAgain()
+      })
+      // Broadcast started or closed in another tab: the browser tells every
+      // other tab when localStorage changes.
+      const onShared = (change: StorageEvent) => {
+        if (change.key === sharedKey(id)) showAgain()
+      }
+      window.addEventListener("storage", onShared)
+      // A tab left in the background may not have heard: look again when it
+      // is back in front.
+      const onVisible = () => {
+        if (!document.hidden) showAgain()
+      }
+      document.addEventListener("visibilitychange", onVisible)
+      stop = () => {
+        unlisten()
+        window.removeEventListener("storage", onShared)
+        document.removeEventListener("visibilitychange", onVisible)
+      }
+      return showOwn(saved)
     }
     if (saved?.finished || (!saved && !fromLink) || !canShareLive) return show(saved, false)
 
