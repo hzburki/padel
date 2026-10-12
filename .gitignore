@@ -31,3 +31,6 @@ dist-ssr
 
 # Screenshot run: diff images of the screens that changed
 test-results
+
+# Screenshots made by `npm run shots`: each machine keeps its own
+shots/images

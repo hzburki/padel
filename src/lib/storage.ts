@@ -67,21 +67,21 @@ async function run<T>(mode: IDBTransactionMode, op: (store: IDBObjectStore) => I
 // own copy while it is on screen. Every save and delete is told to the
 // other tabs, so none of them shows an old copy, or saves one over newer
 // scores.
-const otherTabs = new BroadcastChannel("padel")
+// An iPhone older than iOS 15.4 has no BroadcastChannel: there the app
+// works as before, and tabs just don't hear of each other.
+const otherTabs = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel("padel")
 
-// Call `changed` whenever another tab saves or deletes this game. Returns
-// the function that stops it.
-export function onChangedElsewhere(id: string, changed: () => void): () => void {
-  const heard = (message: MessageEvent) => {
-    if (message.data === id) changed()
-  }
-  otherTabs.addEventListener("message", heard)
-  return () => otherTabs.removeEventListener("message", heard)
+// Call `changed` with the game's id whenever another tab saves or deletes a
+// game. Returns the function that stops it.
+export function onChangedElsewhere(changed: (id: string) => void): () => void {
+  const heard = (message: MessageEvent) => changed(message.data)
+  otherTabs?.addEventListener("message", heard)
+  return () => otherTabs?.removeEventListener("message", heard)
 }
 
 export async function saveTournament(event: SavedEvent): Promise<void> {
   await run("readwrite", (store) => store.put(event))
-  otherTabs.postMessage(event.id)
+  otherTabs?.postMessage(event.id)
 }
 
 export async function loadTournament(id: string): Promise<SavedEvent | null> {
@@ -106,7 +106,7 @@ export async function listTournaments(): Promise<SavedEvent[]> {
 
 export async function deleteTournament(id: string): Promise<void> {
   await run("readwrite", (store) => store.delete(id))
-  otherTabs.postMessage(id)
+  otherTabs?.postMessage(id)
 }
 
 // Ask the browser not to evict our data under storage pressure. Safari in

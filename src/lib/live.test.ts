@@ -23,15 +23,21 @@ const fake = vi.hoisted(() => {
   })
   vi.stubGlobal("location", { hostname: "localhost", origin: "https://padel.test" })
   vi.stubGlobal("document", page)
+  const storageListeners = new Set<(change: { key: string }) => void>()
+  vi.stubGlobal("window", {
+    addEventListener: (_: string, fn: (change: { key: string }) => void) => void storageListeners.add(fn),
+    removeEventListener: (_: string, fn: (change: { key: string }) => void) => void storageListeners.delete(fn),
+  })
 
   type Listener = { id: string; next: (snapshot: unknown) => void; fail: () => void; open: boolean }
   return {
     flags,
     page,
     pageListeners,
+    storageListeners, // told when another tab changes localStorage
     saved: new Map<string, unknown>(), // the games on this phone
     listeners: [] as Listener[], // every Firestore listener ever opened
-    otherTabs: new Map<string, () => void>(), // by game id: what to call when another tab changes it
+    otherTabs: new Set<(id: string) => void>(), // what to call, with the game's id, when another tab changes a game
   }
 })
 
@@ -59,9 +65,9 @@ vi.mock("./storage", () => ({
   loadTournament: async (id: string) => fake.saved.get(id) ?? null,
   saveTournament: vi.fn(async (event: { id: string }) => void fake.saved.set(event.id, event)),
   migrate: (raw: unknown) => raw,
-  onChangedElsewhere: (id: string, changed: () => void) => {
-    fake.otherTabs.set(id, changed)
-    return () => void fake.otherTabs.delete(id)
+  onChangedElsewhere: (changed: (id: string) => void) => {
+    fake.otherTabs.add(changed)
+    return () => void fake.otherTabs.delete(changed)
   },
 }))
 
@@ -133,6 +139,7 @@ beforeEach(() => {
   fake.flags.clear()
   fake.saved.clear()
   fake.pageListeners.clear()
+  fake.storageListeners.clear()
   fake.listeners.length = 0
   fake.otherTabs.clear()
   fake.page.hidden = false
@@ -509,7 +516,7 @@ describe("your own game open in two tabs", () => {
     own("a")
     const { last } = await open("a")
     const scored = own("a", { name: "scored in the other tab" })
-    fake.otherTabs.get("a")?.()
+    fake.otherTabs.forEach((heard) => heard("a"))
     await settle()
     expect(last().event).toEqual(scored)
   })
@@ -519,7 +526,34 @@ describe("your own game open in two tabs", () => {
     const { last } = await open("a")
     expect(last().live).toBe(true)
     own("a", { finished: true })
-    fake.otherTabs.get("a")?.()
+    fake.otherTabs.forEach((heard) => heard("a"))
+    await settle()
+    expect(last().live).toBe(false)
+  })
+
+  it("leaves it alone when the other tab changes a different game", async () => {
+    own("a")
+    const { shown } = await open("a")
+    fake.otherTabs.forEach((heard) => heard("b"))
+    await settle()
+    expect(shown).toHaveLength(1)
+  })
+
+  it("becomes live once the other tab broadcasts it", async () => {
+    own("a")
+    const { last } = await open("a")
+    expect(last().live).toBe(false)
+    fake.flags.set("live:a", "1")
+    fake.storageListeners.forEach((heard) => heard({ key: "live:a" }))
+    await settle()
+    expect(last().live).toBe(true)
+  })
+
+  it("stops being live once the other tab broadcasts another game instead", async () => {
+    await shareLive(own("a"))
+    const { last } = await open("a")
+    fake.flags.set("live:a", "closed")
+    fake.storageListeners.forEach((heard) => heard({ key: "live:a" }))
     await settle()
     expect(last().live).toBe(false)
   })
@@ -528,7 +562,7 @@ describe("your own game open in two tabs", () => {
     own("a")
     const { last } = await open("a")
     fake.saved.delete("a")
-    fake.otherTabs.get("a")?.()
+    fake.otherTabs.forEach((heard) => heard("a"))
     await settle()
     expect(last()).toEqual({ event: null, live: false })
   })
@@ -547,13 +581,14 @@ describe("your own game open in two tabs", () => {
     own("a")
     const { close } = await open("a")
     close()
-    expect(fake.otherTabs.has("a")).toBe(false)
+    expect(fake.otherTabs.size).toBe(0)
+    expect(fake.storageListeners.size).toBe(0)
     expect(fake.pageListeners.size).toBe(0)
   })
 
   it("does not listen to other tabs for a friend's game", async () => {
     await open("a", true)
-    expect(fake.otherTabs.has("a")).toBe(false)
+    expect(fake.otherTabs.size).toBe(0)
   })
 })
 

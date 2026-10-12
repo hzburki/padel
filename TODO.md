@@ -11,9 +11,9 @@ Claude: do not read, act on or edit this file unless asked to.
   - [x] Review the change and commit it (`4427770` on `dev`)
   - [x] A tab also reloads the game when it comes back to the front, in case it missed a change while in the background
   - [x] Decide: is syncing the tabs enough, or should the second tab be locked? Syncing is enough. A lock needs the same tab-to-tab messages, and the organiser would have to work out which tab is the locked one
-  - [ ] The Live badge does not follow across tabs: a broadcast started in one tab shows no badge in the other until it is reopened
-  - [ ] The home list in the other tab does not show a newly created game until you come back to it
-  - [ ] Needs iOS 15.4 or newer (`BroadcastChannel`); an older iPhone would not load the app at all
+  - [x] The Live badge follows across tabs: a broadcast started or closed in one tab shows in the other, on the game and on the home screen
+  - [x] The home list in the other tab shows a game made, changed or deleted in this one
+  - [x] An iPhone older than iOS 15.4 (no `BroadcastChannel`) loads the app; its tabs just don't sync. Not tried on such a phone
 
 ## To Do
 

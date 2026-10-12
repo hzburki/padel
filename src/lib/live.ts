@@ -182,7 +182,7 @@ export function finishDeletes(): void {
 // after that, its newest score is read once and it is not live.
 //
 // The organiser's own game is shown again whenever another tab of this
-// browser changes it.
+// browser changes it, or starts or closes its broadcast.
 export function openGame(
   id: string,
   fromLink: boolean, // opened from a shared link, so it may not be saved here yet
@@ -203,7 +203,15 @@ export function openGame(
         })
       }
       // Scored, renamed, finished or deleted in another tab: show that here.
-      const unlisten = onChangedElsewhere(id, showAgain)
+      const unlisten = onChangedElsewhere((changed) => {
+        if (changed === id) showAgain()
+      })
+      // Broadcast started or closed in another tab: the browser tells every
+      // other tab when localStorage changes.
+      const onShared = (change: StorageEvent) => {
+        if (change.key === sharedKey(id)) showAgain()
+      }
+      window.addEventListener("storage", onShared)
       // A tab left in the background may not have heard: look again when it
       // is back in front.
       const onVisible = () => {
@@ -212,6 +220,7 @@ export function openGame(
       document.addEventListener("visibilitychange", onVisible)
       stop = () => {
         unlisten()
+        window.removeEventListener("storage", onShared)
         document.removeEventListener("visibilitychange", onVisible)
       }
       return showOwn(saved)

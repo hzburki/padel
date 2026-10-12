@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest"
-import { CURRENT_VERSION, migrate } from "./storage"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { CURRENT_VERSION, migrate, onChangedElsewhere } from "./storage"
 import type { SetMatch, Tournament } from "./types"
 
 // A tournament as the first version of the app saved it: no `kind`.
@@ -96,5 +96,45 @@ describe("migrate", () => {
 
   it("refuses a save from a newer version of the app instead of guessing", () => {
     expect(() => migrate({ ...v1, version: CURRENT_VERSION + 1 })).toThrow(/newer version/)
+  })
+})
+
+describe("onChangedElsewhere", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.resetModules()
+  })
+
+  it("is told the id of a game another tab saved or deleted", async () => {
+    const otherTab = new BroadcastChannel("padel")
+    const id = await new Promise<string>((resolve) => {
+      onChangedElsewhere(resolve)
+      otherTab.postMessage("game-1")
+    })
+    otherTab.close()
+    expect(id).toBe("game-1")
+  })
+
+  it("hears nothing more once it is stopped", async () => {
+    const otherTab = new BroadcastChannel("padel")
+    const heard: string[] = []
+    const stop = onChangedElsewhere((id) => heard.push(id))
+    stop()
+    otherTab.postMessage("game-1")
+    // A second listener tells us the message has arrived.
+    await new Promise<string>((resolve) => {
+      onChangedElsewhere(resolve)
+      otherTab.postMessage("game-2")
+    })
+    otherTab.close()
+    expect(heard).toEqual([])
+  })
+
+  it("still loads on an iPhone too old to talk to other tabs, and just hears nothing", async () => {
+    vi.stubGlobal("BroadcastChannel", undefined)
+    vi.resetModules()
+    const old = await import("./storage")
+    const stop = old.onChangedElsewhere(() => {})
+    expect(stop).not.toThrow()
   })
 })

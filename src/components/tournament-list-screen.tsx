@@ -7,7 +7,7 @@ import { previousMatchSetup } from "@/lib/set-match-setup"
 import { followedFromHome } from "@/lib/broadcast"
 import { openGame } from "@/lib/live"
 import { computeStandings, formatPoints, joinNames, winners } from "@/lib/standings"
-import { listTournaments } from "@/lib/storage"
+import { listTournaments, onChangedElsewhere } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, unscoredMatchCount } from "@/lib/tournament"
 import type { SavedEvent, SetMatch, Tournament } from "@/lib/types"
 import { BallIcon } from "./ball-icon"
@@ -30,14 +30,28 @@ export function TournamentListScreen() {
   const [filter, setFilter] = useState<"all" | SavedEvent["kind"]>("all")
 
   // Reload whenever this screen comes back into view, so a game just
-  // created or scored shows up to date.
+  // created or scored shows up to date. The same when another tab makes,
+  // changes or deletes a game, and when this tab comes back to the front in
+  // case it missed that.
   const [loadedAt, setLoadedAt] = useState(0)
   useEffect(() => {
     if (!isTop) return
-    listTournaments().then((all) => {
-      setEvents(all)
-      setLoadedAt(Date.now())
-    })
+    const load = () => {
+      void listTournaments().then((all) => {
+        setEvents(all)
+        setLoadedAt(Date.now())
+      })
+    }
+    const onVisible = () => {
+      if (!document.hidden) load()
+    }
+    load()
+    const unlisten = onChangedElsewhere(load)
+    document.addEventListener("visibilitychange", onVisible)
+    return () => {
+      unlisten()
+      document.removeEventListener("visibilitychange", onVisible)
+    }
   }, [isTop])
 
   // Unfinished games are opened the way their own screen opens them, so a
