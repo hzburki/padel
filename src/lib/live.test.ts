@@ -85,6 +85,8 @@ vi.mock("firebase/firestore", () => ({
   updateDoc: vi.fn(async (ref: { id: string }, data: Record<string, unknown>) => fake.update(ref.id, data)),
   deleteField: () => "no such field",
   deleteDoc: vi.fn(async () => {}),
+  disableNetwork: vi.fn(async () => {}),
+  enableNetwork: vi.fn(async () => {}),
   // Reads and writes fake.online.
   runTransaction: vi.fn(async (_db: unknown, work: (transaction: unknown) => Promise<unknown>) =>
     work({
@@ -112,7 +114,7 @@ vi.mock("./storage", () => ({
   },
 }))
 
-import { deleteDoc, getDocsFromServer, runTransaction, setDoc, updateDoc } from "firebase/firestore"
+import { deleteDoc, disableNetwork, enableNetwork, getDocsFromServer, runTransaction, setDoc, updateDoc } from "firebase/firestore"
 import {
   canAddOrganiser,
   changesOnline,
@@ -121,12 +123,15 @@ import {
   finishDeletes,
   hasLink,
   isSending,
+  onSlowSend,
   openGame,
   passesOn,
   pushLive,
   resendLive,
+  restartConnection,
   scoreKey,
   sendChange,
+  sendingSlowly,
   shareLive,
   shareScoreLink,
 } from "./live"
@@ -1561,5 +1566,151 @@ describe("deleting a game with a score link", () => {
     await deleteLive("a")
     expect(deleteDoc).not.toHaveBeenCalled()
     expect(scoreKey("a")).toBeNull()
+  })
+})
+
+describe("a score Firestore has not confirmed after 3 seconds", () => {
+  // A send that waits until the test lets it through.
+  const held = () => {
+    let confirm = () => {}
+    const waiting = new Promise<void>((resolve) => {
+      confirm = resolve
+    })
+    return { waiting, confirm }
+  }
+
+  it("counts as sending slowly, until it is confirmed", async () => {
+    const a = await scored("a")
+    vi.useFakeTimers()
+    const send = held()
+    vi.mocked(updateDoc).mockReturnValueOnce(send.waiting)
+    const change = sendChange(a, { ...a, name: "renamed" })
+    await vi.advanceTimersByTimeAsync(2999)
+    expect(sendingSlowly()).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(sendingSlowly()).toBe(true)
+    send.confirm()
+    await change
+    expect(sendingSlowly()).toBe(false)
+  })
+
+  it("restarts the connection by itself", async () => {
+    const a = await scored("a")
+    vi.useFakeTimers()
+    const send = held()
+    vi.mocked(updateDoc).mockReturnValueOnce(send.waiting)
+    const change = sendChange(a, { ...a, name: "renamed" })
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(disableNetwork).toHaveBeenCalledTimes(1)
+    expect(enableNetwork).toHaveBeenCalledTimes(1)
+    send.confirm()
+    await change
+  })
+
+  it("restarts it once, however many scores are waiting behind it", async () => {
+    const a = await scored("a")
+    vi.useFakeTimers()
+    const first = held()
+    const second = held()
+    vi.mocked(updateDoc).mockReturnValueOnce(first.waiting).mockReturnValueOnce(second.waiting)
+    const changes = [sendChange(a, { ...a, name: "one" }), sendChange(a, { ...a, name: "two" })]
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(disableNetwork).toHaveBeenCalledTimes(1)
+    first.confirm()
+    await changes[0]
+    expect(sendingSlowly()).toBe(true)
+    second.confirm()
+    await changes[1]
+    expect(sendingSlowly()).toBe(false)
+  })
+
+  it("tells the Live badge when it turns slow, and when it is confirmed", async () => {
+    const a = await scored("a")
+    vi.useFakeTimers()
+    const told = vi.fn()
+    const stop = onSlowSend(told)
+    const send = held()
+    vi.mocked(updateDoc).mockReturnValueOnce(send.waiting)
+    const change = sendChange(a, { ...a, name: "renamed" })
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(told).toHaveBeenCalledTimes(1)
+    send.confirm()
+    await change
+    expect(told).toHaveBeenCalledTimes(2)
+    stop()
+  })
+
+  it("is the same for a plain broadcast, which sends the whole game", async () => {
+    const a = own("a")
+    await shareLive(a)
+    vi.useFakeTimers()
+    const send = held()
+    vi.mocked(setDoc).mockReturnValueOnce(send.waiting)
+    pushLive({ ...a, name: "renamed" })
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(sendingSlowly()).toBe(true)
+    expect(disableNetwork).toHaveBeenCalledTimes(1)
+    send.confirm()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(sendingSlowly()).toBe(false)
+  })
+
+  it("is never slow, and restarts nothing, when it is confirmed in time", async () => {
+    const a = await scored("a")
+    vi.useFakeTimers()
+    await sendChange(a, { ...a, name: "renamed" })
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(sendingSlowly()).toBe(false)
+    expect(disableNetwork).not.toHaveBeenCalled()
+  })
+})
+
+describe("restarting the connection", () => {
+  it("drops it and opens a new one", async () => {
+    await restartConnection()
+    expect(disableNetwork).toHaveBeenCalledTimes(1)
+    expect(enableNetwork).toHaveBeenCalledTimes(1)
+  })
+
+  it("happens once when asked for twice at the same moment", async () => {
+    await Promise.all([restartConnection(), restartConnection()])
+    expect(disableNetwork).toHaveBeenCalledTimes(1)
+  })
+
+  it("still opens a new one when the old could not be dropped", async () => {
+    vi.mocked(disableNetwork).mockRejectedValueOnce(new Error("already down"))
+    await restartConnection()
+    expect(enableNetwork).toHaveBeenCalledTimes(1)
+  })
+
+  it("happens when the page of a broadcast game comes back to the front", async () => {
+    await shareLive(own("a"))
+    await open("a")
+    hidePage(true)
+    expect(disableNetwork).not.toHaveBeenCalled()
+    hidePage(false)
+    expect(disableNetwork).toHaveBeenCalledTimes(1)
+  })
+
+  it("happens when the page of a friend's game comes back to the front", async () => {
+    await open("a", true)
+    hidePage(true)
+    hidePage(false)
+    expect(disableNetwork).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not happen for a game that was never broadcast: it has no connection", async () => {
+    own("a")
+    await open("a")
+    hidePage(true)
+    hidePage(false)
+    expect(disableNetwork).not.toHaveBeenCalled()
+  })
+
+  it("does not happen just because a game is opened", async () => {
+    await shareLive(own("a"))
+    await open("a")
+    await open("b", true)
+    expect(disableNetwork).not.toHaveBeenCalled()
   })
 })

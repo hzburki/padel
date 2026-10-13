@@ -34,6 +34,7 @@ import type { SetMatch, Side } from "@/lib/types"
 import { Congrats } from "./congrats"
 import { copyLink } from "./copy-link"
 import { LiveBadge } from "./live-badge"
+import { NewBadge } from "./new-badge"
 import { useOnline } from "./online"
 import { renderMatchShareCard } from "./match-share-card"
 import { Screen } from "./screen"
@@ -367,6 +368,7 @@ export function MatchScreen({ id, watch = false, scoreKey }: { id: string; watch
                 >
                   <UserPlus className={`size-5 ${online ? "text-primary" : ""}`} />
                   Add an organiser
+                  <NewBadge />
                   {!online && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
                 </button>
               )}
