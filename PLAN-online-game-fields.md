@@ -192,6 +192,18 @@ rules tests pass in both engines). Slice 4 is next. What slice 3 does beyond the
   that has an organiser link already. Any other old game is sent whole in the new shape when an organiser
   is added, so it keeps the button and works.
 
+**Slices 4 and 5 are done** (`src/lib/live.ts`, `live.test.ts`, the two screens, one new flow in
+`shots/flows-scoring.shots.ts`, README and CLAUDE.md; 467 unit tests pass, and the scoring and sharing flows
+and the rules tests pass in both engines). Not committed. What they do beyond the notes below:
+
+- `sendChange` marks the game ended only after its own write went through. The owner's listener leaves a
+  finished copy that still has this phone's write pending (`hasPendingWrites`) for `sendChange` to mark.
+- The owner's listener rewrites an old copy once per opening of the game, so a refused rewrite can't loop.
+- The 6-hour finish reads the game from the phone and sends `finished` with `sendChange`.
+- The new flow holds back `GET .../Listen/channel` for good with `page.route`; no proxy was built.
+
+What is left: publish the rules (the user), and remove the LEGACY parts after 2026-10-28.
+
 Decided by the user: when organisers act on the same round, match or game, the latest write stays. No
 merging, no repair. Edge cases are collected in `EDGE-CASES-online-game-fields.md` for review at the end;
 add to it, and correct the ones marked with a slice number if the code turns out different.

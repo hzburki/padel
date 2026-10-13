@@ -23,8 +23,8 @@ Cases marked *(slice N)* are about code not written yet; I'll correct them if th
 | # | What happens | Today |
 | --- | --- | --- |
 | 6 | A score is made just as the connection drops, and the app is closed before it is back. | The score is on the phone, never online. The next open takes the online copy and the score is gone. Planned in `PLAN-offline-scores.md`. |
-| 7 | Firestore refuses a score (the organiser link was deleted, say). *(slice 4)* | The phone shows and saves the score first, then says "Not saved. Try again" and goes back to the online copy. For a moment the phone holds a score nobody else has. |
-| 8 | The same game is open in two tabs of one browser and one tab's stream runs late. *(slice 4)* | The late tab can save an older copy on the phone until its stream catches up. The online copy is not touched, so nothing is lost. |
+| 7 | Firestore refuses a score (the organiser link was deleted, say). | The phone shows and saves the score first, then says "Not saved. Try again" and goes back to the online copy. For a moment the phone holds a score nobody else has. An added organiser's phone goes back only while the game is open and followed; a game that was deleted online is finished there instead. |
+| 8 | The same game is open in two tabs of one browser and one tab's stream runs late. | The late tab can save an older copy on the phone until its stream catches up. The online copy is not touched, so nothing is lost. Every copy that arrives is saved, the same one too, and each save wakes the other tab to read the game again. |
 
 ## What is checked
 
@@ -38,7 +38,7 @@ Cases marked *(slice N)* are about code not written yet; I'll correct them if th
 
 | # | What happens | Today |
 | --- | --- | --- |
-| 12 | A game with an organiser link is still in the old shape. *(slice 5)* | No organiser can change it on the new build, the owner included: "Not saved. Try again". "Add an organiser" is not shown on it. A game made from it with Play again works. Slice 5 has the owner's phone rewrite it when it opens the game. |
+| 12 | A game with an organiser link is still in the old shape. | The owner's phone rewrites it as fields the first time it opens the game with a connection, once per opening. Until then no organiser can change it on the new build: "Not saved. Try again", and "Add an organiser" is not shown on it. A score the owner taps in the moment before the rewrite is refused the same way. |
 | 13 | A phone still runs the old build after the game was rewritten. | It can't read the new copy and stops following, until the page is reloaded. |
 | 14 | An old-shape game is never opened again by its owner. | It stays in the old shape. Once old-shape support is removed, its link shows nothing new. |
 

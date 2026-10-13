@@ -6,21 +6,20 @@ import {
   canAddOrganiser,
   canShare,
   canShareLive,
-  changeLive,
   changesOnline,
   closesAnother,
   deleteLive,
   hasLink,
-  isChanging,
   isOrganiser,
   isSending,
   openGame,
   passesOn,
   pushLive,
   scoreLockOn,
+  sendChange,
 } from "@/lib/live"
 import { computeStandings, placesMovedByScaling, winners } from "@/lib/standings"
-import { deleteTournament, loadTournament, saveTournament } from "@/lib/storage"
+import { deleteTournament, saveTournament } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, renameTournament, setScore, unscoredMatchCount } from "@/lib/tournament"
 import type { Match, PlayerId, Score, Tournament } from "@/lib/types"
 import { Screen } from "./screen"
@@ -168,26 +167,18 @@ export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; 
   const unevenGames = unscored > 0 || new Set(standings.map((r) => r.played)).size > 1
 
   // Save straight away: the phone may be locked or the tab killed any moment.
-  // A game with other organisers is changed online instead, on top of
-  // whatever they entered meanwhile; the change shows here at once.
+  // A game with other organisers also sends just what changed online, so
+  // what they entered meanwhile is kept; the change shows here at once.
   const update = async (change: (t: Tournament) => Tournament) => {
     const next = change(tournament)
     setTournament(next)
-    if (changesOnline(tournament)) {
-      try {
-        const saved = await changeLive(tournament.id, change)
-        if (!isChanging(tournament.id)) setTournament(saved)
-      } catch {
-        setToast({ text: "Not saved. Try again", failed: true })
-        const kept = await loadTournament(tournament.id)
-        if (kept?.kind === "americano") setTournament(kept)
-      }
-      return
-    }
+    const scoredOnline = changesOnline(tournament)
+    // Not waited for. If it is refused, the online copy puts the screen back.
+    if (scoredOnline) sendChange(tournament, next).catch(() => setToast({ text: "Not saved. Try again", failed: true }))
     try {
       await saveTournament(next)
       setSaveError(false)
-      pushLive(next)
+      if (!scoredOnline) pushLive(next)
     } catch {
       setSaveError(true)
     }
