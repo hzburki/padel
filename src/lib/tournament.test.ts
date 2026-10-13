@@ -8,6 +8,7 @@ import {
   maxCourts,
   previousSetup,
   renameProblems,
+  repeatedNames,
   renameTournament,
   setScore,
   setupProblems,
@@ -108,6 +109,24 @@ describe("setupProblems", () => {
 
   it("asks for a tournament name", () => {
     expect(setupProblems({ ...valid, name: "  " })).toEqual(["Give the tournament a name."])
+  })
+})
+
+describe("repeatedNames", () => {
+  it("marks nobody when every name is different", () => {
+    expect(repeatedNames(["Ana", "Ben", "Cai"])).toEqual(new Set())
+  })
+
+  it("marks the second of two players with the same name, not the first", () => {
+    expect(repeatedNames(["Ana", "Ben", "Ana"])).toEqual(new Set([2]))
+  })
+
+  it("treats names as the same whatever their case or the spaces around them", () => {
+    expect(repeatedNames(["Ana", " ana ", "ANA"])).toEqual(new Set([1, 2]))
+  })
+
+  it("never marks an empty field", () => {
+    expect(repeatedNames(["", "Ana", " ", ""])).toEqual(new Set())
   })
 })
 

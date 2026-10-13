@@ -141,6 +141,11 @@ export function formatPoints(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1)
 }
 
+// A point difference with its sign: +12, -3, 0.
+export function formatDiff(n: number): string {
+  return n > 0 ? `+${formatPoints(n)}` : formatPoints(n)
+}
+
 // Everyone sharing first place (more than one on a tie). Nobody wins
 // a tournament where no game was scored.
 export function winners(rows: StandingRow[]): PlayerId[] {

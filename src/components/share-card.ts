@@ -1,4 +1,4 @@
-import { formatPoints, winners, type StandingRow } from "@/lib/standings"
+import { formatDiff, formatPoints, winners, type StandingRow } from "@/lib/standings"
 import type { Tournament } from "@/lib/types"
 
 // The shareable result image: a fixed 4:5 card (fits WhatsApp and feeds),
@@ -35,9 +35,11 @@ const STATS = [
   ["D", "draws"],
   ["L", "losses"],
 ] as const
-const STAT_W = 72
+const STAT_W = 60
+const DIFF_W = 116 // the point difference, wide enough for "+12.5"
 const RIGHT = W - PAD - INSET
-const STATS_RIGHT = RIGHT - 170 // leaves room for the points
+const DIFF_RIGHT = RIGHT - 150 // leaves room for the points
+const STATS_RIGHT = DIFF_RIGHT - DIFF_W
 const statX = (i: number) => STATS_RIGHT - (STATS.length - 1 - i) * STAT_W // right edge of column i
 const NAME_X = PAD + INSET + 84
 const NAME_MAX = statX(0) - STAT_W - 16 - NAME_X
@@ -127,7 +129,7 @@ export async function renderShareCard(
     ctx.fillText(fit(ctx, nameOf.get(row.playerId) ?? "", nameMax), x, y + (big ? 152 : 86))
     ctx.font = body(30)
     ctx.globalAlpha = 0.75
-    const record = `${row.played} played, ${row.wins} won, ${row.draws} drawn, ${row.losses} lost`
+    const record = `${row.played} played, ${row.wins} won, ${row.draws} drawn, ${row.losses} lost, ${formatDiff(row.diff)} diff`
     ctx.fillText(fit(ctx, record, nameMax), x, y + winnerH - (big ? 36 : 30))
     ctx.globalAlpha = 1
     y += winnerH + GAP
@@ -140,6 +142,7 @@ export async function renderShareCard(
     ctx.fillStyle = MUTED
     ctx.font = label(26)
     ctx.fillText("Pts", RIGHT, tableTop - 16)
+    ctx.fillText("+/−", DIFF_RIGHT, tableTop - 16)
     STATS.forEach(([text], i) => ctx.fillText(text, statX(i), tableTop - 16))
 
     const size = Math.round(rowH * 0.5)
@@ -164,6 +167,7 @@ export async function renderShareCard(
       ctx.fillText(formatPoints(row.points), RIGHT, cy)
       ctx.fillStyle = MUTED
       ctx.font = body(Math.round(size * 0.85))
+      ctx.fillText(formatDiff(row.diff), DIFF_RIGHT, cy)
       STATS.forEach(([, key], j) => ctx.fillText(String(row[key]), statX(j), cy))
 
       ctx.textAlign = "left"

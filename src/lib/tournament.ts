@@ -73,6 +73,20 @@ export function duplicateName(names: string[]): string | null {
   return null
 }
 
+// Where a name repeats one earlier in the list, ignoring case and the
+// spaces around it. The first of the two is left alone, and so are blanks.
+export function repeatedNames(names: string[]): Set<number> {
+  const seen = new Set<string>()
+  const repeated = new Set<number>()
+  names.forEach((name, i) => {
+    const k = name.trim().toLowerCase()
+    if (k === "") return
+    if (seen.has(k)) repeated.add(i)
+    seen.add(k)
+  })
+  return repeated
+}
+
 export interface CreateDeps {
   now: number
   newId: () => string

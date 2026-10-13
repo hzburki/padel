@@ -1,8 +1,9 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { renameProblems } from "@/lib/tournament"
+import { renameProblems, repeatedNames } from "@/lib/tournament"
 import type { Tournament } from "@/lib/types"
+import { NameTaken } from "./new-tournament-screen"
 
 // Edit the tournament's name and its players' names, shown in a sheet.
 // Once the tournament is finished only its own name can change.
@@ -17,6 +18,7 @@ export function RenameForm({
   const [playerNames, setPlayerNames] = useState(tournament.players.map((p) => p.name))
   const problems = renameProblems(tournament, name, playerNames)
   const locked = tournament.finished
+  const repeated = locked ? new Set<number>() : repeatedNames(playerNames)
 
   return (
     <form
@@ -44,14 +46,17 @@ export function RenameForm({
       )}
       <div className="space-y-2">
         {playerNames.map((n, i) => (
-          <Input
-            key={tournament.players[i].id}
-            value={n}
-            disabled={locked}
-            aria-label={`Player ${i + 1}`}
-            onChange={(e) => setPlayerNames((all) => all.map((x, j) => (j === i ? e.target.value : x)))}
-            autoCapitalize="words"
-          />
+          <div key={tournament.players[i].id}>
+            <Input
+              value={n}
+              disabled={locked}
+              aria-label={`Player ${i + 1}`}
+              onChange={(e) => setPlayerNames((all) => all.map((x, j) => (j === i ? e.target.value : x)))}
+              autoCapitalize="words"
+              aria-invalid={repeated.has(i)}
+            />
+            {repeated.has(i) && <NameTaken name={n} />}
+          </div>
         ))}
       </div>
 
