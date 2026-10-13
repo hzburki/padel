@@ -21,6 +21,8 @@ export async function copyLink(link: "watch" | "organise", event: SavedEvent): P
       () => true,
       () => false,
     )
-    return { text: isOnline ? "Couldn't copy the link. Try again" : "No connection. Try again", failed: true }
+    if (isOnline) return { text: "Couldn't copy the link. Try again", failed: true }
+    // With a connection, the game was refused or took too long.
+    return { text: navigator.onLine ? "Couldn't make the link. Try again" : "No connection. Try again", failed: true }
   }
 }

@@ -17,6 +17,7 @@ Claude: do not read, act on or edit this file unless asked to.
 
 ## To Do
 
+- [ ] Add a history of changes made to a match. So if multiple organizers fight between each other about what happened they can see who is to blame. This should be a simple list of changes made to the match. It should show the time, the user who made the change and what was changed. This should be available to all users who have access to the match.
 - [ ] Show the +/- point difference in the match result card which is shared. Show it everywhere where we have space for it.
 - [ ] Add a banner on the home page to view latest features. It navigates to a page with its own URL which shows which features are pushed. When. What they do and how they work. 
 - [ ] When I want to change the rounds manually the app shows the alternate number of rounds only once. E.g. for 4 players the app suggest 3 rounds. When I change it to 4 the shows a warning that all players will not play equal matches. This is fine, but when I change the rounds to 6 the app still suggests to change it to 3 rounds instead of approving the choice because all players still play equal matches. This should also be accomodated in the initial suggestion the app gives when the user manually changes the number of rounds.  

@@ -11,7 +11,11 @@
       "ClaudeInChromeDomain([::1]:5301)",
       "ClaudeInChromeDomain(127.0.0.1:5173)",
       "ClaudeInChromeDomain(192.168.18.55:5173)",
-      "mcp__claude-in-chrome__browser_batch"
+      "mcp__claude-in-chrome__browser_batch",
+      "ClaudeInChromeDomain(2e185e49.padel-8xu.pages.dev)",
+      "Bash(lsof -iTCP -sTCP:LISTEN -P)",
+      "Bash(sed -i '' 's|page.on\\(\"pageerror\"|page.on\\(\"requestfailed\", \\(r\\) => console.log\\(`${at\\(\\)} [${who}] FAILED ${r.url\\(\\).slice\\(0, 120\\)} ${r.failure\\(\\)?.errorText}`\\)\\)\\\\n  page.on\\(\"pageerror\"|' shots/tmp-hosted2.shots.ts)",
+      "Bash(TMP_MATCH=tmp-hosted2.shots.ts npx playwright test -c tmp-hosted.config.ts --project=safari)"
     ]
   },
   "enabledPlugins": {
