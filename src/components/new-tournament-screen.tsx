@@ -17,6 +17,7 @@ import {
   maxCourts,
   MIN_PLAYERS,
   type PreviousSetup,
+  repeatedNames,
   setupProblems,
 } from "@/lib/tournament"
 import type { ScoringMode } from "@/lib/types"
@@ -39,6 +40,7 @@ export function NewTournamentScreen({
   const [name, setName] = useState(() => defaultGameName("americano", new Date()))
   const [players, setPlayers] = useState<string[]>(from?.playerNames ?? [])
   const [draft, setDraft] = useState("")
+  const [draftTaken, setDraftTaken] = useState(false) // the name just tried is already in the list
   const [courts, setCourts] = useState(from?.courts ?? 1)
   const [target, setTarget] = useState(from?.target ?? 16)
   const [scoringMode, setScoringMode] = useState<ScoringMode>(from?.scoringMode ?? "total")
@@ -54,8 +56,9 @@ export function NewTournamentScreen({
   const [pickTarget, setPickTarget] = useState(false)
   const draftRef = useRef<HTMLInputElement>(null)
 
-  // The typed-but-not-added name still counts, so nobody gets lost.
-  const names = cleanPlayerNames([...players, draft])
+  // The typed-but-not-added name still counts, so nobody gets lost. One
+  // turned away for being taken does not.
+  const names = cleanPlayerNames(draftTaken ? players : [...players, draft])
   const courtLimit = maxCourts(names.length)
   const usedCourts = Math.min(courts, courtLimit)
   const suggested = names.length >= MIN_PLAYERS ? suggestedRoundCount(names.length, usedCourts) : 1
@@ -82,6 +85,10 @@ export function NewTournamentScreen({
   const addDraft = () => {
     const n = cleanPlayerName(draft)
     if (n === "") return
+    if (repeatedNames([...players, n]).has(players.length)) {
+      setDraftTaken(true)
+      return
+    }
     setPlayers((p) => [...p, n])
     setDraft("")
     draftRef.current?.focus()
@@ -157,7 +164,10 @@ export function NewTournamentScreen({
                 <button
                   type="button"
                   aria-label={`Remove ${p}`}
-                  onClick={() => setPlayers((all) => all.filter((_, j) => j !== i))}
+                  onClick={() => {
+                    setPlayers((all) => all.filter((_, j) => j !== i))
+                    setDraftTaken(false) // the name it clashed with may be the one going
+                  }}
                   className="flex h-11 w-10 shrink-0 items-center justify-center rounded-r-full text-muted-foreground active:text-destructive"
                 >
                   <X className="size-4" strokeWidth={2.5} />
@@ -176,11 +186,15 @@ export function NewTournamentScreen({
           <Input
             ref={draftRef}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value)
+              setDraftTaken(false)
+            }}
             placeholder={players.length === 0 ? "First player's name" : "Next player"}
             enterKeyHint="next"
             autoCapitalize="words"
             className="pr-16"
+            aria-invalid={draftTaken}
           />
           <button
             type="submit"
@@ -191,6 +205,7 @@ export function NewTournamentScreen({
             <Plus className="size-5" strokeWidth={2.75} />
           </button>
         </form>
+        {draftTaken && <NameTaken name={draft} />}
       </Section>
 
       <Section title="Courts">
@@ -450,6 +465,16 @@ export function Section({ title, count, children }: { title: string; count?: num
       </h2>
       {children}
     </section>
+  )
+}
+
+// Sits under a name field holding a name another player already has.
+// `name` is as typed.
+export function NameTaken({ name }: { name: string }) {
+  return (
+    <p role="alert" className="mt-1.5 px-1 text-sm font-medium text-destructive">
+      {cleanPlayerName(name)} is already playing
+    </p>
   )
 }
 

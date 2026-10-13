@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp } from "lucide-react"
-import { formatPoints, type StandingRow } from "@/lib/standings"
+import { formatDiff, formatPoints, type StandingRow } from "@/lib/standings"
 import type { PlayerId } from "@/lib/types"
 
 // The on-screen standings: a phone-width list, readable at a glance.
@@ -67,9 +67,7 @@ export function StandingsTable({
                 </span>
               </span>
               <span className="w-8 text-right text-muted-foreground">{row.played}</span>
-              <span className="w-10 text-right text-muted-foreground">
-                {row.diff > 0 ? `+${formatPoints(row.diff)}` : formatPoints(row.diff)}
-              </span>
+              <span className="w-10 text-right text-muted-foreground">{formatDiff(row.diff)}</span>
               <span className="w-14 text-right text-[1.75rem] leading-none type-display">{formatPoints(row.points)}</span>
             </li>
           )

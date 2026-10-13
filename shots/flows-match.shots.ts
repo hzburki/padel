@@ -198,6 +198,29 @@ test("the match form: a set is 2 to 9 games, and all four players are needed", a
   await expect(start).toBeEnabled()
 })
 
+test("the match form: a name typed twice turns its field red until it changes", async ({ page }) => {
+  await home(page)
+  await tap(page, 'button:has-text("New game")')
+  await tap(page, 'button[aria-pressed]:has-text("Match")')
+  for (const [label, player] of [
+    ["Team 1, player 1", "Ann"],
+    ["Team 1, player 2", "Ben"],
+    ["Team 2, player 1", "Cal"],
+  ]) {
+    await page.getByLabel(label).fill(player)
+  }
+  const last = page.getByLabel("Team 2, player 2")
+  await last.fill("ann ")
+  await expect(page.getByRole("alert")).toHaveText("Ann is already playing")
+  await expect(last).toHaveAttribute("aria-invalid", "true")
+  await expect(page.getByLabel("Team 1, player 1")).toHaveAttribute("aria-invalid", "false")
+  await expect(page.getByRole("button", { name: "Start match" })).toBeDisabled()
+
+  await last.fill("Dee")
+  await expect(page.getByRole("alert")).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Start match" })).toBeEnabled()
+})
+
 test("a match is still there, point for point, after the app is closed and opened", async ({ page }) => {
   await newMatch(page, { name: "Kept" })
   await win(page, ANN, 2)

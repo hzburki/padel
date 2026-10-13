@@ -215,6 +215,45 @@ test("a tournament can be finished early, after asking", async ({ page }) => {
   await expect(sheet(page).getByRole("button", { name: "Broadcast live" })).toHaveCount(0)
 })
 
+test("the same name can't be added twice: the field turns red until the name changes", async ({ page }) => {
+  await fillAmericano(page, { name: "Twins", players: NINE.slice(0, 4) })
+  const player = page.locator('input[placeholder*="player" i]').filter({ visible: true })
+  await player.fill(" ann")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("alert")).toHaveText("Ann is already playing")
+  await expect(player).toHaveAttribute("aria-invalid", "true")
+  await expect(page.locator('button[aria-label="Remove Ann"]').filter({ visible: true })).toHaveCount(1)
+
+  // Taking the first Ann off frees the name.
+  await tap(page, 'button[aria-label="Remove Ann"]')
+  await expect(page.getByRole("alert")).toHaveCount(0)
+  await player.press("Enter")
+  await expect(page.locator('button[aria-label="Remove Ann"]').filter({ visible: true })).toHaveCount(1)
+
+  await player.fill("ann")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("alert")).toBeVisible()
+  await player.fill("Anna")
+  await expect(page.getByRole("alert")).toHaveCount(0)
+  await expect(player).toHaveAttribute("aria-invalid", "false")
+  await page.keyboard.press("Enter")
+  await expect(page.locator('button[aria-label="Remove Anna"]').filter({ visible: true })).toBeVisible()
+})
+
+test("editing a name to one already taken marks that field and can't be saved", async ({ page }) => {
+  await newAmericano(page, { name: "Twins", players: NINE.slice(0, 4) })
+  await tap(page, 'button[aria-label="More"]')
+  await tap(page, 'button:has-text("Edit names")')
+  const second = sheet(page).getByLabel("Player 2", { exact: true })
+  await second.fill("ann")
+  await expect(sheet(page).getByRole("alert")).toHaveText("Ann is already playing")
+  await expect(second).toHaveAttribute("aria-invalid", "true")
+  await expect(sheet(page).getByRole("button", { name: "Save names" })).toBeDisabled()
+  await second.fill("Bob")
+  await expect(sheet(page).getByRole("alert")).toHaveCount(0)
+  await expect(sheet(page).getByRole("button", { name: "Save names" })).toBeEnabled()
+})
+
 test("names can be edited, and Play again starts from the same players", async ({ page }) => {
   await newAmericano(page, { name: "Before", players: NINE.slice(0, 4) })
   await tap(page, 'button[aria-label="More"]')

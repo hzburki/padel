@@ -6,9 +6,9 @@ import { randomId } from "@/lib/ids"
 import { MAX_GAMES_PER_SET, MIN_GAMES_PER_SET, setsToWin } from "@/lib/set-match"
 import { createSetMatch, matchSetupProblems, type PreviousMatchSetup } from "@/lib/set-match-setup"
 import { requestPersistentStorage, saveTournament } from "@/lib/storage"
-import { capitaliseFirst, defaultGameName } from "@/lib/tournament"
+import { capitaliseFirst, defaultGameName, repeatedNames } from "@/lib/tournament"
 import type { DeuceRule, ScoreBy, SetMatch, Side } from "@/lib/types"
-import { Hint, Section, Stepper } from "./new-tournament-screen"
+import { Hint, NameTaken, Section, Stepper } from "./new-tournament-screen"
 import { Screen } from "./screen"
 import { Segmented } from "./segmented"
 import { Sheet } from "./sheet"
@@ -42,6 +42,7 @@ export function NewMatchScreen({
 
   const input = { name, teams, bestOf, setsAs, gamesPerSet, deuce, scoreBy }
   const problems = matchSetupProblems(input)
+  const repeated = repeatedNames(teams.flat())
   const typed = teams.flat().filter((n) => n.trim() !== "").length
 
   // Leaving with names entered asks first. Names carried over from the last
@@ -110,19 +111,25 @@ export function NewMatchScreen({
       {([0, 1] as const).map((side) => (
         <Section key={side} title={`Team ${side + 1}`}>
           <div className="space-y-2">
-            {([0, 1] as const).map((seat) => (
-              <Input
-                key={seat}
-                ref={(el) => void (fields.current[1 + side * 2 + seat] = el)}
-                value={teams[side][seat]}
-                onChange={(e) => setPlayer(side, seat, capitaliseFirst(e.target.value))}
-                onKeyDown={enterMovesOn(1 + side * 2 + seat)}
-                placeholder={`Player ${side * 2 + seat + 1}`}
-                aria-label={`Team ${side + 1}, player ${seat + 1}`}
-                enterKeyHint={side === 1 && seat === 1 ? "done" : "next"}
-                autoCapitalize="words"
-              />
-            ))}
+            {([0, 1] as const).map((seat) => {
+              const taken = repeated.has(side * 2 + seat)
+              return (
+                <div key={seat}>
+                  <Input
+                    ref={(el) => void (fields.current[1 + side * 2 + seat] = el)}
+                    value={teams[side][seat]}
+                    onChange={(e) => setPlayer(side, seat, capitaliseFirst(e.target.value))}
+                    onKeyDown={enterMovesOn(1 + side * 2 + seat)}
+                    placeholder={`Player ${side * 2 + seat + 1}`}
+                    aria-label={`Team ${side + 1}, player ${seat + 1}`}
+                    enterKeyHint={side === 1 && seat === 1 ? "done" : "next"}
+                    autoCapitalize="words"
+                    aria-invalid={taken}
+                  />
+                  {taken && <NameTaken name={teams[side][seat]} />}
+                </div>
+              )
+            })}
           </div>
         </Section>
       ))}

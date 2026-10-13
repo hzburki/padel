@@ -17,10 +17,10 @@ Claude: do not read, act on or edit this file unless asked to.
 
 ## To Do
 
-- [ ] Add a history of changes made to a match. So if multiple organizers fight between each other about what happened they can see who is to blame. This should be a simple list of changes made to the match. It should show the time, the user who made the change and what was changed. This should be available to all users who have access to the match.
-- [ ] Show the +/- point difference in the match result card which is shared. Show it everywhere where we have space for it.
-- [ ] Add a banner on the home page to view latest features. It navigates to a page with its own URL which shows which features are pushed. When. What they do and how they work. 
+
 - [ ] When I want to change the rounds manually the app shows the alternate number of rounds only once. E.g. for 4 players the app suggest 3 rounds. When I change it to 4 the shows a warning that all players will not play equal matches. This is fine, but when I change the rounds to 6 the app still suggests to change it to 3 rounds instead of approving the choice because all players still play equal matches. This should also be accomodated in the initial suggestion the app gives when the user manually changes the number of rounds.  
+- [ ] Add a banner on the home page to view latest features. It navigates to a page with its own URL which shows which features are pushed. When. What they do and how they work. 
+- [ ] Add a history of changes made to a match. So if multiple organizers fight between each other about what happened they can see who is to blame. This should be a simple list of changes made to the match. It should show the time, the user who made the change and what was changed. This should be available to all users who have access to the match.
 - [ ] From the 15-player Americano test: the app in the browser and the app on the home screen have different storage. This is iOS, not a bug: an iPhone gives a home-screen app its own storage apart from Safari, and code cannot join them. A game made in one is not in the other. Links always open in Safari, so an organiser running the game in the home-screen app who taps their own link gets a read-only "Shared" copy. Pick one:
   - [ ] A (recommended): a box on the home screen of the installed app to paste a link, so a friend can follow a broadcast there. Small, but it does not move the organiser's own game
   - [ ] B: move a game across, by exporting it from one and importing it into the other. The real fix for the organiser, but a new feature
@@ -54,6 +54,10 @@ Claude: do not read, act on or edit this file unless asked to.
 
 ## Done
 
+- [x] Show the +/- point difference in the match result card which is shared. Show it everywhere where we have space for it.
+  - [x] The shared Americano image has a +/− column, and the winner panel shows it too
+- [x] Do not allow to enter two players with the same name in the same game. Add a simple check in the Frontend and show a simple error message underneath the name input field in red. Make the input field red too untill the name is changed and added again.
+  - [x] New Americano, new Match and Edit names: the field turns red with "Ann is already playing" under it
 - [x] Test the web app on all different screen sizes and resolutions to ensure that it is responsive and works well on all devices. This includes testing on desktop, tablet, and mobile devices, as well as different browsers. Store screenshots for yourself, compare them and fix any inconsistencies or issues that arise. This is important to ensure that the app provides a consistent and high-quality user experience across all platforms.
   - [x] A phone turned on its side shows "turn your phone upright" instead of a squeezed app
   - [x] Save score stays in view on the score sheet while the numbers scroll

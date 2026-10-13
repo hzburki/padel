@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { computeStandings, formatPoints, joinNames, placesMovedByScaling, winners } from "./standings"
+import { computeStandings, formatDiff, formatPoints, joinNames, placesMovedByScaling, winners } from "./standings"
 import type { Match, PlayerId, Round } from "./types"
 
 const ids = (n: number): PlayerId[] => Array.from({ length: n }, (_, i) => `p${i + 1}`)
@@ -169,6 +169,18 @@ describe("formatPoints", () => {
     expect(formatPoints(16)).toBe("16")
     expect(formatPoints(10.5)).toBe("10.5")
     expect(formatPoints(13.33)).toBe("13.3")
+  })
+})
+
+describe("formatDiff", () => {
+  it("puts a plus in front of a difference above zero", () => {
+    expect(formatDiff(12)).toBe("+12")
+    expect(formatDiff(2.5)).toBe("+2.5")
+  })
+
+  it("leaves zero and a difference below zero as they are", () => {
+    expect(formatDiff(0)).toBe("0")
+    expect(formatDiff(-3)).toBe("-3")
   })
 })
 
