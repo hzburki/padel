@@ -4,15 +4,80 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // One document per shared tournament or match, keyed by its random id.
     match /live/{id} {
-      function wellFormed() {
-        let data = request.resource.data;
+      // The game itself is the `game` map: src/lib/online-game.ts. The rules
+      // can't look inside every entry of a map or list, so they check what
+      // kind each field is and how big; the phones check the rest.
+      // A whole number from 1 to `most`. The app offers less (a target of 8
+      // to 32, 2 to 9 games a set); the room above is for a game made by an
+      // older build.
+      function upTo(number, most) {
+        return number is int && number >= 1 && number <= most;
+      }
+      function gameBasics(game) {
+        return game.name is string
+          && game.name.size() <= 200
+          && game.createdAt is number
+          && game.finished is bool;
+      }
+      function americano(game) {
+        let fields = ['kind', 'name', 'createdAt', 'finished', 'scoringMode', 'target', 'courts', 'players', 'rounds', 'scores'];
+        return game.keys().hasOnly(fields)
+          && game.keys().hasAll(fields)
+          && game.kind == 'americano'
+          && gameBasics(game)
+          && game.scoringMode in ['total', 'firstTo']
+          && upTo(game.target, 64)
+          // Four players a court, 200 players.
+          && upTo(game.courts, 50)
+          && game.players is map
+          && game.players.size() <= 200
+          && game.rounds is list
+          && game.rounds.size() <= 100
+          && game.scores is map
+          && game.scores.size() <= 5000;
+      }
+      function pair(names) {
+        return names is list && names.size() == 2;
+      }
+      function setMatch(game) {
+        let fields = ['kind', 'name', 'createdAt', 'finished', 'teams', 'bestOf', 'setsAs', 'gamesPerSet', 'deuce', 'scoreBy', 'points'];
+        return game.keys().hasOnly(fields)
+          && game.keys().hasAll(fields)
+          && game.kind == 'match'
+          && gameBasics(game)
+          && game.teams is map
+          && game.teams.keys().hasOnly(['0', '1'])
+          && game.teams.keys().hasAll(['0', '1'])
+          && pair(game.teams['0'])
+          && pair(game.teams['1'])
+          && game.bestOf in [1, 3, 5]
+          && game.setsAs in ['bestOf', 'firstTo']
+          && upTo(game.gamesPerSet, 12)
+          && game.deuce in ['advantage', 'golden']
+          && game.scoreBy in ['points', 'games']
+          && game.points is map
+          && game.points.size() <= 5000;
+      }
+      // LEGACY, remove after 2026-10-28: until 2026-10-14 the whole game was
+      // one JSON string, `json`. A build from before still writes it.
+      function oldShape(data) {
         return data.keys().hasOnly(['owner', 'json', 'closed', 'handover'])
-          // Set when the organiser moves the broadcast to another game.
-          && (!('closed' in data) || data.closed == true)
-          // Set when the owner leaves the game to its other organisers.
-          && (!('handover' in data) || data.handover == true)
           && data.json is string
           && data.json.size() < 500000;
+      }
+      function newShape(data) {
+        return data.keys().hasOnly(['owner', 'game', 'closed', 'handover'])
+          && data.game is map
+          && (americano(data.game) || setMatch(data.game));
+      }
+      function wellFormed() {
+        let data = request.resource.data;
+        // Set when the organiser moves the broadcast to another game.
+        return (!('closed' in data) || data.closed == true)
+          // Set when the owner leaves the game to its other organisers.
+          && (!('handover' in data) || data.handover == true)
+          // One shape or the other, never both.
+          && (newShape(data) || oldShape(data));
       }
       function isOwner() {
         return resource.data.owner == request.auth.uid;
@@ -21,6 +86,17 @@ service cloud.firestore {
       // app calls them organisers: they score, rename and finish the game.
       function isScorer() {
         return exists(/databases/$(database)/documents/live/$(id)/scorers/$(request.auth.uid));
+      }
+      function changesOnly(fields) {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+      }
+      // What an added organiser may change in a game: its name, whether it
+      // is finished, the players' names and the scores. Not the schedule,
+      // the rules of the match, its kind or when it was made.
+      function scoresOnly() {
+        let changed = request.resource.data.game.diff(resource.data.game).affectedKeys();
+        return (resource.data.game.kind == 'americano' && changed.hasOnly(['name', 'finished', 'players', 'scores']))
+          || (resource.data.game.kind == 'match' && changed.hasOnly(['name', 'finished', 'points']));
       }
 
       // Anyone holding the link can watch. No `list`: ids can't be browsed.
@@ -31,12 +107,15 @@ service cloud.firestore {
         // The organiser changes anything but who owns it.
         (isOwner() && request.resource.data.owner == request.auth.uid)
         // An added organiser changes the game itself and nothing else.
-        || (isScorer() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['json']))
+        || (isScorer() && 'game' in resource.data && changesOnly(['game']) && scoresOnly())
+        // LEGACY, remove after 2026-10-28: on an old copy, the JSON string.
+        || (isScorer() && !('game' in resource.data) && changesOnly(['json']))
         // An added organiser becomes the owner of a game left to them.
         || (isScorer()
           && resource.data.get('handover', false) == true
           && request.resource.data.owner == request.auth.uid
-          && !('handover' in request.resource.data))
+          && !('handover' in request.resource.data)
+          && changesOnly(['owner', 'handover', 'closed']))
       );
       // Deleting the game on the organiser's phone takes this copy with it.
       allow delete: if request.auth != null && isOwner();
