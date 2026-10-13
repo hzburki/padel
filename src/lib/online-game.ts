@@ -93,13 +93,16 @@ export function toOnline(event: SavedEvent): OnlineGame {
   }
 }
 
+// LEGACY, remove after 2026-10-28: until 2026-10-14 the whole game was one
+// JSON string, `json`. Whether a document is still such a copy.
+export const isOldCopy = (document: { json?: unknown }) => typeof document.json === "string"
+
 // A game's online document as a game for this phone. `id` is the document's
 // name. Throws when the copy is not the shape above: nothing malformed is
 // shown or saved.
 export function fromOnline(id: string, document: { game?: unknown; json?: unknown }): SavedEvent {
-  // LEGACY, remove after 2026-10-28: until 2026-10-14 the whole game was
-  // one JSON string, `json`. A copy that still has it is read from it.
-  if (typeof document.json === "string") return migrate(JSON.parse(document.json))
+  // LEGACY, remove after 2026-10-28: an old copy is read from its string.
+  if (isOldCopy(document)) return migrate(JSON.parse(document.json as string))
   const game = onlineGame.parse(document.game)
   if (game.kind === "match") {
     const { teams, points, ...rest } = game

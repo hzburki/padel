@@ -174,6 +174,24 @@ user's to do, in the console. Slice 3 is next. What slice 2 does beyond the note
 - Whole numbers with a top: `target` 1 to 64, `courts` 1 to 50, `gamesPerSet` 1 to 12 (the app offers 8 to
   32, up to players / 4, and 2 to 9). `createdAt` is any number.
 
+**Slice 3 is done** (`src/lib/live.ts` and `live.test.ts`; 469 unit tests pass, and the tapped flows and the
+rules tests pass in both engines). Slice 4 is next. What slice 3 does beyond the note below:
+
+- `openOwn` skips a copy it has already saved by comparing the game `fromOnline` gives, as a string. That
+  works for both shapes. Slice 4 drops the check.
+- `takeOver` is an update of `owner` that removes `handover` and `closed`, inside its transaction.
+- `changeLive` writes `{ game }` and leaves `json` alone, so on an old copy the rules refuse it, for the
+  owner too. A game with an organiser link that is still in the old shape can be watched but not changed
+  until slice 5 rewrites it.
+- "the same match in two tabs stays the same in both" (`flows-sharing`) failed 2 times in about 20 in
+  Chrome's engine. Not this slice: `openGame` read the game from the phone before anything listened to the
+  other tabs, so a save made in between was missed. It now listens while it reads, and reads again when a
+  save lands. After the fix the three two-tabs flows passed 15 times each in both engines.
+- Asked for by the user on 2026-10-14: a game whose online copy is still one JSON string gets no "Add an
+  organiser" button (`canAddOrganiser`, LEGACY). The phone knows the shape only for a game it follows: one
+  that has an organiser link already. Any other old game is sent whole in the new shape when an organiser
+  is added, so it keeps the button and works.
+
 Decided by the user: when organisers act on the same round, match or game, the latest write stays. No
 merging, no repair. Edge cases are collected in `EDGE-CASES-online-game-fields.md` for review at the end;
 add to it, and correct the ones marked with a slice number if the code turns out different.

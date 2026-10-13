@@ -71,6 +71,7 @@ vi.mock("firebase/firestore", () => ({
   getDocFromServer: vi.fn(async (ref: { id: string }) => ({
     exists: () => fake.online.has(ref.id),
     metadata: { fromCache: false },
+    data: () => fake.online.get(ref.id),
     get: (field: string) => fake.online.get(ref.id)?.[field],
   })),
   setDoc: vi.fn(async () => {}),
@@ -82,9 +83,13 @@ vi.mock("firebase/firestore", () => ({
     work({
       get: async (ref: { id: string }) => {
         fake.transactions.push(ref.id)
-        return { get: (field: string) => fake.online.get(ref.id)?.[field] }
+        return { data: () => fake.online.get(ref.id), get: (field: string) => fake.online.get(ref.id)?.[field] }
       },
-      update: (ref: { id: string }, data: object) => void fake.online.set(ref.id, { ...fake.online.get(ref.id), ...data }),
+      // A field set to what deleteField gives is taken away.
+      update: (ref: { id: string }, data: object) => {
+        const fields = Object.entries({ ...fake.online.get(ref.id), ...data })
+        fake.online.set(ref.id, Object.fromEntries(fields.filter(([, value]) => value !== "no such field")))
+      },
       set: (ref: { id: string }, data: Record<string, unknown>) => void fake.online.set(ref.id, data),
     }),
   ),
@@ -110,6 +115,7 @@ vi.mock("./storage", () => ({
 
 import { deleteDoc, getDocFromServer, getDocsFromServer, runTransaction, setDoc, updateDoc } from "firebase/firestore"
 import {
+  canAddOrganiser,
   changeLive,
   changesOnline,
   closesAnother,
@@ -125,11 +131,44 @@ import {
   shareLive,
   shareScoreLink,
 } from "./live"
+import { toOnline, type OnlineGame } from "./online-game"
 import { saveTournament } from "./storage"
 
-// Only the fields live.ts reads.
+// A whole game, since its online copy holds every field.
 const game = (id: string, fields: Partial<SavedEvent> = {}) =>
-  ({ id, kind: "americano", name: id, createdAt: 0, finished: false, ...fields }) as SavedEvent
+  ({
+    version: 2,
+    kind: "americano",
+    id,
+    name: id,
+    createdAt: 0,
+    finished: false,
+    scoringMode: "total",
+    target: 16,
+    courts: 1,
+    players: [],
+    rounds: [],
+    ...fields,
+  }) as SavedEvent
+
+const match = (id: string): SavedEvent => ({
+  version: 2,
+  kind: "match",
+  id,
+  name: id,
+  createdAt: 0,
+  finished: false,
+  teams: [
+    ["Ana", "Ben"],
+    ["Cai", "Dee"],
+  ],
+  bestOf: 3,
+  setsAs: "bestOf",
+  gamesPerSet: 6,
+  deuce: "advantage",
+  scoreBy: "points",
+  points: [],
+})
 
 // A game on the organiser's phone.
 const own = (id: string, fields: Partial<SavedEvent> = {}) => {
@@ -146,14 +185,21 @@ const sent = (id: string) =>
   vi
     .mocked(setDoc)
     .mock.calls.filter(([ref]) => (ref as unknown as { path: string }).path === `live/${id}`)
-    .map(([, data]) => data as { owner: string; json: string; closed?: true })
+    .map(([, data]) => data as { owner: string; game: OnlineGame; closed?: true })
 
-// The online copy as a friend's phone receives it.
-const copy = (event: SavedEvent, closed = false) => ({
+// A document as a phone following it receives it.
+const received = (fields: Record<string, unknown>) => ({
   exists: () => true,
   metadata: { fromCache: false },
-  get: (field: string) => (field === "json" ? JSON.stringify(event) : field === "closed" && closed ? true : undefined),
+  data: () => fields,
+  get: (field: string) => fields[field],
 })
+
+// The online copy as a friend's phone receives it.
+const copy = (event: SavedEvent, closed = false) => received({ game: toOnline(event), ...(closed && { closed: true }) })
+
+// The game in the online copy a transaction reads and writes.
+const onlineGame = (id: string) => fake.online.get(id)!.game as OnlineGame
 const deleted = { exists: () => false, metadata: { fromCache: false }, get: () => undefined }
 // What Firestore answers with no connection: it has no copy of its own.
 const noConnection = { ...deleted, metadata: { fromCache: true } }
@@ -202,15 +248,13 @@ describe("broadcasting a game", () => {
   it("puts the whole game online under the organiser's name", async () => {
     const a = own("a")
     await shareLive(a)
-    expect(sent("a")).toEqual([{ owner: "organiser", json: JSON.stringify(a) }])
+    expect(sent("a")).toEqual([{ owner: "organiser", game: toOnline(a) }])
     expect(isSending("a")).toBe(true)
   })
 
   it("returns the link friends open: the site, then /t/<id> or /m/<id>", async () => {
     expect(await shareLive(own("a"))).toBe("https://padel.test/t/a")
-    expect(await shareLive(own("b", { kind: "match" } as Partial<SavedEvent>))).toBe(
-      "https://padel.test/m/b",
-    )
+    expect(await shareLive(match("b"))).toBe("https://padel.test/m/b")
   })
 
   it("sends the game again after every save", async () => {
@@ -218,7 +262,7 @@ describe("broadcasting a game", () => {
     pushLive(game("a", { name: "renamed" }))
     await settle()
     expect(sent("a")).toHaveLength(2)
-    expect(JSON.parse(sent("a")[1].json).name).toBe("renamed")
+    expect(sent("a")[1].game.name).toBe("renamed")
   })
 
   it("sends the finished game once, then stops sending", async () => {
@@ -292,7 +336,7 @@ describe("one broadcast at a time", () => {
     await shareLive(a)
     await shareLive(own("b"))
     await settle()
-    expect(sent("a")[1]).toEqual({ owner: "organiser", json: JSON.stringify(a), closed: true })
+    expect(sent("a")[1]).toEqual({ owner: "organiser", game: toOnline(a), closed: true })
   })
 
   it("keeps the closed game's link", async () => {
@@ -332,7 +376,7 @@ describe("one broadcast at a time", () => {
     pushLive(game("a", { finished: true }))
     await settle()
     expect(sent("a")).toHaveLength(3)
-    expect(JSON.parse(sent("a")[2].json).finished).toBe(true)
+    expect(sent("a")[2].game.finished).toBe(true)
   })
 
   it("leaves the other broadcast on when the closed game's final result goes out", async () => {
@@ -411,7 +455,7 @@ describe("when the app starts", () => {
     resendLive()
     await settle()
     expect(sent("a")).toHaveLength(2)
-    expect(JSON.parse(sent("a")[1].json).name).toBe("scored with no connection")
+    expect(sent("a")[1].game.name).toBe("scored with no connection")
   })
 
   it("sends nothing when no game was ever broadcast", async () => {
@@ -531,7 +575,7 @@ describe("opening your own game", () => {
     pushLive(own("a", { finished: true }))
     await settle()
     await open("a")
-    expect(JSON.parse(sent("a")[2].json).finished).toBe(true)
+    expect(sent("a")[2].game.finished).toBe(true)
     expect(isSending("a")).toBe(false)
   })
 
@@ -564,6 +608,16 @@ describe("your own game open in two tabs", () => {
     fake.otherTabs.forEach((heard) => heard("a"))
     await settle()
     expect(last().event).toEqual(scored)
+  })
+
+  it("shows a score the other tab saved while the game was still being read from the phone", async () => {
+    own("a")
+    const shown: (SavedEvent | null)[] = []
+    openGame("a", false, (event) => shown.push(event))
+    const scored = own("a", { name: "scored in the other tab" })
+    fake.otherTabs.forEach((heard) => heard("a"))
+    await settle()
+    expect(shown.at(-1)).toEqual(scored)
   })
 
   it("stops being live once the other tab finishes it", async () => {
@@ -747,9 +801,16 @@ describe("following a friend's game", () => {
   it("leaves alone a copy it can't read, such as one from a newer build", async () => {
     const saved = own("a", { shared: true })
     const { last } = await open("a")
-    fake.listeners[0].next({ ...copy(game("a")), get: () => "not a game" })
+    fake.listeners[0].next(received({ game: "not a game" }))
     expect(last()).toEqual({ event: saved, live: false })
     expect(saveTournament).not.toHaveBeenCalled()
+  })
+
+  // LEGACY, remove after 2026-10-28.
+  it("still reads a copy from before 2026-10-14, kept as one JSON string", async () => {
+    const { last } = await open("a", true)
+    fake.listeners[0].next(received({ json: JSON.stringify(game("a")) }))
+    expect(last()).toEqual({ event: { ...game("a"), shared: true }, live: true })
   })
 
   it("is not live when the connection fails", async () => {
@@ -809,7 +870,7 @@ describe("a friend's game that is 6 hours old", () => {
     await open("a")
     fake.listeners[0].next(copy(game("a")))
     await settle()
-    expect(JSON.parse(fake.online.get("a")!.json as string).finished).toBe(true)
+    expect(onlineGame("a").finished).toBe(true)
     expect(fake.saved.get("a")).toMatchObject({ finished: true, shared: true })
   })
 
@@ -850,7 +911,7 @@ describe("your own broadcast game that is 6 hours old", () => {
     const { last } = await open("a")
     await new Promise((resolve) => setTimeout(resolve, 5))
     expect(fake.saved.get("a")).toEqual({ ...a, finished: true })
-    expect(sent("a").at(-1)).toEqual({ owner: "organiser", json: JSON.stringify({ ...a, finished: true }) })
+    expect(sent("a").at(-1)).toEqual({ owner: "organiser", game: toOnline({ ...a, finished: true }) })
     expect(last()).toEqual({ event: { ...a, finished: true }, live: false })
   })
 
@@ -859,7 +920,7 @@ describe("your own broadcast game that is 6 hours old", () => {
     vi.setSystemTime(7 * HOUR)
     const { last } = await open("a")
     await new Promise((resolve) => setTimeout(resolve, 5))
-    expect(JSON.parse(fake.online.get("a")!.json as string).finished).toBe(true)
+    expect(onlineGame("a").finished).toBe(true)
     expect(last()!.event?.finished).toBe(true)
     expect(isSending("a")).toBe(false)
   })
@@ -951,7 +1012,7 @@ const marked = () => vi.mocked(updateDoc).mock.calls.map(([ref, data]) => [(ref 
 async function scored(id: string, fields: Partial<SavedEvent> = {}) {
   const event = own(id, fields)
   await shareScoreLink(event)
-  fake.online.set(id, { owner: "organiser", json: JSON.stringify(event) })
+  fake.online.set(id, { owner: "organiser", game: toOnline(event) })
   vi.clearAllMocks()
   return event
 }
@@ -962,7 +1023,7 @@ function scoring(id: string, fields: Partial<SavedEvent> = {}) {
   fake.saved.set(id, event)
   fake.flags.set(`score:${id}`, "k3y00000")
   // Its organiser is somebody else: this phone signs in as "organiser".
-  fake.online.set(id, { owner: "a friend", json: JSON.stringify(game(id, fields)) })
+  fake.online.set(id, { owner: "a friend", game: toOnline(event) })
   return event
 }
 
@@ -973,7 +1034,7 @@ describe("adding a scorer", () => {
     const a = own("a")
     const link = await shareScoreLink(a)
     expect(link).toMatch(/^https:\/\/padel\.test\/t\/a\/[0-9a-z]{8}$/)
-    expect(sent("a")).toEqual([{ owner: "organiser", json: JSON.stringify(a) }])
+    expect(sent("a")).toEqual([{ owner: "organiser", game: toOnline(a) }])
     expect(isSending("a")).toBe(true)
   })
 
@@ -1042,10 +1103,10 @@ describe("a game friends are scoring", () => {
   it("has a change made to the online copy, not to the phone's: a friend's score is kept", async () => {
     await scored("a")
     const online = game("a", { target: 21 } as Partial<SavedEvent>)
-    fake.online.set("a", { owner: "organiser", json: JSON.stringify(online) })
+    fake.online.set("a", { owner: "organiser", game: toOnline(online) })
     const result = await changeLive("a", rename("renamed"))
     expect(result).toEqual({ ...online, name: "renamed" })
-    expect(JSON.parse(fake.online.get("a")!.json as string)).toEqual({ ...online, name: "renamed" })
+    expect(onlineGame("a")).toEqual(toOnline({ ...online, name: "renamed" }))
   })
 
   it("changes only the game online, never who owns it", async () => {
@@ -1065,7 +1126,7 @@ describe("a game friends are scoring", () => {
     const result = await changeLive("a", rename("renamed"))
     expect(result.shared).toBe(true)
     expect(fake.saved.get("a")).toMatchObject({ name: "renamed", shared: true })
-    expect(JSON.parse(fake.online.get("a")!.json as string)).not.toHaveProperty("shared")
+    expect(onlineGame("a")).not.toHaveProperty("shared")
   })
 
   it("has its changes made one after the other, in the order they were tapped", async () => {
@@ -1077,7 +1138,7 @@ describe("a game friends are scoring", () => {
     }
     await Promise.all([changeLive("a", add("x")), changeLive("a", add("y")), changeLive("a", add("z"))])
     expect(names).toEqual(["a", "ax", "axy"])
-    expect(JSON.parse(fake.online.get("a")!.json as string).name).toBe("axyz")
+    expect(onlineGame("a").name).toBe("axyz")
   })
 
   it("fails a change when the online copy is gone, and leaves the phone's copy alone", async () => {
@@ -1102,6 +1163,40 @@ describe("a game friends are scoring", () => {
     await changeLive("a", (event) => ({ ...event, finished: true }))
     expect(isSending("a")).toBe(false)
     expect(hasLink("a")).toBe(true)
+  })
+})
+
+// LEGACY, remove after 2026-10-28.
+describe("a game whose online copy is still one JSON string", () => {
+  const oldCopy = (event: SavedEvent) => received({ json: JSON.stringify(event) })
+
+  it("gets no organiser link from its organiser's phone", async () => {
+    const a = await scored("a")
+    await open("a")
+    fake.listeners[0].next(oldCopy(a))
+    expect(canAddOrganiser(a)).toBe(false)
+  })
+
+  it("gets none from an added organiser's phone either", async () => {
+    const a = scoring("a")
+    await open("a")
+    fake.listeners[0].next(oldCopy(a))
+    expect(canAddOrganiser(a)).toBe(false)
+  })
+
+  it("gets one again once its copy is the new fields", async () => {
+    const a = await scored("a")
+    await open("a")
+    fake.listeners[0].next(oldCopy(a))
+    fake.listeners[0].next(copy({ ...a, name: "rewritten" }))
+    expect(canAddOrganiser(a)).toBe(true)
+  })
+
+  it("does not stop a game made from it with Play again from getting one", async () => {
+    const a = await scored("a")
+    await open("a")
+    fake.listeners[0].next(oldCopy(a))
+    expect(canAddOrganiser(game("b"))).toBe(true)
   })
 })
 
@@ -1193,9 +1288,7 @@ describe("once a phone's own taps have gone through", () => {
   // A friend's score lands online just after this phone's change, while
   // this phone was still showing its own taps and so let it pass.
   const friendScores = (id: string) => {
-    const theirs = { ...JSON.parse(fake.online.get(id)!.json as string), target: 21 }
-    fake.online.set(id, { ...fake.online.get(id), json: JSON.stringify(theirs) })
-    return theirs as SavedEvent
+    fake.online.set(id, { ...fake.online.get(id), game: { ...onlineGame(id), target: 21 } })
   }
 
   it("the organiser's phone reads the online copy as it stands: a friend's score is not missed", async () => {
@@ -1411,9 +1504,18 @@ describe("a friend's game left to its scorers", () => {
     fake.listeners[0].next(leftToScorers(game("a")))
     await settle()
     // Its organiser was "a friend"; now it is this phone, and the mark is gone.
-    expect(fake.online.get("a")).toEqual({ owner: "organiser", json: JSON.stringify(game("a")) })
+    expect(fake.online.get("a")).toEqual({ owner: "organiser", game: toOnline(game("a")) })
     expect(fake.saved.get("a")).not.toHaveProperty("shared")
     expect(isSending("a")).toBe(true)
+  })
+
+  it("is live again once taken over, when it was closed before it was left", async () => {
+    scoring("a")
+    fake.online.set("a", { ...fake.online.get("a"), handover: true, closed: true })
+    await open("a")
+    fake.listeners[0].next(leftToScorers(game("a")))
+    await settle()
+    expect(fake.online.get("a")).not.toHaveProperty("closed")
   })
 
   it("stays this phone's game when a friend's copy from before the takeover was saved over it", async () => {

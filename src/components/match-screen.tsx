@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
 import {
+  canAddOrganiser,
   canShare,
   canShareLive,
   changeLive,
@@ -365,17 +366,19 @@ export function MatchScreen({ id, watch = false, scoreKey }: { id: string; watch
                 Broadcast live
                 {!online && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
               </button>
-              <button
-                type="button"
-                // A game can't be put online with no connection.
-                disabled={!online}
-                onClick={() => askOrShare("organise")}
-                className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted disabled:text-muted-foreground"
-              >
-                <UserPlus className={`size-5 ${online ? "text-primary" : ""}`} />
-                Add an organiser
-                {!online && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
-              </button>
+              {canAddOrganiser(match) && (
+                <button
+                  type="button"
+                  // A game can't be put online with no connection.
+                  disabled={!online}
+                  onClick={() => askOrShare("organise")}
+                  className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted disabled:text-muted-foreground"
+                >
+                  <UserPlus className={`size-5 ${online ? "text-primary" : ""}`} />
+                  Add an organiser
+                  {!online && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
+                </button>
+              )}
             </>
           )}
           {/* A finished match has this in its footer. */}
