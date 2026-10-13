@@ -113,6 +113,27 @@ test("an organiser's own scores stay on their screen while nothing reaches their
   await page.unrouteAll({ behavior: "ignoreErrors" })
 })
 
+test("a score that can't get out turns the Live badge to Sending, and tapping the badge sends it", async ({ page, browser }) => {
+  await newAmericano(page, { name: "Stuck", players: FOUR })
+  const link = await addScorer(page)
+  const watcher = await newPhone(browser)
+  await watcher.goto(watchLink(link))
+  await expect(watcher.getByText("Watch only.")).toBeVisible()
+
+  // The phone still says it has a connection, but no write gets through.
+  await page.route(/\/Write\/channel/, (route) => route.abort())
+  await score(page, unscored(page).first(), 10)
+  await expect(courts(page).first()).toContainText("10")
+  await expect(liveBadge(page).first()).toBeVisible()
+  await expect(page.getByText("Sending…").first()).toBeVisible()
+  await expect(liveBadge(page)).toHaveCount(0)
+
+  await page.unrouteAll({ behavior: "ignoreErrors" })
+  await page.getByText("Sending…").first().click()
+  await expect(liveBadge(page).first()).toBeVisible()
+  await expect(watched(watcher, 0)).toContainText("10")
+})
+
 test("an organiser link with the wrong key only lets a friend watch", async ({ page, browser }) => {
   await newAmericano(page, { name: "Wrong key", players: FOUR })
   const link = await addScorer(page)

@@ -5,7 +5,9 @@ import {
   connectFirestoreEmulator,
   deleteDoc,
   deleteField,
+  disableNetwork,
   doc,
+  enableNetwork,
   getDocs,
   getDocsFromServer,
   getFirestore,
@@ -298,6 +300,61 @@ async function join(id: string, key: string): Promise<void> {
   localStorage.setItem(scoreKeyAt(id), key)
 }
 
+// Drop Firestore's connection and open a new one. A connection can go dead
+// without the phone being told: scores then wait on it, and nothing arrives.
+// What is waiting to be sent is kept, and sent again on the new connection.
+// Asked for twice at once, it happens once. Never throws.
+let restarting: Promise<void> | undefined
+
+export function restartConnection(): Promise<void> {
+  restarting ??= disableNetwork(db)
+    .catch(() => {})
+    .then(() => enableNetwork(db))
+    .catch(() => {})
+    .finally(() => {
+      restarting = undefined
+    })
+  return restarting
+}
+
+// How long Firestore may take to confirm a score before the phone treats
+// the send as slow: a normal one is confirmed in well under a second.
+const SLOW_SEND = 3000
+
+// How many sends are slow right now, and who to tell when that changes.
+let slowSends = 0
+const slowWatchers = new Set<() => void>()
+
+// Whether a score from this phone is still not confirmed after SLOW_SEND.
+// The Live badge says so.
+export const sendingSlowly = () => slowSends > 0
+
+export function onSlowSend(changed: () => void): () => void {
+  slowWatchers.add(changed)
+  return () => void slowWatchers.delete(changed)
+}
+
+// Do a send, counting it as slow from SLOW_SEND until Firestore answers.
+// The first send to turn slow restarts the connection, once: the rest wait
+// on the same one.
+async function confirmed(send: () => Promise<void>): Promise<void> {
+  let slow = false
+  const timer = setTimeout(() => {
+    slow = true
+    if (++slowSends === 1) void restartConnection()
+    slowWatchers.forEach((changed) => changed())
+  }, SLOW_SEND)
+  try {
+    await send()
+  } finally {
+    clearTimeout(timer)
+    if (slow) {
+      slowSends--
+      slowWatchers.forEach((changed) => changed())
+    }
+  }
+}
+
 // Send a change to a game that is scored online (changesOnline): only the
 // fields that differ between the game before and after it, so two phones
 // scoring at once both keep their score. Nothing is read first, and the
@@ -307,9 +364,11 @@ async function join(id: string, key: string): Promise<void> {
 export async function sendChange(before: SavedEvent, after: SavedEvent): Promise<void> {
   const changed = Object.entries(changedFields(toOnline(before), toOnline(after)))
   if (changed.length === 0) return
-  await signedIn()
   const fields = changed.map(([path, value]) => [path, value === REMOVED ? deleteField() : value])
-  await updateDoc(liveDoc(after.id), Object.fromEntries(fields))
+  await confirmed(async () => {
+    await signedIn()
+    await updateDoc(liveDoc(after.id), Object.fromEntries(fields))
+  })
   if (after.finished) markEnded(after.id)
 }
 
@@ -334,7 +393,7 @@ export function isSending(id: string): boolean {
 // sent: friends stop following when they get it.
 export function pushLive(event: SavedEvent): void {
   if (!sentOnSave(localStorage.getItem(sharedKey(event.id)), event, scoreKey(event.id) !== null)) return
-  send(event)
+  confirmed(() => send(event))
     .then(() => {
       if (event.finished) localStorage.setItem(sharedKey(event.id), "ended")
     })
@@ -518,8 +577,10 @@ function openOwn(
   // A tab left in the background may not have heard: look again when it
   // is back in front.
   const onVisible = () => {
-    if (document.hidden) refollow()
-    else showAgain()
+    if (document.hidden) return refollow()
+    // The connection may have died while the page was away.
+    if (hasLink(id)) void restartConnection()
+    showAgain()
   }
   document.addEventListener("visibilitychange", onVisible)
   // A broadcast game is finished once it has gone on too long
@@ -666,12 +727,17 @@ function openFriends(
     onSnapshot(liveDoc(id), { includeMetadataChanges: true }, take, () => tell(false))
   // No connection is kept open for a page nobody is looking at: following
   // stops while it is hidden and starts again when it comes back.
-  function onVisibility() {
+  const refollow = () => {
     unsubscribe()
     unsubscribe = document.hidden ? () => {} : follow()
   }
+  function onVisibility() {
+    // The connection may have died while the page was away.
+    if (!document.hidden) void restartConnection()
+    refollow()
+  }
   document.addEventListener("visibilitychange", onVisibility)
-  onVisibility()
+  refollow()
   return end
 }
 

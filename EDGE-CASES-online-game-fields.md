@@ -25,6 +25,9 @@ Cases marked *(slice N)* are about code not written yet; I'll correct them if th
 | 6 | A score is made just as the connection drops, and the app is closed before it is back. | The score is on the phone, never online. The next open takes the online copy and the score is gone. Planned in `PLAN-offline-scores.md`. |
 | 7 | Firestore refuses a score (the organiser link was deleted, say). | The phone shows and saves the score first, then says "Not saved. Try again" and goes back to the online copy. For a moment the phone holds a score nobody else has. An added organiser's phone goes back only while the game is open and followed; a game that was deleted online is finished there instead. |
 | 8 | The same game is open in two tabs of one browser and one tab's stream runs late. | The late tab can save an older copy on the phone until its stream catches up. The online copy is not touched, so nothing is lost. Every copy that arrives is saved, the same one too, and each save wakes the other tab to read the game again. |
+| 17 | A score is not confirmed online after 3 seconds, on a phone that says it has a connection. | The phone restarts its connection once and the Live badge reads "Sending…" until the score is confirmed. A game whose broadcast is closed has no badge, so nothing shows there. |
+| 18 | A score went online but another phone's stream never delivers it. | That phone can't know, so nothing restarts and nothing shows. Tapping its Live badge, or locking and unlocking the phone, restarts its connection. |
+| 19 | The connection is restarted while a game is being left to its other organisers, or taken over. | That step can fail. A game being left is closed instead; a takeover is tried again when the next copy arrives. |
 
 ## What is checked
 

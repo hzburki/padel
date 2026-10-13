@@ -27,6 +27,7 @@ import { ScoreEntry } from "./score-entry"
 import { Congrats } from "./congrats"
 import { copyLink } from "./copy-link"
 import { LiveBadge } from "./live-badge"
+import { NewBadge } from "./new-badge"
 import { useOnline } from "./online"
 import { RenameForm } from "./rename-form"
 import { renderShareCard, shareOrDownload } from "./share-card"
@@ -406,6 +407,7 @@ export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; 
                     >
                       <UserPlus className={`size-5 ${online ? "text-primary" : ""}`} />
                       Add an organiser
+                      <NewBadge />
                       {!online && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
                     </button>
                   )}

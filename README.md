@@ -36,6 +36,9 @@ unless you broadcast a game.
   finished, its link shows the final result. Deleting a broadcast game takes the online copy away; friends who
   opened the link keep theirs as a finished game.
   With no connection the Live badge turns to a grey Offline, and broadcasting says so instead of waiting.
+  A score that is not confirmed online after 3 seconds turns the badge to a grey "Sending…" until it is, and
+  the app restarts its connection by itself, once. It also restarts it whenever the page comes back to the
+  front. Tapping the badge restarts it by hand.
   Scores entered with no connection reach friends once it is back, even if the app was closed in between.
   The link is short: the site, then `/t/` or `/m/` and the game's 10-character id.
   What is copied is a one-line message with the game's name, then the link.
