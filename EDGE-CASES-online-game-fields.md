@@ -31,7 +31,7 @@ Cases marked *(slice N)* are about code not written yet; I'll correct them if th
 | # | What happens | Today |
 | --- | --- | --- |
 | 9 | Someone with the organiser link writes junk into one score or point, by hand, not through the app. *(slice 2)* | The rules can't look inside every entry of a map, so it gets in. Zod then refuses the whole copy on every phone: the game stops updating for everyone until the entry is fixed. |
-| 10 | The online copy has a number out of range (a target of 500), or a team naming a player who isn't there. | Zod checks types only. It is shown as it is. |
+| 10 | The online copy has a number out of range (a target of 500), or a team naming a player who isn't there. | The rules refuse a target over 64, more than 50 courts or more than 12 games a set. A team naming a player who isn't there is shown as it is: Zod checks types only. |
 | 11 | The online copy has a score for a match that isn't in the schedule. | Ignored, not refused. |
 
 ## Old games and old builds (until the old shape is removed, 2026-10-28)
