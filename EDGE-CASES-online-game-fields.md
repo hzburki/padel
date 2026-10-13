@@ -38,7 +38,7 @@ Cases marked *(slice N)* are about code not written yet; I'll correct them if th
 
 | # | What happens | Today |
 | --- | --- | --- |
-| 12 | A game with an organiser link is still in the old shape, and an added organiser has the new build before the owner has opened the game. *(slice 5)* | The added organiser can watch but not score ("Not saved. Try again") until the owner's phone opens the game and rewrites it. |
+| 12 | A game with an organiser link is still in the old shape. *(slice 5)* | No organiser can change it on the new build, the owner included: "Not saved. Try again". "Add an organiser" is not shown on it. A game made from it with Play again works. Slice 5 has the owner's phone rewrite it when it opens the game. |
 | 13 | A phone still runs the old build after the game was rewritten. | It can't read the new copy and stops following, until the page is reloaded. |
 | 14 | An old-shape game is never opened again by its owner. | It stays in the old shape. Once old-shape support is removed, its link shows nothing new. |
 

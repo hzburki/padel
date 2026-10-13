@@ -29,8 +29,9 @@ import {
   type SharedGames,
 } from "./broadcast"
 import { randomId } from "./ids"
+import { fromOnline, isOldCopy, toOnline } from "./online-game"
 import { livePath, scorePath } from "./paths"
-import { loadTournament, migrate, onChangedElsewhere, saveTournament } from "./storage"
+import { loadTournament, onChangedElsewhere, saveTournament } from "./storage"
 import type { SavedEvent } from "./types"
 
 // Live sharing: the organiser's phone copies a tournament or match to
@@ -101,13 +102,12 @@ async function signedIn() {
   return auth.currentUser ?? (await signInAnonymously(auth)).user
 }
 
-// The event travels as one JSON string: Firestore can't hold a list inside
-// a list, which a match's teams are. The rules let only `owner` and the
-// game's scorers write.
+// The event travels as the `game` map (online-game.ts). The rules let only
+// `owner` and the game's scorers write.
 // `closed` tells friends the score is no longer being kept up to date.
 async function send(event: SavedEvent, closed = false): Promise<void> {
   const user = await signedIn()
-  await setDoc(liveDoc(event.id), { owner: user.uid, json: JSON.stringify(event), ...(closed && { closed }) })
+  await setDoc(liveDoc(event.id), { owner: user.uid, game: toOnline(event), ...(closed && { closed }) })
 }
 
 // Whether a change to this game has to be made online (changeLive): it
@@ -125,6 +125,21 @@ export function scoreLockOn(event: SavedEvent, online: boolean) {
 // Whether this phone may hand out the game's links (canBroadcast).
 export function canShare(event: SavedEvent): boolean {
   return canBroadcast(event, scoreKey(event.id) !== null)
+}
+
+// LEGACY, remove after 2026-10-28: the games open on this page whose online
+// copy is still an old one (isOldCopy). An organiser added to one could not
+// change it, so no organiser link is handed out for it. A game made from it
+// with Play again is a new game, and has the link.
+const oldCopies = new Set<string>()
+
+function noteCopy(id: string, document: { json?: unknown }): void {
+  if (isOldCopy(document)) oldCopies.add(id)
+  else oldCopies.delete(id)
+}
+
+export function canAddOrganiser(event: SavedEvent): boolean {
+  return !oldCopies.has(event.id)
 }
 
 // Whether putting this game online would close the broadcast of another:
@@ -196,7 +211,8 @@ async function takeOver(id: string): Promise<void> {
   await runTransaction(db, async (transaction) => {
     const online = await transaction.get(liveDoc(id))
     if (online.get("handover") !== true) throw new Error("Already taken")
-    transaction.set(liveDoc(id), { owner: user.uid, json: online.get("json") })
+    // Live again too, as it would be had it been closed before it was left.
+    transaction.update(liveDoc(id), { owner: user.uid, handover: deleteField(), closed: deleteField() })
   })
   const mine = await loadTournament(id)
   if (!mine) return
@@ -304,8 +320,8 @@ export function changeLive<E extends SavedEvent>(id: string, change: (event: E) 
         runTransaction(db, async (transaction) => {
           const online = await transaction.get(liveDoc(id))
           if (givenUp) throw TOO_SLOW
-          const next = change(migrate(JSON.parse(online.get("json"))) as E)
-          transaction.update(liveDoc(id), { json: JSON.stringify(next) })
+          const next = change(fromOnline(id, online.data() ?? {}) as E)
+          transaction.update(liveDoc(id), { game: toOnline(next) })
           return next
         }),
       ).catch((error) => {
@@ -460,16 +476,26 @@ export function openGame(
     stop()
     stop = () => {}
     const mine = ++opened
-    loadTournament(id).then((saved) => {
-      if (closed || mine !== opened) return
-      // This phone took the game over (takeOver) and a copy from before was
-      // saved over its own: only an organiser's phone is sending a game.
-      if (saved?.shared && isSending(id)) {
-        saved = asOwn(saved)
-        void saveTournament(saved)
-      }
-      stop = saved && !saved.shared ? openOwn(id, saved, show) : openFriends(id, saved, fromLink, key, show)
+    // Nothing listens to the other tabs until the game is read (openOwn): a
+    // save one of them makes meanwhile would be missed, and this tab would
+    // show the copy from before it. Read the game again then.
+    let changed = false
+    const unlisten = onChangedElsewhere((other) => {
+      if (other === id) changed = true
     })
+    loadTournament(id)
+      .finally(unlisten)
+      .then((saved) => {
+        if (closed || mine !== opened) return
+        if (changed) return open()
+        // This phone took the game over (takeOver) and a copy from before was
+        // saved over its own: only an organiser's phone is sending a game.
+        if (saved?.shared && isSending(id)) {
+          saved = asOwn(saved)
+          void saveTournament(saved)
+        }
+        stop = saved && !saved.shared ? openOwn(id, saved, show) : openFriends(id, saved, fromLink, key, show)
+      })
   }
   const games = openGames.get(id) ?? new Set()
   openGames.set(id, games.add(open))
@@ -498,22 +524,24 @@ function openOwn(
   const showOwn = (own: SavedEvent) => show(own, !own.finished && isSending(id))
   let unfollow = () => {}
   let following = false
-  let seen: unknown
+  let seen: string | undefined
   const take = (snapshot: DocumentSnapshot) => {
     // Firestore's own memory is no newer than this phone's copy.
     if (stopped || !snapshot.exists() || snapshot.metadata.fromCache) return
     // No longer this phone's game: left to its other organisers.
     if (!hasLink(id)) return
-    // Saving tells this browser's other tabs, which follow the game
-    // too: only a copy that is new is saved.
-    if (snapshot.get("json") === seen) return
-    seen = snapshot.get("json")
+    noteCopy(id, snapshot.data())
     let online: SavedEvent
     try {
-      online = migrate(JSON.parse(snapshot.get("json")))
+      online = fromOnline(id, snapshot.data())
     } catch {
       return
     }
+    // Saving tells this browser's other tabs, which follow the game
+    // too: only a copy that is new is saved.
+    const copy = JSON.stringify(online)
+    if (copy === seen) return
+    seen = copy
     void saveTournament(online)
     if (online.finished) markEnded(id)
     if (!isChanging(id)) showOwn(online)
@@ -663,8 +691,9 @@ function openFriends(
       }
       return show(latest, false)
     }
+    noteCopy(id, snapshot.data())
     try {
-      latest = { ...migrate(JSON.parse(snapshot.get("json"))), shared: true }
+      latest = { ...fromOnline(id, snapshot.data()), shared: true }
     } catch {
       // A copy this build can't read, such as one from a newer build.
       end()
