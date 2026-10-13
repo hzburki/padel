@@ -40,9 +40,12 @@ database, and never make a screen depend on the connection.
 **The exception inside the exception: a game with more than one organiser.** "Add an organiser" gives a
 second link (`/t/<id>/<key>`) that makes a friend an organiser too: they score, undo, edit names, hand out
 both links and finish the game. Only the person who made it can delete it for everyone. From the moment that
-link exists, the online copy is the real one: every organiser's phone, the first one's included, makes its
-change to the newest online copy (`changeLive`) and follows it, and no phone ever sends its whole copy over
-the top, because that wipes another organiser's score. So changing that game needs a connection: with none,
+link exists, the online copy is the real one: every organiser's phone, the first one's included, sends only
+the fields it changed (`sendChange`) and follows the online copy, and no phone ever sends its whole copy over
+the top, because that wipes another organiser's score. The screen shows and saves a change at once and never
+waits for the send; when two organisers change the same score, point or name, the later write stays. The
+online copy is a map of fields (`src/lib/online-game.ts`), not the stored game: scores, players and points
+are maps there, so each can be written by itself. So changing that game needs a connection: with none,
 the screen says so and greys out what the phone may do. What a phone may never do is not shown at all. If
 the first organiser goes live with another game, a game with another organiser passes to one of them. A
 game with no organiser link is untouched by all of this and still works fully offline. In the code the

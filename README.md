@@ -43,7 +43,9 @@ unless you broadcast a game.
   score, undo, edit names, hand out both links and finish the game. Only the person who made the game can
   delete it for everyone. From then on the game is kept online, so every organiser needs a connection to
   change it: with none, the screen says "Offline. You can't change it until you're back." and what that phone
-  may do is greyed out. Two organisers scoring at the same moment both keep their score. With no connection,
+  may do is greyed out. A score shows on the phone that entered it at once, without waiting for the
+  connection. Two organisers scoring different courts at the same moment both keep their score; on the same
+  court, the later one stays. With no connection,
   "Broadcast live" and "Add an organiser" are greyed out too.
   If the first organiser goes live with another game, a game with another organiser passes to one of them;
   with none yet, it closes like any other broadcast.

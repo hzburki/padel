@@ -94,6 +94,25 @@ test("two friends scoring two courts at once both keep their score", async ({ pa
   }
 })
 
+test("an organiser's own scores stay on their screen while nothing reaches their phone", async ({ page, browser }) => {
+  // The stream that brings the online copy to this phone never answers.
+  await page.route(/\/Listen\/channel/, (route) => (route.request().method() === "GET" ? new Promise(() => {}) : route.continue()))
+  await newAmericano(page, { name: "Silent", players: EIGHT, courts: 2 })
+  const link = await addScorer(page)
+  const watcher = await newPhone(browser)
+  await watcher.goto(watchLink(link))
+  await expect(watcher.getByText("Watch only.")).toBeVisible()
+
+  await score(page, courts(page).nth(0), 10)
+  await score(page, courts(page).nth(1), 7)
+  // Both went online, and neither was taken back off the organiser's screen.
+  await expect(watched(watcher, 0)).toContainText("10")
+  await expect(watched(watcher, 1)).toContainText("7")
+  await expect(courts(page).nth(0)).toContainText("10")
+  await expect(courts(page).nth(1)).toContainText("7")
+  await page.unrouteAll({ behavior: "ignoreErrors" })
+})
+
 test("an organiser link with the wrong key only lets a friend watch", async ({ page, browser }) => {
   await newAmericano(page, { name: "Wrong key", players: FOUR })
   const link = await addScorer(page)

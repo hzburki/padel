@@ -6,17 +6,16 @@ import {
   canAddOrganiser,
   canShare,
   canShareLive,
-  changeLive,
   changesOnline,
   closesAnother,
   deleteLive,
   hasLink,
-  isChanging,
   isSending,
   openGame,
   passesOn,
   pushLive,
   scoreLockOn,
+  sendChange,
 } from "@/lib/live"
 import {
   addPoint,
@@ -30,7 +29,7 @@ import {
 } from "@/lib/set-match"
 import { previousMatchSetup } from "@/lib/set-match-setup"
 import { matchStats } from "@/lib/set-match-stats"
-import { deleteTournament, loadTournament, saveTournament } from "@/lib/storage"
+import { deleteTournament, saveTournament } from "@/lib/storage"
 import type { SetMatch, Side } from "@/lib/types"
 import { Congrats } from "./congrats"
 import { copyLink } from "./copy-link"
@@ -144,27 +143,19 @@ export function MatchScreen({ id, watch = false, scoreKey }: { id: string; watch
   const showLive = live && !match.finished
 
   // Save straight away: the phone may be locked or the tab killed any moment.
-  // A match with other organisers is changed online instead, on top of
-  // whatever they entered meanwhile; the change shows here at once.
+  // A match with other organisers also sends just what changed online, so
+  // what they entered meanwhile is kept; the change shows here at once.
   const update = async (change: (m: SetMatch) => SetMatch) => {
     const next = change(match)
     if (next === match) return
     setMatch(next)
-    if (changesOnline(match)) {
-      try {
-        const saved = await changeLive(match.id, change)
-        if (!isChanging(match.id)) setMatch(saved)
-      } catch {
-        setToast({ text: "Not saved. Try again", failed: true })
-        const kept = await loadTournament(match.id)
-        if (kept?.kind === "match") setMatch(kept)
-      }
-      return
-    }
+    const scoredOnline = changesOnline(match)
+    // Not waited for. If it is refused, the online copy puts the screen back.
+    if (scoredOnline) sendChange(match, next).catch(() => setToast({ text: "Not saved. Try again", failed: true }))
     try {
       await saveTournament(next)
       setSaveError(false)
-      pushLive(next)
+      if (!scoredOnline) pushLive(next)
     } catch {
       setSaveError(true)
     }

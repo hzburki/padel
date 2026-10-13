@@ -37,9 +37,23 @@ const fake = vi.hoisted(() => {
     storageListeners, // told when another tab changes localStorage
     saved: new Map<string, unknown>(), // the games on this phone
     listeners: [] as Listener[], // every Firestore listener ever opened
-    online: new Map<string, Record<string, unknown>>(), // the copies a transaction reads and writes, by game
+    online: new Map<string, Record<string, unknown>>(), // the copies an update or a transaction changes, by game
     scorers: new Map<string, string[]>(), // the friends signed up to score each game
-    transactions: [] as string[], // the game each transaction was for, in the order they ran
+    // Change fields of a game's online copy, each named by its path
+    // ("game.name"). A field set to what deleteField gives is taken away.
+    // A game with no copy here is left alone.
+    update(id: string, data: Record<string, unknown>) {
+      const copy = structuredClone(this.online.get(id))
+      if (!copy) return
+      for (const [path, value] of Object.entries(data)) {
+        const names = path.split(".")
+        const last = names.pop()!
+        const map = names.reduce((at, name) => at[name] as Record<string, unknown>, copy)
+        if (value === "no such field") delete map[last]
+        else map[last] = value
+      }
+      this.online.set(id, copy)
+    },
     scorersAt(path: string) {
       const uids = this.scorers.get(path.split("/")[1]) ?? []
       return { empty: uids.length === 0, docs: uids.map((uid) => ({ ref: { id: uid, path: `${path}/${uid}` } })) }
@@ -67,30 +81,15 @@ vi.mock("firebase/firestore", () => ({
   limit: () => undefined,
   getDocs: vi.fn(async (ref: { path: string }) => fake.scorersAt(ref.path)),
   getDocsFromServer: vi.fn(async (ref: { path: string }) => fake.scorersAt(ref.path)),
-  // The online copy as the server has it, read once.
-  getDocFromServer: vi.fn(async (ref: { id: string }) => ({
-    exists: () => fake.online.has(ref.id),
-    metadata: { fromCache: false },
-    data: () => fake.online.get(ref.id),
-    get: (field: string) => fake.online.get(ref.id)?.[field],
-  })),
   setDoc: vi.fn(async () => {}),
-  updateDoc: vi.fn(async () => {}),
+  updateDoc: vi.fn(async (ref: { id: string }, data: Record<string, unknown>) => fake.update(ref.id, data)),
   deleteField: () => "no such field",
   deleteDoc: vi.fn(async () => {}),
-  // Reads and writes fake.online, and fails when the game is not there.
+  // Reads and writes fake.online.
   runTransaction: vi.fn(async (_db: unknown, work: (transaction: unknown) => Promise<unknown>) =>
     work({
-      get: async (ref: { id: string }) => {
-        fake.transactions.push(ref.id)
-        return { data: () => fake.online.get(ref.id), get: (field: string) => fake.online.get(ref.id)?.[field] }
-      },
-      // A field set to what deleteField gives is taken away.
-      update: (ref: { id: string }, data: object) => {
-        const fields = Object.entries({ ...fake.online.get(ref.id), ...data })
-        fake.online.set(ref.id, Object.fromEntries(fields.filter(([, value]) => value !== "no such field")))
-      },
-      set: (ref: { id: string }, data: Record<string, unknown>) => void fake.online.set(ref.id, data),
+      get: async (ref: { id: string }) => ({ get: (field: string) => fake.online.get(ref.id)?.[field] }),
+      update: (ref: { id: string }, data: Record<string, unknown>) => fake.update(ref.id, data),
     }),
   ),
   // The friend's listener passes options; the organiser's does not.
@@ -113,10 +112,9 @@ vi.mock("./storage", () => ({
   },
 }))
 
-import { deleteDoc, getDocFromServer, getDocsFromServer, runTransaction, setDoc, updateDoc } from "firebase/firestore"
+import { deleteDoc, getDocsFromServer, runTransaction, setDoc, updateDoc } from "firebase/firestore"
 import {
   canAddOrganiser,
-  changeLive,
   changesOnline,
   closesAnother,
   deleteLive,
@@ -128,6 +126,7 @@ import {
   pushLive,
   resendLive,
   scoreKey,
+  sendChange,
   shareLive,
   shareScoreLink,
 } from "./live"
@@ -198,7 +197,7 @@ const received = (fields: Record<string, unknown>) => ({
 // The online copy as a friend's phone receives it.
 const copy = (event: SavedEvent, closed = false) => received({ game: toOnline(event), ...(closed && { closed: true }) })
 
-// The game in the online copy a transaction reads and writes.
+// The game in the online copy.
 const onlineGame = (id: string) => fake.online.get(id)!.game as OnlineGame
 const deleted = { exists: () => false, metadata: { fromCache: false }, get: () => undefined }
 // What Firestore answers with no connection: it has no copy of its own.
@@ -231,7 +230,6 @@ beforeEach(() => {
   fake.listeners.length = 0
   fake.online.clear()
   fake.scorers.clear()
-  fake.transactions.length = 0
   fake.otherTabs.clear()
   fake.page.hidden = false
   vi.clearAllMocks()
@@ -861,7 +859,7 @@ describe("a friend's game that is 6 hours old", () => {
     await open("a", true)
     fake.listeners[0].next(copy(game("a")))
     await settle()
-    expect(runTransaction).not.toHaveBeenCalled()
+    expect(updateDoc).not.toHaveBeenCalled()
   })
 
   it("is finished online, for everyone, by a phone that is one of its organisers", async () => {
@@ -1027,8 +1025,6 @@ function scoring(id: string, fields: Partial<SavedEvent> = {}) {
   return event
 }
 
-const rename = (name: string) => (event: SavedEvent) => ({ ...event, name })
-
 describe("adding a scorer", () => {
   it("puts the game online and returns the score link: the watch link, then a key of 8", async () => {
     const a = own("a")
@@ -1100,69 +1096,54 @@ describe("a game friends are scoring", () => {
     expect(isSending("a")).toBe(true)
   })
 
-  it("has a change made to the online copy, not to the phone's: a friend's score is kept", async () => {
-    await scored("a")
+  it("has only the field that changed sent: a friend's score, made meanwhile, is kept", async () => {
+    const a = await scored("a")
     const online = game("a", { target: 21 } as Partial<SavedEvent>)
     fake.online.set("a", { owner: "organiser", game: toOnline(online) })
-    const result = await changeLive("a", rename("renamed"))
-    expect(result).toEqual({ ...online, name: "renamed" })
+    await sendChange(a, { ...a, name: "renamed" })
+    expect(marked()).toEqual([["live/a", { "game.name": "renamed" }]])
     expect(onlineGame("a")).toEqual(toOnline({ ...online, name: "renamed" }))
   })
 
-  it("changes only the game online, never who owns it", async () => {
-    await scored("a")
-    await changeLive("a", rename("renamed"))
-    expect(fake.online.get("a")!.owner).toBe("organiser")
+  it("has a field that is gone taken away online: an undone point", async () => {
+    const m = { ...match("m"), points: [0, 1] } as SavedEvent
+    fake.flags.set("score:m", "k3y00000")
+    fake.online.set("m", { owner: "a friend", game: toOnline(m) })
+    await sendChange(m, { ...m, points: [0] } as SavedEvent)
+    expect(marked()).toEqual([["live/m", { "game.points.1": "no such field" }]])
+    expect(onlineGame("m")).toMatchObject({ points: { 0: 0 } })
   })
 
-  it("has the result saved on the phone", async () => {
-    await scored("a")
-    const result = await changeLive("a", rename("renamed"))
-    expect(fake.saved.get("a")).toEqual(result)
-  })
-
-  it("stays a friend's copy on a friend's phone, but is not marked so online", async () => {
-    scoring("a")
-    const result = await changeLive("a", rename("renamed"))
-    expect(result.shared).toBe(true)
-    expect(fake.saved.get("a")).toMatchObject({ name: "renamed", shared: true })
-    expect(onlineGame("a")).not.toHaveProperty("shared")
-  })
-
-  it("has its changes made one after the other, in the order they were tapped", async () => {
-    await scored("a")
-    const names: string[] = []
-    const add = (letter: string) => (event: SavedEvent) => {
-      names.push(event.name)
-      return { ...event, name: event.name + letter }
-    }
-    await Promise.all([changeLive("a", add("x")), changeLive("a", add("y")), changeLive("a", add("z"))])
-    expect(names).toEqual(["a", "ax", "axy"])
-    expect(onlineGame("a").name).toBe("axyz")
-  })
-
-  it("fails a change when the online copy is gone, and leaves the phone's copy alone", async () => {
+  it("has nothing sent when nothing changed", async () => {
     const a = await scored("a")
-    fake.online.delete("a")
-    await expect(changeLive("a", rename("renamed"))).rejects.toThrow()
-    expect(fake.saved.get("a")).toEqual(a)
+    await sendChange(a, { ...a })
+    expect(updateDoc).not.toHaveBeenCalled()
   })
 
-  it("still makes the changes that come after one that failed", async () => {
+  it("is not marked a friend's copy online when a friend's phone changes it", async () => {
+    const a = scoring("a")
+    await sendChange(a, { ...a, name: "renamed" })
+    expect(onlineGame("a")).toEqual(toOnline(game("a", { name: "renamed" })))
+  })
+
+  it("fails the change when Firestore refuses it", async () => {
     const a = await scored("a")
-    vi.mocked(runTransaction).mockRejectedValueOnce(new Error("no connection"))
-    const first = changeLive("a", rename("lost"))
-    const second = changeLive("a", rename("kept"))
-    await expect(first).rejects.toThrow()
-    expect((await second).name).toBe("kept")
-    expect(fake.saved.get("a")).toEqual({ ...a, name: "kept" })
+    vi.mocked(updateDoc).mockRejectedValueOnce({ code: "permission-denied" })
+    await expect(sendChange(a, { ...a, name: "renamed" })).rejects.toBeDefined()
   })
 
   it("stops being broadcast once the change that finishes it has gone through", async () => {
-    await scored("a")
-    await changeLive("a", (event) => ({ ...event, finished: true }))
+    const a = await scored("a")
+    await sendChange(a, { ...a, finished: true })
     expect(isSending("a")).toBe(false)
     expect(hasLink("a")).toBe(true)
+  })
+
+  it("is still being broadcast when the change that finishes it is refused", async () => {
+    const a = await scored("a")
+    vi.mocked(updateDoc).mockRejectedValueOnce({ code: "permission-denied" })
+    await sendChange(a, { ...a, finished: true }).catch(() => {})
+    expect(isSending("a")).toBe(true)
   })
 })
 
@@ -1190,6 +1171,28 @@ describe("a game whose online copy is still one JSON string", () => {
     fake.listeners[0].next(oldCopy(a))
     fake.listeners[0].next(copy({ ...a, name: "rewritten" }))
     expect(canAddOrganiser(a)).toBe(true)
+  })
+
+  it("is rewritten as the new fields by its organiser's phone, once", async () => {
+    const a = await scored("a")
+    await open("a")
+    fake.listeners[0].next(oldCopy({ ...a, name: "scored by a friend" }))
+    fake.listeners[0].next(oldCopy({ ...a, name: "scored by a friend" }))
+    expect(marked()).toEqual([["live/a", { game: toOnline({ ...a, name: "scored by a friend" }), json: "no such field" }]])
+  })
+
+  it("is not rewritten by an added organiser's phone: the rules let only its owner", async () => {
+    const a = scoring("a")
+    await open("a")
+    fake.listeners[0].next(oldCopy(a))
+    expect(updateDoc).not.toHaveBeenCalled()
+  })
+
+  it("is not rewritten when it is the new fields already", async () => {
+    const a = await scored("a")
+    await open("a")
+    fake.listeners[0].next(copy(a))
+    expect(updateDoc).not.toHaveBeenCalled()
   })
 
   it("does not stop a game made from it with Play again from getting one", async () => {
@@ -1223,14 +1226,15 @@ describe("the organiser's phone, while friends are scoring", () => {
     expect(fake.saved.get("a")).toEqual(theirs)
   })
 
-  it("does not save the same copy twice, which would wake this browser's other tabs for nothing", async () => {
-    await scored("a")
-    await open("a")
-    const theirs = game("a", { name: "scored by a friend" })
-    fake.listeners[0].next(copy(theirs))
-    fake.listeners[0].next(copy(theirs))
+  it("takes the same copy again: after a change Firestore refused, that is what puts the phone back", async () => {
+    const a = await scored("a")
+    const { last } = await open("a")
+    fake.listeners[0].next(copy(a))
+    fake.saved.set("a", { ...a, name: "refused" })
+    fake.listeners[0].next(copy(a))
     await settle()
-    expect(saveTournament).toHaveBeenCalledTimes(1)
+    expect(fake.saved.get("a")).toEqual(a)
+    expect(last()).toEqual({ event: a, live: true })
   })
 
   it("ignores what Firestore answers from memory with no connection", async () => {
@@ -1239,16 +1243,6 @@ describe("the organiser's phone, while friends are scoring", () => {
     fake.listeners[0].next({ ...copy(game("a", { name: "stale" })), metadata: { fromCache: true } })
     await settle()
     expect(last()!.event).toEqual(a)
-  })
-
-  it("does not show the online copy while its own taps are still being sent", async () => {
-    await scored("a")
-    const { shown } = await open("a")
-    const before = shown.length
-    const change = changeLive("a", rename("tapped"))
-    fake.listeners[0].next(copy(game("a", { name: "a tap behind" })))
-    expect(shown).toHaveLength(before)
-    await change
   })
 
   it("keeps following when the game's broadcast closes in another tab: the online copy is still the real one", async () => {
@@ -1282,57 +1276,13 @@ describe("the organiser's phone, while friends are scoring", () => {
     fake.listeners[0].next(copy(game("a", { finished: true })))
     expect(isSending("a")).toBe(false)
   })
-})
 
-describe("once a phone's own taps have gone through", () => {
-  // A friend's score lands online just after this phone's change, while
-  // this phone was still showing its own taps and so let it pass.
-  const friendScores = (id: string) => {
-    fake.online.set(id, { ...fake.online.get(id), game: { ...onlineGame(id), target: 21 } })
-  }
-
-  it("the organiser's phone reads the online copy as it stands: a friend's score is not missed", async () => {
-    await scored("a")
-    const { last } = await open("a")
-    vi.mocked(saveTournament).mockImplementationOnce(async (event) => {
-      fake.saved.set(event.id, event)
-      friendScores("a")
-    })
-    await changeLive("a", rename("renamed"))
-    await settle()
-    expect(last()!.event).toMatchObject({ name: "renamed", target: 21 })
-    expect(fake.saved.get("a")).toMatchObject({ name: "renamed", target: 21 })
-  })
-
-  it("a scorer's phone does the same, and its copy stays a friend's", async () => {
-    scoring("a")
-    const { last } = await open("a")
-    vi.mocked(saveTournament).mockImplementationOnce(async (event) => {
-      fake.saved.set(event.id, event)
-      friendScores("a")
-    })
-    await changeLive("a", rename("renamed"))
-    await settle()
-    expect(last()!.event).toMatchObject({ name: "renamed", target: 21, shared: true })
-    expect(fake.saved.get("a")).toMatchObject({ name: "renamed", target: 21, shared: true })
-  })
-
-  it("waits for the last tap before reading the online copy", async () => {
+  it("does not mark it over for this phone's own finish before that has gone through", async () => {
     await scored("a")
     await open("a")
-    await Promise.all([changeLive("a", rename("one")), changeLive("a", rename("two"))])
-    await settle()
-    expect(getDocFromServer).toHaveBeenCalledTimes(1)
-  })
-
-  it("keeps what it has when the online copy can't be read", async () => {
-    await scored("a")
-    const { last } = await open("a")
-    vi.mocked(getDocFromServer).mockRejectedValueOnce(new Error("no connection"))
-    await changeLive("a", rename("renamed"))
-    await settle()
-    expect(fake.saved.get("a")).toMatchObject({ name: "renamed" })
-    expect(last()!.event).toMatchObject({ id: "a" })
+    const mine = copy(game("a", { finished: true }))
+    fake.listeners[0].next({ ...mine, metadata: { fromCache: false, hasPendingWrites: true } })
+    expect(isSending("a")).toBe(true)
   })
 })
 

@@ -6,7 +6,6 @@ import {
   deleteDoc,
   deleteField,
   doc,
-  getDocFromServer,
   getDocs,
   getDocsFromServer,
   getFirestore,
@@ -29,7 +28,7 @@ import {
   type SharedGames,
 } from "./broadcast"
 import { randomId } from "./ids"
-import { fromOnline, isOldCopy, toOnline } from "./online-game"
+import { changedFields, fromOnline, isOldCopy, REMOVED, toOnline } from "./online-game"
 import { livePath, scorePath } from "./paths"
 import { loadTournament, onChangedElsewhere, saveTournament } from "./storage"
 import type { SavedEvent } from "./types"
@@ -40,8 +39,9 @@ import type { SavedEvent } from "./types"
 //
 // Unless the organiser adds another organiser. Then friends with the
 // organiser link change the online copy too, so from then on the online
-// copy is the real one: every organiser's phone changes it there
-// (changeLive) and follows it, and none sends its own copy over the top.
+// copy is the real one: every organiser's phone sends it only the fields it
+// changed (sendChange) and follows it, and none sends its own copy over the
+// top.
 // The code calls that link's key the score key, and those friends scorers.
 //
 // A build talks to the Firebase project named in `.env`; the dev server
@@ -110,7 +110,7 @@ async function send(event: SavedEvent, closed = false): Promise<void> {
   await setDoc(liveDoc(event.id), { owner: user.uid, game: toOnline(event), ...(closed && { closed }) })
 }
 
-// Whether a change to this game has to be made online (changeLive): it
+// Whether a change to this game has to be made online (sendChange): it
 // has an organiser link, so the online copy is the real one, for every
 // organiser and for as long as the game is there.
 export function changesOnline(event: SavedEvent): boolean {
@@ -228,8 +228,8 @@ function asOwn(event: SavedEvent): SavedEvent {
   return own
 }
 
-// How long putting a game online, or a change to one, may take before the
-// phone is told it did not work.
+// How long putting a game online may take before the phone is told it did
+// not work.
 const SHARE_LIMIT = 5000
 const TOO_SLOW = new Error("No connection")
 
@@ -298,82 +298,19 @@ async function join(id: string, key: string): Promise<void> {
   localStorage.setItem(scoreKeyAt(id), key)
 }
 
-// The changes still to be made to each game, in the order they were asked
-// for, and how many of them there are.
-const changes = new Map<string, Promise<unknown>>()
-const waiting = new Map<string, number>()
-
-// Make a change to a game that is scored online (changesOnline). The change
-// is made to the newest online copy, not to this phone's, so two phones
-// scoring at once both keep their score; `change` may run more than once.
-// The result is saved on this phone and returned. Fails with no connection,
-// after SHARE_LIMIT at most.
-export function changeLive<E extends SavedEvent>(id: string, change: (event: E) => E): Promise<E> {
-  waiting.set(id, (waiting.get(id) ?? 0) + 1)
-  // Once the phone has been told a change did not work, it must not go
-  // through after all: the tap would count twice when it is made again.
-  let givenUp = false
-  const changed = (changes.get(id) ?? Promise.resolve())
-    .then(signedIn)
-    .then(() =>
-      inTime(
-        runTransaction(db, async (transaction) => {
-          const online = await transaction.get(liveDoc(id))
-          if (givenUp) throw TOO_SLOW
-          const next = change(fromOnline(id, online.data() ?? {}) as E)
-          transaction.update(liveDoc(id), { game: toOnline(next) })
-          return next
-        }),
-      ).catch((error) => {
-        givenUp = true
-        throw error
-      }),
-    )
-    .then(async (next) => {
-      const mine = await loadTournament(id)
-      // A friend's copy stays one, unless this phone has just taken the game over.
-      const saved = mine?.shared && !isSending(id) ? { ...next, shared: true as const } : next
-      await saveTournament(saved)
-      if (saved.finished && !saved.shared) markEnded(id)
-      return saved
-    })
-  // A change that failed does not hold up the ones after it.
-  changes.set(
-    id,
-    changed.catch(() => {}),
-  )
-  return changed.finally(() => {
-    waiting.set(id, (waiting.get(id) ?? 1) - 1)
-    if (!isChanging(id)) void catchUp(id)
-  })
-}
-
-// What takes in the online copy of each game open on this page (openGame).
-const followers = new Map<string, Set<(online: DocumentSnapshot) => void>>()
-
-function followed(id: string, take: (online: DocumentSnapshot) => void): () => void {
-  const taking = followers.get(id) ?? new Set()
-  followers.set(id, taking.add(take))
-  return () => void taking.delete(take)
-}
-
-// The taps have all gone through. While they were on their way the online
-// copy was not shown, and a friend's score may have landed in between:
-// read the copy as it now stands, so no phone with a connection is left
-// showing anything else. Never throws.
-async function catchUp(id: string): Promise<void> {
-  try {
-    const online = await getDocFromServer(liveDoc(id))
-    if (!isChanging(id)) followers.get(id)?.forEach((take) => take(online))
-  } catch {
-    // No connection any more: the next change to arrive brings it up to date.
-  }
-}
-
-// While changes are on their way the screen shows what was tapped; the
-// online copy, a tap or two behind, would make the score jump back.
-export function isChanging(id: string): boolean {
-  return (waiting.get(id) ?? 0) > 0
+// Send a change to a game that is scored online (changesOnline): only the
+// fields that differ between the game before and after it, so two phones
+// scoring at once both keep their score. Nothing is read first, and the
+// screen does not wait: Firestore shows the change to this phone's listener
+// at once. Fails only when Firestore refuses the change; the listener then
+// gets the online copy back by itself.
+export async function sendChange(before: SavedEvent, after: SavedEvent): Promise<void> {
+  const changed = Object.entries(changedFields(toOnline(before), toOnline(after)))
+  if (changed.length === 0) return
+  await signedIn()
+  const fields = changed.map(([path, value]) => [path, value === REMOVED ? deleteField() : value])
+  await updateDoc(liveDoc(after.id), Object.fromEntries(fields))
+  if (after.finished) markEnded(after.id)
 }
 
 // A finished game's result is online: nothing more is sent for it.
@@ -524,7 +461,7 @@ function openOwn(
   const showOwn = (own: SavedEvent) => show(own, !own.finished && isSending(id))
   let unfollow = () => {}
   let following = false
-  let seen: string | undefined
+  let rewritten = false
   const take = (snapshot: DocumentSnapshot) => {
     // Firestore's own memory is no newer than this phone's copy.
     if (stopped || !snapshot.exists() || snapshot.metadata.fromCache) return
@@ -537,22 +474,20 @@ function openOwn(
     } catch {
       return
     }
-    // Saving tells this browser's other tabs, which follow the game
-    // too: only a copy that is new is saved.
-    const copy = JSON.stringify(online)
-    if (copy === seen) return
-    seen = copy
+    // LEGACY, remove after 2026-10-28: an old copy is rewritten as the new
+    // fields, once, so that its organisers can change it (sendChange).
+    if (isOldCopy(snapshot.data()) && !rewritten) {
+      rewritten = true
+      void updateDoc(liveDoc(id), { game: toOnline(online), json: deleteField() }).catch(() => {})
+    }
+    // Every copy is taken, the same as the last one too: after a change
+    // Firestore refused, that is the one that puts this phone back.
     void saveTournament(online)
-    if (online.finished) markEnded(id)
-    if (!isChanging(id)) showOwn(online)
+    // This phone's own finish counts once it has gone through (sendChange).
+    if (online.finished && !snapshot.metadata.hasPendingWrites) markEnded(id)
+    showOwn(online)
   }
   const follow = () => onSnapshot(liveDoc(id), take, () => {})
-  // After this phone's own taps, its copy is their result, not what was
-  // last seen online: take the online copy whatever it is.
-  const unfollowed = followed(id, (online) => {
-    seen = undefined
-    take(online)
-  })
   // No connection is kept open for a page nobody is looking at.
   const refollow = () => {
     const wanted = !stopped && !document.hidden && changesOnline(saved) && hasLink(id)
@@ -591,10 +526,10 @@ function openOwn(
   // (followTimeLeft), by whichever organiser's phone has it open then, or
   // opens it next.
   const finishOld = () => {
-    if (changesOnline(saved)) return void changeLive(id, finished).then(showOwn, () => {})
     void loadTournament(id).then(async (own) => {
       if (stopped || !own || own.finished) return
       const done = finished(own)
+      if (changesOnline(own)) sendChange(own, done).catch(() => {})
       await saveTournament(done)
       pushLive(done)
       showOwn(done)
@@ -607,7 +542,6 @@ function openOwn(
     stopped = true
     clearTimeout(tooOld)
     unfollow()
-    unfollowed()
     unlisten()
     window.removeEventListener("storage", onShared)
     document.removeEventListener("visibilitychange", onVisible)
@@ -640,8 +574,7 @@ function openFriends(
   let stopped = false
   const tell = (isLive: boolean) => {
     live = isLive
-    // The online copy lags behind the taps still being sent (isChanging).
-    if (!isChanging(id)) show(latest, live)
+    show(latest, live)
   }
   if (saved) show(saved, false)
   // Opened from the organiser link: sign up, once, and show the game
@@ -668,7 +601,6 @@ function openFriends(
   const end = () => {
     stopped = true
     unlisten()
-    unfollowed()
     document.removeEventListener("visibilitychange", onVisibility)
     clearTimeout(tooOld)
     unsubscribe()
@@ -720,9 +652,10 @@ function openFriends(
   // other only on itself, until an organiser's does.
   function finishOld() {
     end()
-    if (scoreKey(id) !== null) void changeLive(id, finished).catch(() => {})
     if (latest) {
-      latest = finished(latest)
+      const done = finished(latest)
+      if (scoreKey(id) !== null) sendChange(latest, done).catch(() => {})
+      latest = done
       void saveTournament(latest)
     }
     show(latest, false)
@@ -731,9 +664,6 @@ function openFriends(
     // Also told when an answer from memory is confirmed by the server:
     // that is how a delete is heard of once the connection is back.
     onSnapshot(liveDoc(id), { includeMetadataChanges: true }, take, () => tell(false))
-  const unfollowed = followed(id, (online) => {
-    if (!stopped) take(online)
-  })
   // No connection is kept open for a page nobody is looking at: following
   // stops while it is hidden and starts again when it comes back.
   function onVisibility() {
