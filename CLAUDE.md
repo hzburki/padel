@@ -86,7 +86,7 @@ If something needs a sentence, write one short one, not three.
   The walk that compares screens with stored images is `shots/screens.shots.ts`, the games it starts from
   `shots/seed.ts`. The games played by tapping are the `shots/flows-*.shots.ts` files, with their shared
   steps in `shots/taps.ts`; a new feature or game variant gets a flow there. The images in `shots/images`
-  stay on this machine (gitignored). Never replace one without the user's yes (`/shots`).
+  stay on this machine (gitignored). Never replace one without the user's yes.
 - Path alias `@/` → `src/`. TypeScript 6 dropped `baseUrl`, so `paths` are relative to the tsconfig; the
   same alias is repeated in `vite.config.ts`.
 
@@ -238,8 +238,6 @@ their head for nothing.
 
 **Stop and ask before anything structural** — a new dependency, a new folder layer, a state library, or a
 change to the shape of a stored tournament. These are the changes that are expensive to undo later.
-
-`/walkthrough` explains the last change in plain words; `/walkthrough <ref>` targets a specific commit.
 
 ## Persistence
 
