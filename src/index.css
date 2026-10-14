@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist"; /* only the share card still draws in Geist */
 @import "@fontsource-variable/archivo/wdth.css";
 
 @custom-variant dark (&:is(.dark *));
