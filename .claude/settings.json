@@ -16,7 +16,10 @@
     ],
     "deny": [
       "Bash(git commit:*)",
-      "Bash(git * commit:*)"
+      "Bash(git * commit:*)",
+      "Bash(git checkout -b:*)",
+      "Bash(git switch -c:*)",
+      "Bash(git branch:*)"
     ]
   },
   "extraKnownMarketplaces": {

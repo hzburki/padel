@@ -105,7 +105,7 @@ npx vitest run -t "benches the player"             # one test by name
   that task. A yes covers that one task only.
 - Never add a network call, server or database outside `src/lib/live.ts`, or make a screen wait for the
   connection.
-- Never build in `teamA + teamB === target`: it is wrong in first-to mode.
+- Never apply `teamA + teamB === target` outside total-points mode: it is wrong in first-to mode.
 - Never store a second copy of a match's score.
 - Never send a game's whole online copy once it has a second organiser.
 - Never change a stored shape without bumping `version` and adding a step to `migrate`.
@@ -126,7 +126,8 @@ Only these ports:
   and reuse or stop it.
 - Each port has its own IndexedDB and its own sign-in, so the friend must be on 5198. Old games stay there
   too: clear the site data or start a new game before trusting the screen.
-- Broadcasting needs `npm run emulators` (Auth 9099, Firestore 8080).
+- Broadcasting needs `npm run emulators` (Auth 9099, Firestore 8080, both fixed in `firebase.json` and
+  `src/lib/live.ts`).
 - Test at phone size (390 × 844) first.
 - Stop the servers you started when you are done.
 
