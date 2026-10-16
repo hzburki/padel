@@ -61,8 +61,8 @@ describe("createSetMatch", () => {
     expect(match.finished).toBe(false)
   })
 
-  it("is saved as a version 2 record of kind match", () => {
-    expect(createSetMatch(valid, deps)).toMatchObject({ version: 2, kind: "match", id: "id1", createdAt: 1000 })
+  it("is saved as a version 3 record of kind match", () => {
+    expect(createSetMatch(valid, deps)).toMatchObject({ version: 3, kind: "match", id: "id1", createdAt: 1000 })
   })
 
   it("trims the names and makes each first letter upper case", () => {

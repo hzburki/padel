@@ -251,10 +251,18 @@ test("a friend with the score link can score an americano, clear a score, rename
   expect(await change(request, friend, id, { finished: true }, ["finished"])).toBe(true)
 })
 
-test("a friend with the score link cannot change an americano's schedule, its rules, its kind or when it was made", async ({ request }) => {
+test("a friend with the score link can add or remove a player in an americano, which makes the rounds again", async ({ request }) => {
   const { id } = await sharedGame(request)
   const friend = await scorer(request, id)
-  expect(await change(request, friend, id, { rounds: [] }, ["rounds"])).toBe(false)
+  const players = { p5: { name: "Eli", order: 4, joinedAt: 1 } }
+  expect(await change(request, friend, id, { players, rounds: americano.rounds }, ["players.p5", "rounds"])).toBe(true)
+  const leaver = { p1: { name: "Ana", order: 0, left: { scaleUp: false } } }
+  expect(await change(request, friend, id, { players: leaver, rounds: [] }, ["players.p1", "rounds"])).toBe(true)
+})
+
+test("a friend with the score link cannot change an americano's rules, its kind or when it was made", async ({ request }) => {
+  const { id } = await sharedGame(request)
+  const friend = await scorer(request, id)
   expect(await change(request, friend, id, { target: 24 }, ["target"])).toBe(false)
   expect(await change(request, friend, id, { courts: 2 }, ["courts"])).toBe(false)
   expect(await change(request, friend, id, { scoringMode: "firstTo" }, ["scoringMode"])).toBe(false)

@@ -56,6 +56,13 @@ unless you broadcast a game.
   with none yet, it closes like any other broadcast.
 - A broadcast game finishes by itself 6 hours after it was made. There is no server doing this: each phone
   works it out when it opens the game, and the first organiser's phone to do so finishes it for everyone.
+- Players join and leave a running Americano: menu, then Add or remove players. A new player plays from the round after the last
+  one with a score; a player who leaves keeps their scores and is marked "left"; added again, they come back as a new player from 0. Scored rounds
+  never change; the rest are made again. A player who leaves before their match this round is replaced by someone
+  sitting out, or that match is dropped when nobody is. Each time the organiser picks **Same time** (the rounds left stay) or
+  **Same matches** (rounds are added or taken away so everyone plays about the games they were due), and for a
+  leaver whether their points are scaled up at the end or kept as scored. Not possible once the last round has a
+  score. With another organiser, it needs a connection.
 - Play again with the same people and settings in one tap.
 - Saved after every score or point. Lock the phone or close the tab and nothing is lost.
 - The same game open in two tabs stays the same in both: a score entered in one shows in the other, and so does its Live badge. A game made in one tab shows on the home screen of the other.
@@ -120,6 +127,9 @@ if they had kept scoring at the same rate:
 Ben finishes above Ana. His point difference is scaled the same way, so +4 from four games counts as +5.
 
 The result is not always a whole number: 13 points from 3 games, when others played 4, is 17.33, shown as 17.3.
+
+A player who joined late is scaled up the same way. A player who left is too, unless they were removed with "Keep
+as scored".
 
 Nothing is scaled while the tournament is still going. A player with fewer games then may just not have played their
 next one yet.
@@ -186,3 +196,4 @@ address, which is how `/privacy` and `/terms` open and how the app shows its own
 ## License
 
 Free and open source under the [MIT License](LICENSE).
+

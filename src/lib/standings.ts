@@ -1,4 +1,4 @@
-import type { Match, PlayerId, Round } from "./types"
+import type { Match, Player, PlayerId, Round } from "./types"
 
 export interface StandingRow {
   playerId: PlayerId
@@ -20,10 +20,11 @@ export interface StandingRow {
 // played has their points (and difference) scaled up in proportion:
 // 12 points from 4 games, when others played 5, counts as 15. Mid-tournament
 // nobody is scaled — the others may simply not have played their extra game yet.
+// Players in `notScaled` keep their points as scored (see keptAsScored).
 export function computeStandings(
   players: PlayerId[],
   rounds: Round[],
-  { final = false }: { final?: boolean } = {},
+  { final = false, notScaled = [] }: { final?: boolean; notScaled?: PlayerId[] } = {},
 ): StandingRow[] {
   const scored = rounds.flatMap((r) => r.matches).filter((m) => m.score !== null)
   const rows = new Map<PlayerId, StandingRow>(
@@ -55,7 +56,7 @@ export function computeStandings(
   if (final) {
     const mostPlayed = Math.max(0, ...[...rows.values()].map((r) => r.played))
     for (const row of rows.values()) {
-      if (row.played === 0 || row.played === mostPlayed) continue
+      if (row.played === 0 || row.played === mostPlayed || notScaled.includes(row.playerId)) continue
       const factor = mostPlayed / row.played
       const scaled = round2(row.points * factor)
       row.bonus = round2(scaled - row.points)
@@ -96,13 +97,23 @@ export function computeStandings(
   return ordered
 }
 
+// Players who left and were set to keep their points as scored: the final
+// standings don't scale them up.
+export function keptAsScored(players: Player[]): PlayerId[] {
+  return players.filter((p) => p.left && !p.left.scaleUp).map((p) => p.id)
+}
+
 // How many places each player moved in the final standings because points
 // were scaled up for those with fewer games: 1 is one place up, -1 one
 // place down. Players whose place did not change are left out.
-export function placesMovedByScaling(players: PlayerId[], rounds: Round[]): Map<PlayerId, number> {
+export function placesMovedByScaling(
+  players: PlayerId[],
+  rounds: Round[],
+  notScaled: PlayerId[] = [],
+): Map<PlayerId, number> {
   const unscaled = new Map(computeStandings(players, rounds).map((row) => [row.playerId, row.rank]))
   const moved = new Map<PlayerId, number>()
-  for (const row of computeStandings(players, rounds, { final: true })) {
+  for (const row of computeStandings(players, rounds, { final: true, notScaled })) {
     const places = unscaled.get(row.playerId)! - row.rank
     if (places !== 0) moved.set(row.playerId, places)
   }

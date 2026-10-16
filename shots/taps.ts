@@ -72,6 +72,24 @@ export async function scoreFirstTo(page: Page, row: Locator, loserPoints: number
   await expect(sheet(page)).toHaveCount(0)
 }
 
+// A player joins a running tournament, with the choices left as they are.
+export async function addPlayer(page: Page, name: string) {
+  await tap(page, 'button[aria-label="More"]')
+  await tap(page, 'button:has-text("Add or remove players")')
+  await sheet(page).getByPlaceholder("Name").fill(name)
+  await sheet(page).getByRole("button", { name: `Add ${name}` }).click()
+  await expect(sheet(page)).toHaveCount(0)
+}
+
+// A player leaves a running tournament, with the choices left as they are.
+export async function removePlayer(page: Page, name: string) {
+  await tap(page, 'button[aria-label="More"]')
+  await tap(page, 'button:has-text("Add or remove players")')
+  await sheet(page).getByRole("button", { name: `Remove ${name}` }).click()
+  await sheet(page).getByRole("button", { name: "Remove", exact: true }).click()
+  await expect(sheet(page)).toHaveCount(0)
+}
+
 export async function finishTournament(page: Page) {
   await tap(page, 'button:has-text("Finish tournament")')
   await sheet(page).getByRole("button", { name: "Finish", exact: true }).click()

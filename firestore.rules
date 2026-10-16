@@ -91,11 +91,12 @@ service cloud.firestore {
         return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
       }
       // What an added organiser may change in a game: its name, whether it
-      // is finished, the players' names and the scores. Not the schedule,
-      // the rules of the match, its kind or when it was made.
+      // is finished, the players and the scores, and on an Americano the
+      // rounds, which are made again when a player joins or leaves. Not the
+      // rules of the match, its kind or when it was made.
       function scoresOnly() {
         let changed = request.resource.data.game.diff(resource.data.game).affectedKeys();
-        return (resource.data.game.kind == 'americano' && changed.hasOnly(['name', 'finished', 'players', 'scores']))
+        return (resource.data.game.kind == 'americano' && changed.hasOnly(['name', 'finished', 'players', 'rounds', 'scores']))
           || (resource.data.game.kind == 'match' && changed.hasOnly(['name', 'finished', 'points']));
       }
 

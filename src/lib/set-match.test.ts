@@ -36,7 +36,7 @@ const SET_TO_SECOND = games("111111")
 
 function match(points: Side[], rules: MatchRules = advantage): SetMatch {
   return {
-    version: 2,
+    version: 3,
     kind: "match",
     id: "m1",
     name: "Sunday match",

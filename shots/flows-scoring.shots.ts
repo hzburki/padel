@@ -3,6 +3,7 @@
 // local emulators, never to the hosted project. See taps.ts for the steps.
 import { expect, test, type Page } from "@playwright/test"
 import {
+  addPlayer,
   addScorer,
   broadcast,
   catchCopy,
@@ -18,6 +19,7 @@ import {
   newMatch,
   newPhone,
   points,
+  removePlayer,
   score,
   sheet,
   tap,
@@ -437,4 +439,144 @@ test("a game whose organiser link nobody opened closes, and goes live again on t
   expect(await addScorer(page, { closesAnother: true })).toBe(link)
   await expect(late.getByText("You're an organiser.")).toBeVisible()
   await expect(courts(late).first()).toContainText("10")
+})
+
+// The rounds list on screen: every match and who sits out.
+const rounds = (page: Page) => page.locator("main").filter({ visible: true })
+const NOT_SAVED = "Not saved. Try again"
+// Only the stream that brings the online copy is stopped: writes still go out.
+const deaf = (page: Page) =>
+  page.route(/\/Listen\/channel/, (route) => (route.request().method() === "GET" ? new Promise(() => {}) : route.continue()))
+
+test("an added organiser adds and removes a player, and every phone gets the new rounds", async ({ page, browser }) => {
+  await newAmericano(page, { name: "Comings", players: [...FOUR, "Eve"] })
+  const link = await addScorer(page)
+  const scorer = await newPhone(browser)
+  await scorer.goto(link)
+  await expect(scorer.getByText("You're an organiser.")).toBeVisible()
+  const watcher = await newPhone(browser)
+  await watcher.goto(watchLink(link))
+  await expect(watcher.getByText("Watch only.")).toBeVisible()
+  await score(page, unscored(page).first(), 10)
+  await expect(courts(scorer).first()).toContainText("10")
+
+  await addPlayer(scorer, "Ivy")
+  for (const phone of [page, scorer, watcher]) await expect(rounds(phone)).toContainText("Ivy")
+  await removePlayer(scorer, "Ann")
+  for (const phone of [page, scorer]) await expect(unscored(phone).filter({ hasText: "Ann" })).toHaveCount(0)
+  // The first organiser changes the players too.
+  await removePlayer(page, "Ben")
+  await expect(unscored(scorer).filter({ hasText: "Ben" })).toHaveCount(0)
+  // The scored round is kept as it was on every phone.
+  for (const phone of [page, scorer]) await expect(courts(phone).first()).toContainText("10")
+
+  // Someone who only watches isn't offered it.
+  await tap(watcher, 'button[aria-label="More"]')
+  await expect(sheet(watcher).getByRole("button", { name: "Edit names" })).toHaveCount(0)
+  await expect(sheet(watcher).getByRole("button", { name: "Add or remove players" })).toHaveCount(0)
+})
+
+test("an added organiser with no connection can't change the players", async ({ page, browser }) => {
+  await newAmericano(page, { name: "Players offline", players: [...FOUR, "Eve"] })
+  const link = await addScorer(page)
+  const context = await browser.newContext()
+  const scorer = await context.newPage()
+  await scorer.goto(link)
+  await expect(scorer.getByText("You're an organiser.")).toBeVisible()
+  await context.setOffline(true)
+  await expect(scorer.getByText(OFFLINE)).toBeVisible()
+  await tap(scorer, 'button[aria-label="More"]')
+  await expect(sheet(scorer).getByRole("button", { name: "Add or remove players" })).toBeDisabled()
+  await context.setOffline(false)
+  await expect(sheet(scorer).getByRole("button", { name: "Add or remove players" })).toBeEnabled()
+})
+
+test("two organisers adding a player at once: the one who missed the other's is told to try again", async ({ page, browser }) => {
+  await deaf(page)
+  await newAmericano(page, { name: "Both add", players: [...FOUR, "Eve"] })
+  const link = await addScorer(page)
+  const scorer = await newPhone(browser)
+  await scorer.goto(link)
+  await expect(scorer.getByText("You're an organiser.")).toBeVisible()
+
+  await addPlayer(scorer, "Ivy")
+  await expect(rounds(scorer)).toContainText("Ivy")
+  // The organiser never heard of Ivy, so their rounds have no place for her.
+  await addPlayer(page, "Jo")
+  await expect(page.getByText(NOT_SAVED)).toBeVisible()
+
+  await page.unrouteAll({ behavior: "ignoreErrors" })
+  for (const phone of [page, scorer]) {
+    await phone.reload()
+    await expect(rounds(phone)).toContainText("Ivy")
+    await expect(rounds(phone)).not.toContainText("Jo")
+  }
+})
+
+test("a player change on a phone that missed a score is not sent over that score", async ({ page, browser }) => {
+  await deaf(page)
+  await newAmericano(page, { name: "Missed score", players: EIGHT, courts: 2 })
+  const link = await addScorer(page)
+  const scorer = await newPhone(browser)
+  await scorer.goto(link)
+  await expect(scorer.getByText("You're an organiser.")).toBeVisible()
+
+  await score(scorer, courts(scorer).nth(0), 10)
+  // The organiser still sees round 1 with no score, so they'd make it again.
+  const first = (await courts(page).nth(0).textContent())!
+  const leaver = EIGHT.find((name) => first.includes(name))!
+  await removePlayer(page, leaver)
+  await expect(page.getByText(NOT_SAVED)).toBeVisible()
+
+  await page.unrouteAll({ behavior: "ignoreErrors" })
+  for (const phone of [page, scorer]) {
+    await phone.reload()
+    await expect(courts(phone).nth(0)).toContainText("10")
+    await expect(courts(phone).nth(0)).toContainText(leaver)
+  }
+})
+
+test("a player added to a game friends only watch reaches them", async ({ page, browser }) => {
+  await newAmericano(page, { name: "Watched", players: [...FOUR, "Eve"] })
+  const watch = await broadcast(page)
+  const watcher = await newPhone(browser)
+  await watcher.goto(watch)
+  await expect(watcher.getByText("Watch only.")).toBeVisible()
+  await score(page, unscored(page).first(), 10)
+  await addPlayer(page, "Ivy")
+  await expect(rounds(watcher)).toContainText("Ivy")
+  // Someone who played the scored first round leaves.
+  const first = (await courts(page).nth(0).textContent())!
+  const leaver = FOUR.find((name) => first.includes(name))!
+  await removePlayer(page, leaver)
+  // They are still in that round, and in no other.
+  await expect(watcher.locator('[aria-label^="Court"]').locator("..").filter({ hasText: leaver })).toHaveCount(1)
+  await expect(watched(watcher, 0)).toContainText(leaver)
+})
+
+test("a score sent for a match another organiser just made again is not put on the new match", async ({ page, browser }) => {
+  await deaf(page)
+  await newAmericano(page, { name: "Late score", players: [...FOUR, "Eve"] })
+  const link = await addScorer(page)
+  const scorer = await newPhone(browser)
+  await scorer.goto(link)
+  await expect(scorer.getByText("You're an organiser.")).toBeVisible()
+
+  // Nothing is scored yet, so Ivy joining makes round 1 again.
+  await addPlayer(scorer, "Ivy")
+  await expect(rounds(scorer)).toContainText("Ivy")
+  // The organiser never heard, and scores round 1 as it was.
+  const before = (await courts(page).nth(0).textContent())!
+  await score(page, courts(page).nth(0), 10)
+
+  // Hearing again, the organiser is told the score didn't count.
+  await page.unrouteAll({ behavior: "ignoreErrors" })
+  await expect(page.getByText("That match was made again. Score it again.")).toBeVisible()
+  await page.reload()
+  for (const phone of [page, scorer]) {
+    await expect(rounds(phone)).toContainText("Ivy")
+    // Round 1 was made again: its first match is a new one, still to score.
+    await expect(courts(phone).nth(0)).not.toHaveText(before)
+    await expect(courts(phone).nth(0)).toContainText("Score")
+  }
 })

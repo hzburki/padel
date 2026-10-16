@@ -11,6 +11,13 @@ export type PlayerId = string
 export interface Player {
   id: PlayerId
   name: string
+  // Removed mid game: their scored games stay, they play no more rounds.
+  // Added again, they are a new player. scaleUp: whether their points are scaled up in the
+  // final standings, like anyone with fewer games.
+  left?: { scaleUp: boolean }
+  // Added mid game: the index of the first round they could play. Absent for
+  // players there from the start.
+  joinedAt?: number
 }
 
 export type Team = [PlayerId, PlayerId]
@@ -33,7 +40,7 @@ export interface Round {
 }
 
 export interface Tournament {
-  version: 2
+  version: 3
   kind: "americano"
   id: string
   name: string
@@ -62,7 +69,7 @@ export type DeuceRule = "advantage" | "golden"
 export type ScoreBy = "points" | "games"
 
 export interface SetMatch {
-  version: 2
+  version: 3
   kind: "match"
   id: string
   name: string

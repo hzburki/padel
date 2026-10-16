@@ -294,3 +294,50 @@ test("a tournament is deleted from its menu, after asking", async ({ page }) => 
   await sheet(page).getByRole("button", { name: "Delete", exact: true }).click()
   await expect(page.getByText("No games yet")).toBeVisible()
 })
+
+test("a player joins and another leaves mid game: scored rounds stay, the rest are made again", async ({ page }) => {
+  await newAmericano(page, { name: "Comings and goings", players: NINE.slice(0, 5) })
+  await score(page, unscored(page).first(), 10)
+  const scored = (await courts(page).first().textContent())!
+
+  // Ivy joins: she plays from the next round on.
+  await tap(page, 'button[aria-label="More"]')
+  await tap(page, 'button:has-text("Players")')
+  await sheet(page).getByPlaceholder("Name").fill("Ivy")
+  // Same matches is picked, and each option shows its rounds left.
+  await expect(sheet(page).getByRole("button", { name: /Same matches/ })).toHaveAttribute("aria-pressed", "true")
+  await expect(sheet(page).getByRole("button", { name: /Same time/ })).toContainText("rounds left")
+  await sheet(page).getByRole("button", { name: "Add Ivy" }).click()
+  await expect(sheet(page)).toHaveCount(0)
+  await expect(courts(page).first()).toHaveText(scored)
+  await expect(page.getByText("Ivy").first()).toBeVisible()
+
+  await score(page, unscored(page).first(), 9)
+
+  // Ann leaves; her points stay as they were scored.
+  await tap(page, 'button[aria-label="More"]')
+  await tap(page, 'button:has-text("Players")')
+  await sheet(page).getByRole("button", { name: "Remove Ann" }).click()
+  await expect(sheet(page).getByText("Their scores stay.")).toBeVisible()
+  await sheet(page).getByRole("button", { name: "Keep as scored" }).click()
+  await sheet(page).getByRole("button", { name: "Remove", exact: true }).click()
+  await expect(sheet(page)).toHaveCount(0)
+  await expect(courts(page).first()).toHaveText(scored)
+  // She plays in none of the rounds still to score.
+  for (const row of await unscored(page).all()) await expect(row).not.toContainText("Ann")
+
+  // The change is saved: it is still there after the app is opened again.
+  await home(page)
+  await tap(page, 'button:has-text("Continue")')
+  await expect(unscored(page).first()).toBeVisible()
+  for (const row of await unscored(page).all()) await expect(row).not.toContainText("Ann")
+
+  while ((await unscored(page).count()) > 0) await score(page, unscored(page).first(), 9)
+  await finishTournament(page)
+  await sheet(page).getByRole("button", { name: "Close" }).click()
+  // A standings row has a win count: "2W".
+  const standings = page.locator("ol li").filter({ hasText: /\d+W/ })
+  await expect(standings).toHaveCount(6)
+  await expect(standings.filter({ hasText: "Ann" })).toContainText("left")
+  await expect(standings.filter({ hasText: "Ivy" })).not.toContainText("left")
+})

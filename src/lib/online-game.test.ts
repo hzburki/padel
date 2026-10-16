@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { changedFields, fromOnline, REMOVED, toOnline } from "./online-game"
+import { changedFields, changesLineUp, fromOnline, REMOVED, stillAsSeen, toOnline } from "./online-game"
 import { createSetMatch } from "./set-match-setup"
 import { addPoint, undoPoint } from "./set-match"
-import { createTournament, renameTournament, setScore } from "./tournament"
+import { addPlayer, createTournament, removePlayer, renameTournament, setScore } from "./tournament"
 import type { SetMatch, Side, Tournament } from "./types"
 
 function counter() {
@@ -57,6 +57,45 @@ describe("the online copy of an Americano", () => {
   it("files a score under its round, counted from 0, and its court", () => {
     const scored = setScore(tournament(), 2, 1, { a: 9, b: 7 })
     expect(toOnline(scored)).toMatchObject({ scores: { "2_1": { a: 9, b: 7 } } })
+  })
+
+  it("files a score with the four players it was for, team A first", () => {
+    const scored = setScore(tournament(), 2, 1, { a: 9, b: 7 })
+    const { teamA, teamB } = scored.rounds[2].matches[0]
+    expect(toOnline(scored)).toMatchObject({ scores: { "2_1": { players: [...teamA, ...teamB] } } })
+  })
+
+  it("drops a score for other players than the match's: it was entered for a match made again since", () => {
+    const t = tournament()
+    const online = toOnline(t) as Extract<ReturnType<typeof toOnline>, { kind: "americano" }>
+    const { teamA, teamB } = t.rounds[0].matches[0]
+    online.scores["0_1"] = { a: 9, b: 7, players: [...teamB, ...teamA] }
+    expect((fromGame(t.id, online) as Tournament).rounds[0].matches[0].score).toBeNull()
+  })
+
+  it("takes a score with no players, as sent by an older version of the app", () => {
+    const t = tournament()
+    const online = toOnline(t) as Extract<ReturnType<typeof toOnline>, { kind: "americano" }>
+    online.scores["0_1"] = { a: 9, b: 7 }
+    expect((fromGame(t.id, online) as Tournament).rounds[0].matches[0].score).toEqual({ a: 9, b: 7 })
+  })
+
+  it("comes back the same with a player who joined and one who left", () => {
+    const scored = setScore(setScore(tournament(), 0, 1, { a: 9, b: 7 }), 0, 2, { a: 8, b: 8 })
+    const joined = addPlayer(scored, "Ivy", "sameMatches", { newId: () => "id10", rng: () => 0.5 })
+    const changed = removePlayer(joined, "id2", "sameTime", false, () => 0.5)
+    expect(fromGame(changed.id, toOnline(changed))).toEqual(changed)
+  })
+
+  it("marks only the players who joined or left", () => {
+    const scored = setScore(tournament(), 0, 1, { a: 9, b: 7 })
+    const joined = addPlayer(scored, "Ivy", "sameTime", { newId: () => "id10", rng: () => 0.5 })
+    const { players } = toOnline(removePlayer(joined, "id2", "sameTime", true, () => 0.5)) as {
+      players: Record<string, object>
+    }
+    expect(players.id1).toEqual({ name: "Ana", order: 0 })
+    expect(players.id2).toEqual({ name: "Ben", order: 1, left: { scaleUp: true } })
+    expect(players.id10).toEqual({ name: "Ivy", order: 8, joinedAt: 1 })
   })
 
   it("keeps the schedule without the scores", () => {
@@ -137,12 +176,18 @@ describe("what a change sends online", () => {
 
   it("sends a new score as that one score", () => {
     const before = setScore(tournament(), 0, 1, { a: 8, b: 8 })
-    expect(sends(before, setScore(before, 0, 2, { a: 10, b: 6 }))).toEqual({ "game.scores.0_2": { a: 10, b: 6 } })
+    const { teamA, teamB } = before.rounds[0].matches[1]
+    expect(sends(before, setScore(before, 0, 2, { a: 10, b: 6 }))).toEqual({
+      "game.scores.0_2": { a: 10, b: 6, players: [...teamA, ...teamB] },
+    })
   })
 
   it("sends a corrected score whole, both teams' points", () => {
     const before = setScore(tournament(), 1, 2, { a: 10, b: 6 })
-    expect(sends(before, setScore(before, 1, 2, { a: 10, b: 5 }))).toEqual({ "game.scores.1_2": { a: 10, b: 5 } })
+    const { teamA, teamB } = before.rounds[1].matches[1]
+    expect(sends(before, setScore(before, 1, 2, { a: 10, b: 5 }))).toEqual({
+      "game.scores.1_2": { a: 10, b: 5, players: [...teamA, ...teamB] },
+    })
   })
 
   it("removes a score that was cleared", () => {
@@ -167,6 +212,20 @@ describe("what a change sends online", () => {
     expect(sends(tournament(), { ...tournament(), finished: true })).toEqual({ "game.finished": true })
   })
 
+  it("sends an added player as that one player and the schedule whole", () => {
+    const before = setScore(tournament(), 0, 1, { a: 9, b: 7 })
+    const after = addPlayer(before, "Ivy", "sameTime", { newId: () => "id10", rng: () => 0.5 })
+    expect(Object.keys(sends(before, after)).sort()).toEqual(["game.players.id10", "game.rounds"])
+  })
+
+  it("sends a player who left as that one player and the schedule whole", () => {
+    const before = setScore(tournament(), 0, 1, { a: 9, b: 7 })
+    const after = removePlayer(before, "id2", "sameTime", false, () => 0.5)
+    const sent = sends(before, after)
+    expect(Object.keys(sent).sort()).toEqual(["game.players.id2", "game.rounds"])
+    expect(sent["game.players.id2"]).toEqual({ name: "Ben", order: 1, left: { scaleUp: false } })
+  })
+
   it("sends a changed schedule whole", () => {
     const before = tournament()
     const sent = sends(before, { ...before, rounds: before.rounds.slice(0, 2) })
@@ -187,6 +246,55 @@ describe("what a change sends online", () => {
   it("sends finishing a match as one field", () => {
     const before = withPoints([0, 1])
     expect(sends(before, { ...before, finished: true })).toEqual({ "game.finished": true })
+  })
+})
+
+describe("a player change made from what a phone had seen", () => {
+  const seen = () => setScore(tournament(), 0, 1, { a: 9, b: 7 })
+  const ivy = (t: Tournament) => addPlayer(t, "Ivy", "sameTime", { newId: () => "id10", rng: () => 0.5 })
+  const online = (t: Tournament) => toOnline(fromGame(t.id, toOnline(t)))
+
+  it("is a change to who plays when a player joins or leaves", () => {
+    expect(changesLineUp(toOnline(seen()), toOnline(ivy(seen())))).toBe(true)
+    expect(changesLineUp(toOnline(seen()), toOnline(removePlayer(seen(), "id2", "sameTime", true, () => 0.5)))).toBe(true)
+  })
+
+  it("is not a change to who plays when only a score or a name changes", () => {
+    expect(changesLineUp(toOnline(seen()), toOnline(setScore(seen(), 0, 2, { a: 8, b: 8 })))).toBe(false)
+    expect(changesLineUp(toOnline(seen()), toOnline(renameTournament(seen(), "Club night", ["Anna"])))).toBe(false)
+  })
+
+  it("still fits the online copy when nothing changed there", () => {
+    expect(stillAsSeen(online(seen()), toOnline(seen()))).toBe(true)
+  })
+
+  it("still fits when only a name was changed there", () => {
+    const renamed = renameTournament(seen(), "Club night", ["Anna", "Ben", "Cai", "Dee", "Eli", "Fay", "Gus", "Hal"])
+    expect(stillAsSeen(online(renamed), toOnline(seen()))).toBe(true)
+  })
+
+  it("no longer fits when a score was entered there", () => {
+    expect(stillAsSeen(online(setScore(seen(), 0, 2, { a: 8, b: 8 })), toOnline(seen()))).toBe(false)
+  })
+
+  it("no longer fits when a score was changed there", () => {
+    expect(stillAsSeen(online(setScore(seen(), 0, 1, { a: 8, b: 8 })), toOnline(seen()))).toBe(false)
+  })
+
+  it("no longer fits when a player joined or left there", () => {
+    expect(stillAsSeen(online(ivy(seen())), toOnline(seen()))).toBe(false)
+    expect(stillAsSeen(online(removePlayer(seen(), "id2", "sameTime", true, () => 0.5)), toOnline(seen()))).toBe(false)
+  })
+
+  it("still fits whatever order the online maps arrive in", () => {
+    const copy = online(setScore(seen(), 1, 1, { a: 6, b: 10 }))
+    if (copy.kind !== "americano") throw new Error("not an americano")
+    const shuffled = {
+      ...copy,
+      players: Object.fromEntries(Object.entries(copy.players).reverse()),
+      scores: Object.fromEntries(Object.entries(copy.scores).reverse()),
+    }
+    expect(stillAsSeen(shuffled, online(setScore(seen(), 1, 1, { a: 6, b: 10 })))).toBe(true)
   })
 })
 
@@ -215,6 +323,11 @@ describe("a copy that is refused", () => {
     refused({ ...toOnline(tournament()), finished: "yes" })
     refused({ ...toOnline(tournament()), rounds: {} })
     refused({ ...toOnline(setMatch()), bestOf: 2 })
+  })
+
+  it("has a player who left without saying how their points count", () => {
+    const online = toOnline(tournament()) as { players: Record<string, object> }
+    refused({ ...online, players: { ...online.players, id1: { name: "Ana", order: 0, left: true } } })
   })
 
   it("has a score that is not two whole numbers", () => {
