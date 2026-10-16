@@ -31,7 +31,7 @@ passing, and the work left uncommitted.
 
 ## Phase 2: The rules (pure)
 
-- [ ] **T3: Rounds needed to level games** (S)
+- [x] **T3: Rounds needed to level games** (S)
   - Acceptance:
     - `roundsToLevel(games, places, roundsBefore)` returns the count closest to `roundsBefore` (ties to
       more) after which everyone has the same games

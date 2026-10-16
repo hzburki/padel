@@ -37,6 +37,32 @@ export function gamesSplit(playerCount: number, courts: number, roundCount: numb
     : { fewer, more: fewer + 1, playersWithFewer: playerCount - extra }
 }
 
+// How many rounds to play after players join or leave, so that everyone
+// still in ends on the same number of games. `games` is what each of them
+// has so far, `places` how many play each round (4 × courts in play). Rounds
+// are played out as the bench plays them, fewest games first, one game a
+// round at most. Of the counts from 1 to `maxRounds`, the one closest to
+// `roundsBefore` wins, more rounds on a tie. If no count levels the games,
+// the closest that leaves nobody more than one game behind; failing that,
+// every round allowed.
+export function roundsToLevel(games: number[], places: number, roundsBefore: number, maxRounds: number): number {
+  const counts = [...games]
+  const level: number[] = []
+  const oneApart: number[] = []
+  for (let rounds = 1; rounds <= maxRounds; rounds++) {
+    counts.sort((x, y) => x - y)
+    for (let i = 0; i < places; i++) counts[i]++
+    const gap = Math.max(...counts) - Math.min(...counts)
+    if (gap === 0) level.push(rounds)
+    if (gap <= 1) oneApart.push(rounds)
+  }
+  const closest = (options: number[]) =>
+    options.reduce((best, n) => (Math.abs(n - roundsBefore) <= Math.abs(best - roundsBefore) ? n : best))
+  if (level.length > 0) return closest(level)
+  if (oneApart.length > 0) return closest(oneApart)
+  return maxRounds
+}
+
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b)
 }

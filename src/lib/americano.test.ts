@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { equalGamesCycle, gamesSplit, generateSchedule, suggestedRoundCount } from "./americano"
+import { equalGamesCycle, gamesSplit, generateSchedule, roundsToLevel, suggestedRoundCount } from "./americano"
 import { countGamesPlayed, type Rng } from "./bench"
 import type { PlayerId, Round } from "./types"
 
@@ -93,6 +93,46 @@ describe("gamesSplit", () => {
     const counts = [...countGamesPlayed(players, generateSchedule(players, 2, 4, seededRng(2))).values()]
     expect(counts.filter((c) => c === 3)).toHaveLength(4)
     expect(counts.filter((c) => c === 4)).toHaveLength(5)
+  })
+})
+
+describe("roundsToLevel", () => {
+  // Games each player still in has played, 4 places a round (1 court) unless said.
+  it("keeps the rounds left when everyone stays level", () => {
+    expect(roundsToLevel([2, 2, 2, 2], 4, 3, 99)).toBe(3)
+  })
+
+  it("picks the closest number of rounds after which everyone has the same games", () => {
+    // 5 players on 1 court: level again after 4 rounds (5 games each) or 9.
+    expect(roundsToLevel([2, 2, 2, 2, 1], 4, 5, 99)).toBe(4)
+  })
+
+  it("plays more rounds when fewer and more are just as close", () => {
+    // 8 players on 1 court come out level after every 2 rounds.
+    expect(roundsToLevel([0, 0, 0, 0, 0, 0, 0, 0], 4, 3, 99)).toBe(4)
+  })
+
+  it("waits for a player who joined with no games to draw level, one game a round", () => {
+    // Level at 4 games after 2 rounds would need the joiner to play 4 times.
+    expect(roundsToLevel([3, 3, 3, 3, 0], 4, 4, 99)).toBe(12)
+  })
+
+  it("settles for one game apart when the games can never come out level", () => {
+    // 6 players, 4 places a round, an odd total: never level.
+    expect(roundsToLevel([1, 1, 1, 1, 1, 0], 4, 3, 99)).toBe(3)
+  })
+
+  it("settles for one game apart when level would take more rounds than allowed", () => {
+    // At 8 rounds the joiner has 8 and everyone else 9.
+    expect(roundsToLevel([3, 3, 3, 3, 0], 4, 4, 10)).toBe(8)
+  })
+
+  it("plays every round allowed when even one game apart is out of reach", () => {
+    expect(roundsToLevel([10, 10, 10, 10, 0], 4, 3, 5)).toBe(5)
+  })
+
+  it("always plays at least one more round", () => {
+    expect(roundsToLevel([2, 2, 2, 2], 4, 0, 99)).toBe(1)
   })
 })
 
