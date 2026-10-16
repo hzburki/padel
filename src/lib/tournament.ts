@@ -98,7 +98,7 @@ export interface CreateDeps {
 export function createTournament(input: SetupInput, { now, newId, rng }: CreateDeps): Tournament {
   const players = cleanPlayerNames(input.playerNames).map((name) => ({ id: newId(), name }))
   return {
-    version: 2,
+    version: 3,
     kind: "americano",
     id: newId(),
     name: input.name.trim(),

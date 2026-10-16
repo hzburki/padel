@@ -21,10 +21,10 @@ const v1 = {
   finished: false,
 }
 
-const tournament = { ...v1, version: 2, kind: "americano" } as Tournament
+const tournament = { ...v1, version: 3, kind: "americano" } as Tournament
 
 const match: SetMatch = {
-  version: 2,
+  version: 3,
   kind: "match",
   id: "m1",
   name: "Sunday match",
@@ -43,15 +43,30 @@ const match: SetMatch = {
 }
 
 describe("migrate", () => {
-  it("turns a version 1 save into a version 2 americano tournament, keeping everything else", () => {
+  it("turns a version 1 save into a version 3 americano tournament, keeping everything else", () => {
     expect(migrate(structuredClone(v1))).toEqual(tournament)
   })
 
-  it("loads a version 2 tournament unchanged", () => {
-    expect(migrate(structuredClone(tournament))).toEqual(tournament)
+  it("turns a version 2 tournament into version 3 with players fixed, keeping everything else", () => {
+    const loaded = migrate({ ...structuredClone(tournament), version: 2 })
+    expect(loaded).toEqual(tournament)
+    expect(loaded).not.toHaveProperty("lateChanges")
   })
 
-  it("loads a version 2 match unchanged", () => {
+  it("turns a version 2 match into version 3, keeping everything else", () => {
+    expect(migrate({ ...structuredClone(match), version: 2 })).toEqual(match)
+  })
+
+  it("loads a version 3 tournament unchanged, with players who joined late or left", () => {
+    const changing: Tournament = {
+      ...tournament,
+      lateChanges: { scaleLeavers: false, joiners: "catchUp" },
+      players: [...tournament.players, { id: "p5", name: "Eve", joinedAt: 2 }, { id: "p6", name: "Fin", left: true }],
+    }
+    expect(migrate(structuredClone(changing))).toEqual(changing)
+  })
+
+  it("loads a version 3 match unchanged", () => {
     expect(migrate(structuredClone(match))).toEqual(match)
   })
 
@@ -74,8 +89,8 @@ describe("migrate", () => {
     expect(migrate(tournament)).not.toHaveProperty("shared")
   })
 
-  it("is on version 2 today", () => {
-    expect(CURRENT_VERSION).toBe(2)
+  it("is on version 3 today", () => {
+    expect(CURRENT_VERSION).toBe(3)
   })
 
   it("refuses something that isn't a saved tournament or match", () => {
@@ -89,8 +104,9 @@ describe("migrate", () => {
     expect(() => migrate({ ...v1, version: "1" })).toThrow()
   })
 
-  it("refuses a version 2 save with a missing or unknown kind instead of guessing", () => {
+  it("refuses a version 2 or 3 save with a missing or unknown kind instead of guessing", () => {
     expect(() => migrate({ ...v1, version: 2 })).toThrow(/kind/)
+    expect(() => migrate({ ...v1, version: 3 })).toThrow(/kind/)
     expect(() => migrate({ ...match, kind: "mexicano" })).toThrow(/kind/)
   })
 

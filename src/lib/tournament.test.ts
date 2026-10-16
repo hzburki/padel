@@ -133,9 +133,9 @@ describe("repeatedNames", () => {
 describe("createTournament", () => {
   const t = createTournament(valid, { now: 1000, newId: counter() })
 
-  it("stores the setup as a version 2 americano tournament that isn't finished", () => {
+  it("stores the setup as a version 3 americano tournament that isn't finished", () => {
     expect(t).toMatchObject({
-      version: 2,
+      version: 3,
       kind: "americano",
       name: "Friday padel",
       createdAt: 1000,

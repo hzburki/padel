@@ -1,6 +1,6 @@
 import type { SavedEvent } from "./types"
 
-export const CURRENT_VERSION = 2
+export const CURRENT_VERSION = 3
 
 // Bring a tournament or match read from storage up to the current shape.
 // Each version adds one step here (v1 → v2, v2 → v3, …) so old saves keep
@@ -18,7 +18,11 @@ export function migrate(raw: unknown): SavedEvent {
   }
   // v1 → v2: matches arrived, so every record now says what kind it is.
   // Everything saved before that was an Americano tournament.
-  const record = version === 1 ? { ...raw, version: 2, kind: "americano" } : raw
+  const v2 = version === 1 ? { ...raw, version: 2, kind: "americano" } : raw
+  // v2 → v3: players can join and leave a running Americano, when it was
+  // set up to allow it. Nothing saved before allowed it, so only the number
+  // changes: with no `lateChanges` the players stay fixed.
+  const record = version <= 2 ? { ...v2, version: 3 } : v2
 
   const { kind } = record as { kind?: unknown }
   if (kind !== "americano" && kind !== "match") {

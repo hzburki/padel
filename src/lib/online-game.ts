@@ -109,11 +109,11 @@ export function fromOnline(id: string, document: { game?: unknown; json?: unknow
     // Firestore hands a map back in any order. A number missing in the
     // middle leaves no gap: the points after it move up.
     const numbers = Object.keys(points).sort((a, b) => Number(a) - Number(b))
-    return { version: 2, id, ...rest, teams: [teams[0], teams[1]], points: numbers.map((number) => points[number]) }
+    return { version: 3, id, ...rest, teams: [teams[0], teams[1]], points: numbers.map((number) => points[number]) }
   }
   const { players, rounds, scores, ...rest } = game
   return {
-    version: 2,
+    version: 3,
     id,
     ...rest,
     players: Object.entries(players)

@@ -11,6 +11,12 @@ export type PlayerId = string
 export interface Player {
   id: PlayerId
   name: string
+  // Removed mid game: their scored games stay, they play no more rounds and
+  // can't come back.
+  left?: true
+  // Added mid game: the index of the first round they could play. Absent for
+  // players there from the start.
+  joinedAt?: number
 }
 
 export type Team = [PlayerId, PlayerId]
@@ -33,7 +39,7 @@ export interface Round {
 }
 
 export interface Tournament {
-  version: 2
+  version: 3
   kind: "americano"
   id: string
   name: string
@@ -45,6 +51,16 @@ export interface Tournament {
   // Every round is generated at creation; scores fill in as they are played.
   rounds: Round[]
   finished: boolean
+  // Set when players may join and leave mid game; absent when they are
+  // fixed. Chosen at the start and never changed.
+  lateChanges?: {
+    // Whether a player who left has their points scaled up in the final
+    // standings, like anyone with fewer games.
+    scaleLeavers: boolean
+    // even: a joiner counts as having the fewest games of anyone still in,
+    // and is scaled up at the end. catchUp: they play every round until level.
+    joiners: "even" | "catchUp"
+  }
   // Set on a copy opened from a friend's link. It can be read here, not
   // changed: only the organiser's phone holds the real game.
   shared?: true
@@ -62,7 +78,7 @@ export type DeuceRule = "advantage" | "golden"
 export type ScoreBy = "points" | "games"
 
 export interface SetMatch {
-  version: 2
+  version: 3
   kind: "match"
   id: string
   name: string
