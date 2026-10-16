@@ -173,9 +173,10 @@
 
 /* While typing, give scroll areas room at the bottom so the field being
    typed into can always scroll up to the middle of the screen. Unlayered so
-   it wins over the padding utilities. */
+   it wins over the padding utilities. A short sheet whose field is always in
+   view opts out with data-fits. */
 html[data-typing] main > div,
-html[data-typing] [role="dialog"] > :last-child {
+html[data-typing] [role="dialog"] > :last-child:not(:has([data-fits])) {
   padding-bottom: calc(var(--app-height, 100dvh) * 0.45);
 }
 

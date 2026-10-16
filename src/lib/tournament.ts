@@ -172,7 +172,9 @@ export function renameProblems(tournament: Tournament, name: string, playerNames
   if (tournament.finished) return problems
   const names = playerNames.map((n) => n.trim())
   if (names.some((n) => n === "")) problems.push("Every player needs a name.")
-  const duplicate = duplicateName(names.filter((n) => n !== ""))
+  // A player who left may share a name with one still in.
+  const namesIn = names.filter((n, i) => n !== "" && !tournament.players[i]?.left)
+  const duplicate = duplicateName(namesIn)
   if (duplicate) problems.push(`Two players are called ${duplicate}. Give them different names.`)
   return problems
 }
@@ -249,7 +251,8 @@ export function addPlayerProblems(tournament: Tournament, name: string): string[
   if (stop) return [stop]
   const clean = cleanPlayerName(name)
   if (clean === "") return ["Type a name."]
-  if (tournament.players.some((p) => p.name.toLowerCase() === clean.toLowerCase())) {
+  // A player who left can come back under the same name, as a new player.
+  if (stillIn(tournament.players).some((p) => p.name.toLowerCase() === clean.toLowerCase())) {
     return [`${clean} is taken in this tournament. Pick another name.`]
   }
   return []

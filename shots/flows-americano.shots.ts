@@ -318,7 +318,7 @@ test("a player joins and another leaves mid game: scored rounds stay, the rest a
   await tap(page, 'button[aria-label="More"]')
   await tap(page, 'button:has-text("Players")')
   await sheet(page).getByRole("button", { name: "Remove Ann" }).click()
-  await expect(sheet(page).getByText("They can't come back.")).toBeVisible()
+  await expect(sheet(page).getByText("Their scores stay.")).toBeVisible()
   await sheet(page).getByRole("button", { name: "Keep as scored" }).click()
   await sheet(page).getByRole("button", { name: "Remove", exact: true }).click()
   await expect(sheet(page)).toHaveCount(0)

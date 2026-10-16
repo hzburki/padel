@@ -49,12 +49,25 @@ export function PlayersForm({
 
   return (
     <form
+      data-fits
       onSubmit={(e) => {
         e.preventDefault()
         if (problems.length === 0) onAdd(name, howLong)
       }}
     >
       <p className="text-2xl type-display">Players</p>
+      {!stop && (
+        <p className="mt-1 text-muted-foreground">
+          {canRemove ? (
+            <>
+              Add someone below, or tap <UserMinus aria-label="remove" className="inline size-4.5 align-[-3px] text-destructive" /> to
+              remove them.
+            </>
+          ) : (
+            "Add someone below."
+          )}
+        </p>
+      )}
 
       <ul className="mt-4 divide-y overflow-hidden rounded-3xl border-[1.5px] bg-card">
         {tournament.players.map((p) => (
@@ -138,7 +151,7 @@ function RemoveStep({
   return (
     <div>
       <p className="text-2xl type-display">Remove {player.name}?</p>
-      <p className="mt-1 text-muted-foreground">Their scores stay. They can't come back.</p>
+      <p className="mt-1 text-muted-foreground">Their scores stay. Back later? They start from 0.</p>
 
       {problems.length > 0 ? (
         <p role="alert" className="mt-4 rounded-2xl bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">

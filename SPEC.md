@@ -69,7 +69,7 @@ The rule stays: points and difference scaled up to the most matches played. A le
 - At least 4 players must still be in. Remove is not offered at 4.
 - A player can't be removed while they are in an unscored match of a round that is kept (the current,
   partly scored round). The screen says to score that match first.
-- A new name can't match a player already in the tournament, in or left, ignoring case.
+- A new name can't match a player still in, ignoring case. A player who left can be added again by name, as a new player.
 - Not possible once the tournament is finished, or once the last round has any score (nothing is left to
   rebuild). The screen says "All rounds are played. Finish the tournament."
 - Only organisers see it, an added organiser too. A friend who only watches doesn't (the screen hides it).
@@ -93,7 +93,7 @@ The rule stays: points and difference scaled up to the most matches played. A le
 interface Player {
   id: PlayerId
   name: string
-  // Removed mid game: their scored matches stay, they play no more rounds and can't come back.
+  // Removed mid game: their scored matches stay, they play no more rounds. Added again, they are a new player.
   left?: { scaleUp: boolean }
   joinedAt?: number    // round index they joined at; absent for players there from the start
 }
