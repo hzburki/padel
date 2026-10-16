@@ -15,7 +15,7 @@ passing, and the work left uncommitted.
     `src/lib/set-match-setup.ts`, `src/lib/online-game.ts` (version literal only)
   - Depends on: none
 
-- [ ] **T2: Switch on the New game screen** (M)
+- [x] **T2: Switch on the New game screen** (M)
   - Acceptance:
     - At the bottom of the Americano form: "Allow players to join and leave mid game", off by default
     - The switch is an Off / On pair from `segmented.tsx`

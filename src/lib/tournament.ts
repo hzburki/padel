@@ -13,6 +13,7 @@ export interface SetupInput {
   target: number
   scoringMode: ScoringMode
   roundCount: number
+  lateChanges?: Tournament["lateChanges"] // absent: players are fixed
 }
 
 export function cleanPlayerNames(names: string[]): string[] {
@@ -114,6 +115,7 @@ export function createTournament(input: SetupInput, { now, newId, rng }: CreateD
       rng,
     ),
     finished: false,
+    ...(input.lateChanges && { lateChanges: input.lateChanges }),
   }
 }
 
@@ -124,6 +126,7 @@ export interface PreviousSetup {
   courts: number
   target: number
   scoringMode: ScoringMode
+  lateChanges?: Tournament["lateChanges"]
 }
 
 export function previousSetup(tournament: Tournament): PreviousSetup {
@@ -132,6 +135,7 @@ export function previousSetup(tournament: Tournament): PreviousSetup {
     courts: tournament.courts,
     target: tournament.target,
     scoringMode: tournament.scoringMode,
+    lateChanges: tournament.lateChanges,
   }
 }
 

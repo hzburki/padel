@@ -156,6 +156,15 @@ describe("createTournament", () => {
     expect(t.rounds).toHaveLength(5)
     expect(t.rounds.every((r) => r.matches.length === 1 && r.benched.length === 1)).toBe(true)
   })
+
+  it("keeps the players fixed when joining and leaving mid game was not allowed", () => {
+    expect(t).not.toHaveProperty("lateChanges")
+  })
+
+  it("stores how joiners and leavers are treated when joining and leaving mid game is allowed", () => {
+    const lateChanges = { scaleLeavers: false, joiners: "catchUp" } as const
+    expect(createTournament({ ...valid, lateChanges }, { now: 1000, newId: counter() }).lateChanges).toEqual(lateChanges)
+  })
 })
 
 describe("previousSetup", () => {
@@ -176,6 +185,12 @@ describe("previousSetup", () => {
       target: 21,
       scoringMode: "firstTo",
     })
+  })
+
+  it("carries over whether players may join and leave mid game, and how", () => {
+    const lateChanges = { scaleLeavers: true, joiners: "even" } as const
+    const t = createTournament({ ...valid, lateChanges }, { now: 1000, newId: counter() })
+    expect(previousSetup(t).lateChanges).toEqual(lateChanges)
   })
 })
 
