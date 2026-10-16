@@ -11,8 +11,8 @@ export type PlayerId = string
 export interface Player {
   id: PlayerId
   name: string
-  // Removed mid game: their scored games stay, they play no more rounds and
-  // can't come back. scaleUp: whether their points are scaled up in the
+  // Removed mid game: their scored games stay, they play no more rounds.
+  // Added again, they are a new player. scaleUp: whether their points are scaled up in the
   // final standings, like anyone with fewer games.
   left?: { scaleUp: boolean }
   // Added mid game: the index of the first round they could play. Absent for

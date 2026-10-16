@@ -422,7 +422,7 @@ export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; 
                   className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted disabled:text-muted-foreground"
                 >
                   <Users className={`size-5 ${offline ? "" : "text-primary"}`} />
-                  Players
+                  Add or remove players
                   <NewBadge until="2026-10-30" />
                   {offline && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
                 </button>

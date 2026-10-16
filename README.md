@@ -57,7 +57,7 @@ unless you broadcast a game.
 - A broadcast game finishes by itself 6 hours after it was made. There is no server doing this: each phone
   works it out when it opens the game, and the first organiser's phone to do so finishes it for everyone.
 - Players join and leave a running Americano: menu, then Players. A new player plays from the round after the last
-  one with a score; a player who leaves keeps their scores, is marked "left" and can't come back. Scored rounds
+  one with a score; a player who leaves keeps their scores and is marked "left"; added again, they come back as a new player from 0. Scored rounds
   never change; the rest are made again. Each time the organiser picks **Same time** (the rounds left stay) or
   **Same matches** (rounds are added or taken away so everyone plays about the games they were due), and for a
   leaver whether their points are scaled up at the end or kept as scored. Not possible once the last round has a

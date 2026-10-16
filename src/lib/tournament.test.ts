@@ -282,6 +282,11 @@ describe("renaming", () => {
     ])
   })
 
+  it("lets a player still in share a name with a player who left", () => {
+    const left = removePlayer(t, t.players[0].id, "sameTime", true)
+    expect(renameProblems(left, t.name, ["Ben", ...names.slice(1)])).toEqual([])
+  })
+
   describe("once the tournament is finished", () => {
     const finished = { ...t, finished: true }
 
@@ -419,10 +424,10 @@ describe("adding a player", () => {
     ])
   })
 
-  it("won't take the name of a player who left", () => {
+  it("takes the name of a player who left, as the two never play at the same time", () => {
     const t = playing(8, 2, 7, 3)
     const left = removePlayer(t, t.players[0].id, "sameTime", true)
-    expect(addPlayerProblems(left, "Ana")).toHaveLength(1)
+    expect(addPlayerProblems(left, "Ana")).toEqual([])
   })
 })
 
