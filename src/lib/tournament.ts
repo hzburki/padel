@@ -336,6 +336,19 @@ export function removePlayer(
   return rebuild(withoutLeaverInKeptRounds(tournament, id, rng), withLeaver(tournament, id, scaleUp), howLong, rng)
 }
 
+// How many of `before`'s scores are gone in `after` because their match was
+// made again with other players: another organiser changed the players just
+// as this phone scored it. That score has to be entered again.
+export function scoresMadeAgain(before: Tournament, after: Tournament): number {
+  const teams = (m: { teamA: PlayerId[]; teamB: PlayerId[] }) => [...m.teamA, ...m.teamB].join()
+  return before.rounds.flatMap((round, r) =>
+    round.matches.filter((m) => {
+      const now = after.rounds[r]?.matches.find((n) => n.court === m.court)
+      return m.score !== null && (!now || (now.score === null && teams(now) !== teams(m)))
+    }),
+  ).length
+}
+
 // The pre-filled name: what kind of game it is and the day it's played,
 // kept short, in the phone's language and date order ("Match, Sun 4 Oct").
 export function defaultGameName(kind: SavedEvent["kind"], date: Date, locale?: string): string {

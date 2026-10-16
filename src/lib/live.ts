@@ -30,7 +30,7 @@ import {
   type SharedGames,
 } from "./broadcast"
 import { randomId } from "./ids"
-import { changedFields, fromOnline, isOldCopy, REMOVED, toOnline } from "./online-game"
+import { changedFields, changesLineUp, fromOnline, isOldCopy, REMOVED, stillAsSeen, toOnline } from "./online-game"
 import { livePath, scorePath } from "./paths"
 import { loadTournament, onChangedElsewhere, saveTournament } from "./storage"
 import type { SavedEvent } from "./types"
@@ -361,13 +361,25 @@ async function confirmed(send: () => Promise<void>): Promise<void> {
 // screen does not wait: Firestore shows the change to this phone's listener
 // at once. Fails only when Firestore refuses the change; the listener then
 // gets the online copy back by itself.
+//
+// A player joining or leaving is the exception: it makes the rounds again
+// from what this phone had seen, so it is sent only if the online copy still
+// has those players, rounds and scores. Otherwise it would schedule over a
+// player or a score another organiser has just added, and it is refused.
 export async function sendChange(before: SavedEvent, after: SavedEvent): Promise<void> {
-  const changed = Object.entries(changedFields(toOnline(before), toOnline(after)))
+  const seen = toOnline(before)
+  const changed = Object.entries(changedFields(seen, toOnline(after)))
   if (changed.length === 0) return
-  const fields = changed.map(([path, value]) => [path, value === REMOVED ? deleteField() : value])
+  const fields = Object.fromEntries(changed.map(([path, value]) => [path, value === REMOVED ? deleteField() : value]))
   await confirmed(async () => {
     await signedIn()
-    await updateDoc(liveDoc(after.id), Object.fromEntries(fields))
+    if (!changesLineUp(seen, toOnline(after))) return updateDoc(liveDoc(after.id), fields)
+    await runTransaction(db, async (transaction) => {
+      const online = await transaction.get(liveDoc(after.id))
+      // Read back through the phone's own shape, so it compares like for like.
+      if (!stillAsSeen(toOnline(fromOnline(after.id, online.data() ?? {})), seen)) throw new Error("Changed meanwhile")
+      transaction.update(liveDoc(after.id), fields)
+    })
   })
   if (after.finished) markEnded(after.id)
 }

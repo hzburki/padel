@@ -38,7 +38,10 @@ const americano = z.object({
     }),
   ),
   // One entry per scored match, named by scoreName. None for a match not scored.
-  scores: z.record(z.string(), z.object({ a: count, b: count })),
+  // `players`: who it was for, team A first. A score sent just as another
+  // organiser made the round again is then not put on the new match. Absent
+  // from scores sent by older versions of the app.
+  scores: z.record(z.string(), z.object({ a: count, b: count, players: z.array(z.string()).length(4).optional() })),
 })
 
 const match = z.object({
@@ -61,6 +64,16 @@ export type OnlineGame = z.infer<typeof onlineGame>
 
 // What a match's score is filed under: its round, counted from 0, and its court.
 const scoreName = (round: number, court: number) => `${round}_${court}`
+
+// A match's score from its online entry, unless the entry was for other
+// players: then it belonged to a match since made again, and the match has
+// no score.
+function scoreFor(match: { teamA: string[]; teamB: string[] }, entry: { a: number; b: number; players?: string[] } | undefined) {
+  if (!entry) return null
+  const { a, b, players } = entry
+  if (players && players.join() !== [...match.teamA, ...match.teamB].join()) return null
+  return { a, b }
+}
 
 // The phone's game as its online copy. The id is the document's name, and
 // whether it is a friend's copy is the phone's own business.
@@ -103,7 +116,11 @@ export function toOnline(event: SavedEvent): OnlineGame {
       benched: round.benched,
     })),
     scores: Object.fromEntries(
-      rounds.flatMap((round, r) => round.matches.flatMap((m) => (m.score ? [[scoreName(r, m.court), m.score]] : []))),
+      rounds.flatMap((round, r) =>
+        round.matches.flatMap((m) =>
+          m.score ? [[scoreName(r, m.court), { ...m.score, players: [...m.teamA, ...m.teamB] }]] : [],
+        ),
+      ),
     ),
   }
 }
@@ -140,7 +157,7 @@ export function fromOnline(id: string, document: { game?: unknown; json?: unknow
         ...(joinedAt !== undefined && { joinedAt }),
       })),
     rounds: rounds.map((round, r) => ({
-      matches: round.matches.map((m) => ({ ...m, score: scores[scoreName(r, m.court)] ?? null })),
+      matches: round.matches.map((m) => ({ ...m, score: scoreFor(m, scores[scoreName(r, m.court)]) })),
       benched: round.benched,
     })),
   }
@@ -154,6 +171,29 @@ const isMap = (value: unknown): value is Record<string, unknown> =>
 
 // Both copies come from toOnline, which writes its fields in one order.
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+
+// Who is in an Americano and the rounds they play, leaving out names and
+// scores, with the players by id: maps read back from Firestore come in any
+// order.
+const lineUp = (game: OnlineGame) =>
+  game.kind === "americano" && {
+    rounds: game.rounds,
+    players: Object.entries(game.players)
+      .map(([id, { left, joinedAt }]) => [id, left?.scaleUp ?? null, joinedAt ?? null])
+      .sort(([a], [b]) => String(a).localeCompare(String(b))),
+  }
+const sortedScores = (game: OnlineGame) =>
+  game.kind === "americano" && Object.entries(game.scores).sort(([a], [b]) => a.localeCompare(b))
+
+// Whether a change adds or removes a player, and with that makes rounds again.
+export const changesLineUp = (before: OnlineGame, after: OnlineGame) => !same(lineUp(before), lineUp(after))
+
+// Whether the online copy still has the players, rounds and scores a phone
+// saw when it made such a change. If another organiser added a player or a
+// score meanwhile, the change would schedule over it. A name changed there
+// doesn't matter.
+export const stillAsSeen = (online: OnlineGame, seen: OnlineGame) =>
+  same(lineUp(online), lineUp(seen)) && same(sortedScores(online), sortedScores(seen))
 
 const differing = (was: Record<string, unknown>, is: Record<string, unknown>) =>
   [...new Set([...Object.keys(was), ...Object.keys(is)])].filter((key) => !same(was[key], is[key]))

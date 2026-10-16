@@ -39,6 +39,9 @@ The only time anything goes online. All network code is in `src/lib/live.ts`. Th
   - From then on the online copy is the real one. Every organiser's phone, the first one's too, sends only
     the fields it changed (`sendChange`) and follows the online copy. No phone ever sends its whole copy:
     that wipes another organiser's score. When two change the same thing, the later write stays.
+  - A player joining or leaving is the exception: it remakes the rounds, so it goes in a transaction and is
+    refused ("Not saved. Try again") if the online players, rounds or scores changed since the phone saw them.
+    Each online score also names its four players; a score for other players than the match's is ignored.
   - The online copy is a map of fields (`src/lib/online-game.ts`), not the stored game, so each score,
     player and point can be written on its own.
   - The screen shows and saves a change at once and never waits for the send. With no connection it says

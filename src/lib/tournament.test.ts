@@ -19,6 +19,7 @@ import {
   roundsLeftAfterAdd,
   roundsLeftAfterRemove,
   renameTournament,
+  scoresMadeAgain,
   setScore,
   setupProblems,
   unscoredMatchCount,
@@ -428,6 +429,26 @@ describe("adding a player", () => {
     const t = playing(8, 2, 7, 3)
     const left = removePlayer(t, t.players[0].id, "sameTime", true)
     expect(addPlayerProblems(left, "Ana")).toEqual([])
+  })
+})
+
+describe("scoresMadeAgain", () => {
+  it("counts a score whose match came back with other players and no score", () => {
+    const scored = setScore(playing(8, 2, 7, 0), 0, 1, { a: 10, b: 6 })
+    const remade = playing(8, 2, 7, 0)
+    remade.rounds[0].matches[0] = { ...remade.rounds[0].matches[0], teamA: remade.rounds[0].matches[0].teamB, teamB: remade.rounds[0].matches[0].teamA }
+    expect(scoresMadeAgain(scored, remade)).toBe(1)
+  })
+
+  it("doesn't count a score someone cleared: the match is the same", () => {
+    const scored = setScore(playing(8, 2, 7, 0), 0, 1, { a: 10, b: 6 })
+    expect(scoresMadeAgain(scored, setScore(scored, 0, 1, null))).toBe(0)
+  })
+
+  it("doesn't count the scores a player change keeps", () => {
+    const t = playing(8, 2, 7, 3)
+    const after = addPlayer(t, "Ivy", "sameMatches", { newId: () => "new1" })
+    expect(scoresMadeAgain(t, after)).toBe(0)
   })
 })
 

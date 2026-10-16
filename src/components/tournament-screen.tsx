@@ -28,6 +28,7 @@ import {
   currentRoundIndex,
   previousSetup,
   renameTournament,
+  scoresMadeAgain,
   setScore,
   unscoredMatchCount,
   type HowLong,
@@ -84,6 +85,11 @@ export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; 
   const [links, setLinks] = useState(0)
   const online = useOnline()
   const wasShared = useRef(false)
+  // What the screen showed last, to tell what a copy from online took away.
+  const lastShown = useRef<Tournament | null>(null)
+  useEffect(() => {
+    lastShown.current = tournament ?? null
+  }, [tournament])
 
   useEffect(
     () =>
@@ -99,6 +105,10 @@ export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; 
           // the other organisers.
           if (wasShared.current && t && !t.shared) setToast({ text: "This game is yours now" })
           wasShared.current = t?.shared === true
+          // Scored here just as another organiser made that round again.
+          if (lastShown.current && t && scoresMadeAgain(lastShown.current, t) > 0) {
+            setToast({ text: "That match was made again. Score it again.", failed: true })
+          }
           setTournament(t)
           setLive(following)
           if (t?.finished) setTab("standings")
