@@ -1,4 +1,4 @@
-import type { PlayerId, Round } from "./types"
+import type { Player, PlayerId, Round } from "./types"
 
 export type Rng = () => number // returns [0, 1), like Math.random
 
@@ -13,6 +13,24 @@ export function countGamesPlayed(players: PlayerId[], rounds: Round[]): Map<Play
     }
   }
   return games
+}
+
+// Games each player still in counts as having, for who sits out next. A
+// player who joined mid game counts as having the fewest games of anyone in
+// before them, counted up to the round they joined, plus what they played
+// since. So they sit out as often as the others.
+export function gamesCounted(players: Player[], rounds: Round[]): Map<PlayerId, number> {
+  const stillIn = players.filter((p) => !p.left)
+  const startedWith = (joiner: Player): number => {
+    const joinedAt = joiner.joinedAt
+    if (joinedAt === undefined) return 0
+    const before = stillIn.filter((p) => (p.joinedAt ?? 0) < joinedAt)
+    if (before.length === 0) return 0
+    const games = countGamesPlayed(before.map((p) => p.id), rounds.slice(0, joinedAt))
+    return Math.min(...before.map((p) => (games.get(p.id) ?? 0) + startedWith(p)))
+  }
+  const games = countGamesPlayed(stillIn.map((p) => p.id), rounds)
+  return new Map(stillIn.map((p) => [p.id, (games.get(p.id) ?? 0) + startedWith(p)]))
 }
 
 // How many matches run at once: limited by courts and by players.

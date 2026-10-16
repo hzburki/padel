@@ -47,10 +47,8 @@ describe("migrate", () => {
     expect(migrate(structuredClone(v1))).toEqual(tournament)
   })
 
-  it("turns a version 2 tournament into version 3 with players fixed, keeping everything else", () => {
-    const loaded = migrate({ ...structuredClone(tournament), version: 2 })
-    expect(loaded).toEqual(tournament)
-    expect(loaded).not.toHaveProperty("lateChanges")
+  it("turns a version 2 tournament into version 3, keeping everything else", () => {
+    expect(migrate({ ...structuredClone(tournament), version: 2 })).toEqual(tournament)
   })
 
   it("turns a version 2 match into version 3, keeping everything else", () => {
@@ -60,8 +58,7 @@ describe("migrate", () => {
   it("loads a version 3 tournament unchanged, with players who joined late or left", () => {
     const changing: Tournament = {
       ...tournament,
-      lateChanges: { scaleLeavers: false, joiners: "catchUp" },
-      players: [...tournament.players, { id: "p5", name: "Eve", joinedAt: 2 }, { id: "p6", name: "Fin", left: true }],
+      players: [...tournament.players, { id: "p5", name: "Eve", joinedAt: 2 }, { id: "p6", name: "Fin", left: { scaleUp: false } }],
     }
     expect(migrate(structuredClone(changing))).toEqual(changing)
   })

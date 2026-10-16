@@ -20,7 +20,7 @@ import {
   repeatedNames,
   setupProblems,
 } from "@/lib/tournament"
-import type { ScoringMode, Tournament } from "@/lib/types"
+import type { ScoringMode } from "@/lib/types"
 import { Screen } from "./screen"
 import { Segmented } from "./segmented"
 import { Sheet } from "./sheet"
@@ -45,7 +45,6 @@ export function NewTournamentScreen({
   const [target, setTarget] = useState(from?.target ?? 16)
   const [scoringMode, setScoringMode] = useState<ScoringMode>(from?.scoringMode ?? "total")
   const [roundsChosen, setRoundsChosen] = useState<number | null>(null) // null: follow the suggestion
-  const [lateChanges, setLateChanges] = useState<Tournament["lateChanges"]>(from?.lateChanges)
   const [starting, setStarting] = useState(false)
   // The off-suggestion rounds warning: where it was opened from, and whether
   // it has been shown yet. It shows once per setup — as soon as the rounds
@@ -65,7 +64,7 @@ export function NewTournamentScreen({
   const suggested = names.length >= MIN_PLAYERS ? suggestedRoundCount(names.length, usedCourts) : 1
   const roundCount = roundsChosen ?? suggested
 
-  const input = { name, playerNames: names, courts: usedCourts, target, scoringMode, roundCount, lateChanges }
+  const input = { name, playerNames: names, courts: usedCourts, target, scoringMode, roundCount }
   const problems = setupProblems(input)
   const split = gamesSplit(names.length, usedCourts, roundCount)
   // How the chosen round count differs from the suggested one, if it does.
@@ -283,49 +282,6 @@ export function NewTournamentScreen({
         )}
       </Section>
 
-      <Section title="Allow players to join and leave mid game">
-        <Segmented
-          options={[
-            ["off", "Off"],
-            ["on", "On"],
-          ]}
-          value={lateChanges ? "on" : "off"}
-          onChange={(v) => setLateChanges(v === "on" ? { scaleLeavers: true, joiners: "even" } : undefined)}
-        />
-        {lateChanges && (
-          <>
-            <SubTitle>Who leaves</SubTitle>
-            <Segmented
-              options={[
-                ["scale", "Scale up"],
-                ["keep", "Keep points"],
-              ]}
-              value={lateChanges.scaleLeavers ? "scale" : "keep"}
-              onChange={(v) => setLateChanges({ ...lateChanges, scaleLeavers: v === "scale" })}
-            />
-            <Hint>
-              {lateChanges.scaleLeavers
-                ? "12 points from 4 matches counts as 15 if others play 5."
-                : "Their points stay as scored."}
-            </Hint>
-            <SubTitle>Who joins</SubTitle>
-            <Segmented
-              options={[
-                ["even", "Scale up"],
-                ["catchUp", "Catch up"],
-              ]}
-              value={lateChanges.joiners}
-              onChange={(joiners) => setLateChanges({ ...lateChanges, joiners })}
-            />
-            <Hint>
-              {lateChanges.joiners === "even"
-                ? "Sits out as often as the others. Points scaled up at the end."
-                : "Plays every round until level with the others."}
-            </Hint>
-          </>
-        )}
-      </Section>
-
       <Sheet open={pickTarget} onClose={() => setPickTarget(false)}>
         <p className="px-1 text-2xl type-display">Points per game</p>
         <p className="mb-3 px-1 text-sm text-muted-foreground">
@@ -520,10 +476,6 @@ export function NameTaken({ name }: { name: string }) {
       {cleanPlayerName(name)} is already playing
     </p>
   )
-}
-
-function SubTitle({ children }: { children: ReactNode }) {
-  return <h3 className="mt-4 mb-2 px-1 font-semibold">{children}</h3>
 }
 
 export function Hint({ children }: { children: ReactNode }) {

@@ -6,7 +6,7 @@ import { formatSets, replay, teamName } from "@/lib/set-match"
 import { previousMatchSetup } from "@/lib/set-match-setup"
 import { followedFromHome } from "@/lib/broadcast"
 import { openGame } from "@/lib/live"
-import { computeStandings, formatPoints, joinNames, winners } from "@/lib/standings"
+import { computeStandings, formatPoints, joinNames, keptAsScored, winners } from "@/lib/standings"
 import { listTournaments, onChangedElsewhere } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, unscoredMatchCount } from "@/lib/tournament"
 import type { SavedEvent, SetMatch, Tournament } from "@/lib/types"
@@ -481,7 +481,7 @@ function Status({ tournament }: { tournament: Tournament }) {
     const rows = computeStandings(
       tournament.players.map((p) => p.id),
       tournament.rounds,
-      { final: true },
+      { final: true, notScaled: keptAsScored(tournament.players) },
     )
     const nameOf = new Map(tournament.players.map((p) => [p.id, p.name]))
     const won = winners(rows)

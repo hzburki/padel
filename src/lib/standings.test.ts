@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { computeStandings, formatDiff, formatPoints, joinNames, placesMovedByScaling, winners } from "./standings"
+import { computeStandings, formatDiff, formatPoints, joinNames, keptAsScored, placesMovedByScaling, winners } from "./standings"
 import type { Match, PlayerId, Round } from "./types"
 
 const ids = (n: number): PlayerId[] => Array.from({ length: n }, (_, i) => `p${i + 1}`)
@@ -114,6 +114,11 @@ describe("computeStandings", () => {
       expect(rows.p5.points).toBe(16) // 8 from 1 game
     })
 
+    it("gives a player with no games 0 points, not a division by zero", () => {
+      const rows = byId(computeStandings(ids(6), rounds, { final: true }))
+      expect(rows.p6).toMatchObject({ points: 0, bonus: 0, diff: 0, played: 0 })
+    })
+
     it("scales their point difference the same way", () => {
       const rows = byId(computeStandings(ids(5), rounds, { final: true }))
       expect(rows.p4.diff).toBe(-8) // -4 from 1 game, doubled
@@ -150,6 +155,26 @@ describe("computeStandings", () => {
       const rows = byId(computeStandings(ids(5), rounds))
       expect(rows.p4.points).toBe(6)
       expect(rows.p4.bonus).toBe(0)
+    })
+
+    it("leaves a leaver set to Keep as scored out of the final scaling", () => {
+      const rows = byId(computeStandings(ids(5), rounds, { final: true, notScaled: ["p5"] }))
+      expect(rows.p5.points).toBe(8)
+      expect(rows.p5.bonus).toBe(0)
+      expect(rows.p5.diff).toBe(0)
+      expect(rows.p4.points).toBe(12) // others still scaled
+    })
+
+    it("ranks a Keep as scored leaver on the points they scored", () => {
+      const ranked = order(computeStandings(ids(5), rounds, { final: true, notScaled: ["p5"] }))
+      expect(ranked.indexOf("p5")).toBeGreaterThan(ranked.indexOf("p3")) // 8 vs 14
+    })
+
+    it("moves a Keep as scored leaver down when someone is scaled past them", () => {
+      // p5 stays on 8; p4 goes from 6 to 12 and passes them.
+      const moved = placesMovedByScaling(ids(5), rounds, ["p5"])
+      expect(moved.get("p5")).toBe(-1)
+      expect(moved.get("p4")).toBe(1)
     })
 
     it("keeps a fractional result to two decimals", () => {
@@ -205,5 +230,17 @@ describe("joinNames", () => {
     expect(joinNames(["Ana"])).toBe("Ana")
     expect(joinNames(["Ana", "Ben"])).toBe("Ana and Ben")
     expect(joinNames(["Ana", "Ben", "Cai"])).toBe("Ana, Ben and Cai")
+  })
+})
+
+describe("keptAsScored", () => {
+  it("lists only the leavers set to keep their points as scored", () => {
+    const players = [
+      { id: "p1", name: "Ana" },
+      { id: "p2", name: "Ben", left: { scaleUp: true } },
+      { id: "p3", name: "Cai", left: { scaleUp: false } },
+      { id: "p4", name: "Dee", joinedAt: 2 },
+    ]
+    expect(keptAsScored(players)).toEqual(["p3"])
   })
 })

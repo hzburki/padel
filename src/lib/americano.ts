@@ -1,4 +1,4 @@
-import { countGamesPlayed, courtsInPlay, pickBench, shuffle, type Rng } from "./bench"
+import { courtsInPlay, pickBench, shuffle, type Rng } from "./bench"
 import type { Match, PlayerId, Round } from "./types"
 
 // The suggested number of rounds: enough for everyone to partner everyone
@@ -37,15 +37,23 @@ export function gamesSplit(playerCount: number, courts: number, roundCount: numb
     : { fewer, more: fewer + 1, playersWithFewer: playerCount - extra }
 }
 
-// How many rounds to play after players join or leave, so that everyone
-// still in ends on the same number of games. `games` is what each of them
-// has so far, `places` how many play each round (4 × courts in play). Rounds
-// are played out as the bench plays them, fewest games first, one game a
-// round at most. Of the counts from 1 to `maxRounds`, the one closest to
-// `roundsBefore` wins, more rounds on a tie. If no count levels the games,
-// the closest that leaves nobody more than one game behind; failing that,
-// every round allowed.
-export function roundsToLevel(games: number[], places: number, roundsBefore: number, maxRounds: number): number {
+export interface SameMatchesInput {
+  games: number[] // games each player still in counts as having so far
+  places: number // places filled each round from now: 4 × courts in play
+  before: { rounds: number; places: number; players: number } // rounds left, places and players before the change
+  maxRounds: number
+}
+
+// How many rounds to play after players join or leave, so that each player
+// still in plays about as many more games as they were due before. The
+// rounds are played out as the bench plays them, fewest games first, one
+// game a round at most. A count within a round of the target where
+// everyone ends level wins; failing that, the count closest to the target
+// that leaves nobody more than one game apart; failing that, every round
+// allowed. Ties go to more rounds. At least 1 round.
+export function sameMatchesRounds({ games, places, before, maxRounds }: SameMatchesInput): number {
+  const due = (before.rounds * before.places) / before.players
+  const target = (due * games.length) / places
   const counts = [...games]
   const level: number[] = []
   const oneApart: number[] = []
@@ -53,11 +61,11 @@ export function roundsToLevel(games: number[], places: number, roundsBefore: num
     counts.sort((x, y) => x - y)
     for (let i = 0; i < places; i++) counts[i]++
     const gap = Math.max(...counts) - Math.min(...counts)
-    if (gap === 0) level.push(rounds)
+    if (gap === 0 && Math.abs(rounds - target) <= 1) level.push(rounds)
     if (gap <= 1) oneApart.push(rounds)
   }
   const closest = (options: number[]) =>
-    options.reduce((best, n) => (Math.abs(n - roundsBefore) <= Math.abs(best - roundsBefore) ? n : best))
+    options.reduce((best, n) => (Math.abs(n - target) <= Math.abs(best - target) ? n : best))
   if (level.length > 0) return closest(level)
   if (oneApart.length > 0) return closest(oneApart)
   return maxRounds
@@ -76,12 +84,27 @@ export function generateSchedule(
   roundCount: number,
   rng: Rng = Math.random,
 ): Round[] {
+  return continueSchedule([], players, new Map(), courts, roundCount, rng)
+}
+
+// The rounds to play after `kept`, made with the same rules for the players
+// still in. Partners and opponents from the kept rounds count as already
+// had; `startGames` is what each player counts as having so far (see
+// gamesCounted in bench.ts). Returns only the new rounds.
+export function continueSchedule(
+  kept: Round[],
+  players: PlayerId[],
+  startGames: Map<PlayerId, number>,
+  courts: number,
+  roundCount: number,
+  rng: Rng = Math.random,
+): Round[] {
   // A few full attempts with different random choices; keep the fairest.
   let best: Round[] = []
   let bestCost = Infinity
   for (let attempt = 0; attempt < 8; attempt++) {
-    const rounds = buildSchedule(players, courts, roundCount, rng)
-    const cost = scheduleCost(rounds)
+    const rounds = buildSchedule(kept, players, startGames, courts, roundCount, rng)
+    const cost = scheduleCost([...kept, ...rounds])
     if (cost < bestCost) {
       best = rounds
       bestCost = cost
@@ -99,13 +122,20 @@ const key = (x: PlayerId, y: PlayerId) => (x < y ? `${x}|${y}` : `${y}|${x}`)
 const get = (counts: Counts, x: PlayerId, y: PlayerId) => counts.get(key(x, y)) ?? 0
 const bump = (counts: Counts, x: PlayerId, y: PlayerId) => counts.set(key(x, y), get(counts, x, y) + 1)
 
-function buildSchedule(players: PlayerId[], courts: number, roundCount: number, rng: Rng): Round[] {
+function buildSchedule(
+  kept: Round[],
+  players: PlayerId[],
+  startGames: Map<PlayerId, number>,
+  courts: number,
+  roundCount: number,
+  rng: Rng,
+): Round[] {
   const rounds: Round[] = []
-  const partners: Counts = new Map()
-  const opponents: Counts = new Map()
+  const { partners, opponents } = countPairings(kept)
+  const games = new Map(players.map((id) => [id, startGames.get(id) ?? 0]))
 
   for (let r = 0; r < roundCount; r++) {
-    const benched = pickBench(players, countGamesPlayed(players, rounds), courts, rng)
+    const benched = pickBench(players, games, courts, rng)
     const playing = players.filter((id) => !benched.includes(id))
     const order = arrangeRound(playing, partners, opponents, rng)
 
@@ -117,6 +147,7 @@ function buildSchedule(players: PlayerId[], courts: number, roundCount: number, 
       bump(partners, b1, b2)
       for (const a of [a1, a2]) for (const b of [b1, b2]) bump(opponents, a, b)
     }
+    for (const id of playing) games.set(id, (games.get(id) ?? 0) + 1)
     rounds.push({ matches, benched })
   }
   return rounds
@@ -166,9 +197,8 @@ function arrangeRound(playing: PlayerId[], partners: Counts, opponents: Counts, 
   return best
 }
 
-// Sum of squared repeat counts: lower means partnerships and match-ups are
-// spread more evenly across the schedule.
-function scheduleCost(rounds: Round[]): number {
+// How often each pair has partnered and faced each other in these rounds.
+function countPairings(rounds: Round[]): { partners: Counts; opponents: Counts } {
   const partners: Counts = new Map()
   const opponents: Counts = new Map()
   for (const { matches } of rounds) {
@@ -178,6 +208,13 @@ function scheduleCost(rounds: Round[]): number {
       for (const a of teamA) for (const b of teamB) bump(opponents, a, b)
     }
   }
+  return { partners, opponents }
+}
+
+// Sum of squared repeat counts: lower means partnerships and match-ups are
+// spread more evenly across the schedule.
+function scheduleCost(rounds: Round[]): number {
+  const { partners, opponents } = countPairings(rounds)
   let cost = 0
   for (const c of partners.values()) cost += PARTNER_WEIGHT * c * c
   for (const c of opponents.values()) cost += OPPONENT_WEIGHT * c * c

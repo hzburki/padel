@@ -1,19 +1,23 @@
 import { ArrowDown, ArrowUp } from "lucide-react"
 import { formatDiff, formatPoints, type StandingRow } from "@/lib/standings"
 import type { PlayerId } from "@/lib/types"
+import { LeftBadge } from "./players-form"
 
 // The on-screen standings: a phone-width list, readable at a glance.
 // (The shareable image has its own layout in share-card.ts.)
 // moved: places gained (or lost, when negative) through the scaling for
 // fewer games. Those rows are tinted and carry an arrow.
+// left: players removed mid game, marked "left".
 export function StandingsTable({
   rows,
   nameOf,
   moved,
+  left,
 }: {
   rows: StandingRow[]
   nameOf: Map<PlayerId, string>
   moved?: Map<PlayerId, number>
+  left?: Set<PlayerId>
 }) {
   return (
     <div className="overflow-hidden rounded-3xl border-[1.5px] bg-card">
@@ -39,6 +43,7 @@ export function StandingsTable({
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5 text-[1.0625rem] type-label">
                   <span className="truncate">{nameOf.get(row.playerId)}</span>
+                  {left?.has(row.playerId) && <LeftBadge />}
                   {places !== 0 && (
                     <span
                       className={`flex shrink-0 items-center text-sm ${places > 0 ? "text-emerald-700" : "text-destructive"}`}

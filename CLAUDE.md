@@ -150,6 +150,9 @@ round.
   every round, `max(games) - min(games) <= 1`.
 - The whole schedule is made before round 1 and never changes with results. Partners rotate so that, as far
   as the count allows, everyone partners and faces everyone once.
+- A player joining or leaving (`addPlayer`, `removePlayer` in `tournament.ts`) keeps every round up to the
+  last one with a score and makes the rest again with the same rules. A leaver stays in `players` with
+  `left`; a joiner has `joinedAt`.
 - The schedule is made in `src/lib/americano.ts` (sitting out in `bench.ts`). React only shows it.
 
 ## Match

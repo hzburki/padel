@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { changedFields, fromOnline, REMOVED, toOnline } from "./online-game"
 import { createSetMatch } from "./set-match-setup"
 import { addPoint, undoPoint } from "./set-match"
-import { createTournament, renameTournament, setScore } from "./tournament"
+import { addPlayer, createTournament, removePlayer, renameTournament, setScore } from "./tournament"
 import type { SetMatch, Side, Tournament } from "./types"
 
 function counter() {
@@ -57,6 +57,24 @@ describe("the online copy of an Americano", () => {
   it("files a score under its round, counted from 0, and its court", () => {
     const scored = setScore(tournament(), 2, 1, { a: 9, b: 7 })
     expect(toOnline(scored)).toMatchObject({ scores: { "2_1": { a: 9, b: 7 } } })
+  })
+
+  it("comes back the same with a player who joined and one who left", () => {
+    const scored = setScore(setScore(tournament(), 0, 1, { a: 9, b: 7 }), 0, 2, { a: 8, b: 8 })
+    const joined = addPlayer(scored, "Ivy", "sameMatches", { newId: () => "id10", rng: () => 0.5 })
+    const changed = removePlayer(joined, "id2", "sameTime", false, () => 0.5)
+    expect(fromGame(changed.id, toOnline(changed))).toEqual(changed)
+  })
+
+  it("marks only the players who joined or left", () => {
+    const scored = setScore(tournament(), 0, 1, { a: 9, b: 7 })
+    const joined = addPlayer(scored, "Ivy", "sameTime", { newId: () => "id10", rng: () => 0.5 })
+    const { players } = toOnline(removePlayer(joined, "id2", "sameTime", true, () => 0.5)) as {
+      players: Record<string, object>
+    }
+    expect(players.id1).toEqual({ name: "Ana", order: 0 })
+    expect(players.id2).toEqual({ name: "Ben", order: 1, left: { scaleUp: true } })
+    expect(players.id10).toEqual({ name: "Ivy", order: 8, joinedAt: 1 })
   })
 
   it("keeps the schedule without the scores", () => {
@@ -167,6 +185,20 @@ describe("what a change sends online", () => {
     expect(sends(tournament(), { ...tournament(), finished: true })).toEqual({ "game.finished": true })
   })
 
+  it("sends an added player as that one player and the schedule whole", () => {
+    const before = setScore(tournament(), 0, 1, { a: 9, b: 7 })
+    const after = addPlayer(before, "Ivy", "sameTime", { newId: () => "id10", rng: () => 0.5 })
+    expect(Object.keys(sends(before, after)).sort()).toEqual(["game.players.id10", "game.rounds"])
+  })
+
+  it("sends a player who left as that one player and the schedule whole", () => {
+    const before = setScore(tournament(), 0, 1, { a: 9, b: 7 })
+    const after = removePlayer(before, "id2", "sameTime", false, () => 0.5)
+    const sent = sends(before, after)
+    expect(Object.keys(sent).sort()).toEqual(["game.players.id2", "game.rounds"])
+    expect(sent["game.players.id2"]).toEqual({ name: "Ben", order: 1, left: { scaleUp: false } })
+  })
+
   it("sends a changed schedule whole", () => {
     const before = tournament()
     const sent = sends(before, { ...before, rounds: before.rounds.slice(0, 2) })
@@ -215,6 +247,11 @@ describe("a copy that is refused", () => {
     refused({ ...toOnline(tournament()), finished: "yes" })
     refused({ ...toOnline(tournament()), rounds: {} })
     refused({ ...toOnline(setMatch()), bestOf: 2 })
+  })
+
+  it("has a player who left without saying how their points count", () => {
+    const online = toOnline(tournament()) as { players: Record<string, object> }
+    refused({ ...online, players: { ...online.players, id1: { name: "Ana", order: 0, left: true } } })
   })
 
   it("has a score that is not two whole numbers", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { equalGamesCycle, gamesSplit, generateSchedule, roundsToLevel, suggestedRoundCount } from "./americano"
+import { continueSchedule, equalGamesCycle, gamesSplit, generateSchedule, sameMatchesRounds, suggestedRoundCount } from "./americano"
 import { countGamesPlayed, type Rng } from "./bench"
 import type { PlayerId, Round } from "./types"
 
@@ -96,43 +96,48 @@ describe("gamesSplit", () => {
   })
 })
 
-describe("roundsToLevel", () => {
-  // Games each player still in has played, 4 places a round (1 court) unless said.
-  it("keeps the rounds left when everyone stays level", () => {
-    expect(roundsToLevel([2, 2, 2, 2], 4, 3, 99)).toBe(3)
+describe("sameMatchesRounds", () => {
+  // Each case: games each player still in has, places a round from now (4 a
+  // court in play), then rounds left, places and players before the change.
+  const rounds = (games: number[], places: number, [r, p, n]: [number, number, number], maxRounds = 99) =>
+    sameMatchesRounds({ games, places, before: { rounds: r, places: p, players: n }, maxRounds })
+  const all = (n: number, games: number) => Array<number>(n).fill(games)
+
+  it("keeps the rounds left when nobody joins or leaves", () => {
+    expect(rounds(all(8, 3), 8, [4, 8, 8])).toBe(4)
   })
 
-  it("picks the closest number of rounds after which everyone has the same games", () => {
-    // 5 players on 1 court: level again after 4 rounds (5 games each) or 9.
-    expect(roundsToLevel([2, 2, 2, 2, 1], 4, 5, 99)).toBe(4)
+  it("adds a round when a ninth player joins 8 on 2 courts", () => {
+    // Everyone was due 4 more games: 4.5 rounds for 9 players, ties go to more.
+    expect(rounds(all(9, 3), 8, [4, 8, 8])).toBe(5)
   })
 
-  it("plays more rounds when fewer and more are just as close", () => {
-    // 8 players on 1 court come out level after every 2 rounds.
-    expect(roundsToLevel([0, 0, 0, 0, 0, 0, 0, 0], 4, 3, 99)).toBe(4)
+  it("takes a round away when 6 on 1 court drop to 5", () => {
+    // Everyone was due 4 more games: 5 rounds for 5 players, all level.
+    expect(rounds(all(5, 2), 4, [6, 4, 6])).toBe(5)
   })
 
-  it("waits for a player who joined with no games to draw level, one game a round", () => {
-    // Level at 4 games after 2 rounds would need the joiner to play 4 times.
-    expect(roundsToLevel([3, 3, 3, 3, 0], 4, 4, 99)).toBe(12)
+  it("adds rounds when a leave drops 8 players on 2 courts to 7 on 1", () => {
+    // Everyone was due 4 more games, now 4 places a round: 7 rounds, all level.
+    expect(rounds(all(7, 3), 4, [4, 8, 8])).toBe(7)
   })
 
-  it("settles for one game apart when the games can never come out level", () => {
-    // 6 players, 4 places a round, an odd total: never level.
-    expect(roundsToLevel([1, 1, 1, 1, 1, 0], 4, 3, 99)).toBe(3)
+  it("picks a count within a round where everyone ends level over a closer uneven one", () => {
+    // 5 to 6 players on 1 court: the target is 3.6 rounds; 4 leaves them a
+    // game apart, 3 leaves everyone on 5.
+    expect(rounds(all(6, 3), 4, [3, 4, 5])).toBe(3)
   })
 
-  it("settles for one game apart when level would take more rounds than allowed", () => {
-    // At 8 rounds the joiner has 8 and everyone else 9.
-    expect(roundsToLevel([3, 3, 3, 3, 0], 4, 4, 10)).toBe(8)
+  it("never plays more rounds than allowed", () => {
+    expect(rounds(all(9, 3), 8, [4, 8, 8], 3)).toBe(3)
   })
 
   it("plays every round allowed when even one game apart is out of reach", () => {
-    expect(roundsToLevel([10, 10, 10, 10, 0], 4, 3, 5)).toBe(5)
+    expect(rounds([10, 10, 10, 10, 0], 4, [3, 4, 5], 5)).toBe(5)
   })
 
   it("always plays at least one more round", () => {
-    expect(roundsToLevel([2, 2, 2, 2], 4, 0, 99)).toBe(1)
+    expect(rounds(all(4, 2), 4, [0, 4, 4])).toBe(1)
   })
 })
 
@@ -210,5 +215,77 @@ describe("generateSchedule", () => {
 
   it("makes the same schedule from the same random seed", () => {
     expect(generateSchedule(ids(9), 2, 5, seededRng(42))).toEqual(generateSchedule(ids(9), 2, 5, seededRng(42)))
+  })
+})
+
+describe("continueSchedule", () => {
+  const placed = (round: Round) => [...round.matches.flatMap((m) => [...m.teamA, ...m.teamB]), ...round.benched]
+
+  it("makes only the new rounds, without a score", () => {
+    const kept = generateSchedule(ids(8), 2, 3, seededRng(1))
+    const rounds = continueSchedule(kept, ids(8), countGamesPlayed(ids(8), kept), 2, 4, seededRng(2))
+    expect(rounds).toHaveLength(4)
+    expect(rounds.flatMap((r) => r.matches).every((m) => m.score === null)).toBe(true)
+  })
+
+  it("never places a player who has left", () => {
+    const kept = generateSchedule(ids(9), 2, 3, seededRng(1))
+    const stillIn = ids(9).filter((id) => id !== "p4")
+    for (const round of continueSchedule(kept, stillIn, countGamesPlayed(stillIn, kept), 2, 5, seededRng(2))) {
+      expect(placed(round).sort()).toEqual(stillIn.sort())
+    }
+  })
+
+  it("uses min(courts, floor(players in / 4)) courts", () => {
+    const kept = generateSchedule(ids(8), 2, 2, seededRng(1))
+    const stillIn = ids(7)
+    for (const round of continueSchedule(kept, stillIn, countGamesPlayed(stillIn, kept), 2, 4, seededRng(2))) {
+      expect(round.matches.map((m) => m.court)).toEqual([1])
+      expect(round.benched).toHaveLength(3)
+    }
+  })
+
+  it("counts partners from kept rounds when rebuilding", () => {
+    const kept = generateSchedule(ids(4), 1, 1, seededRng(1))
+    const rounds = continueSchedule(kept, ids(4), countGamesPlayed(ids(4), kept), 1, 2, seededRng(2))
+    const counts = partnerCounts([...kept, ...rounds])
+    expect(counts.size).toBe(allPairs(4))
+    expect(Math.max(...counts.values())).toBe(1)
+  })
+
+  it("benches by the games each player starts with", () => {
+    const start = new Map(ids(5).map((id) => [id, id === "p3" ? 5 : 4]))
+    const [round] = continueSchedule([], ids(5), start, 1, 1, seededRng(1))
+    expect(round.benched).toEqual(["p3"])
+  })
+
+  it("a joiner sits out as often as the others", () => {
+    const kept = generateSchedule(ids(5), 1, 5, seededRng(1))
+    const players = [...ids(5), "p6"]
+    // Everyone has 4 games; p6 joins and counts as having 4.
+    const start = new Map(players.map((id) => [id, 4]))
+    const rounds = continueSchedule(kept, players, start, 1, 3, seededRng(2))
+    const games = countGamesPlayed(players, rounds)
+    expect(Math.max(...games.values())).toBe(2)
+    expect(Math.min(...games.values())).toBe(2)
+  })
+
+  it("keeps everyone within one game, counting the starting games, after every new round", () => {
+    const kept = generateSchedule(ids(9), 2, 4, seededRng(1))
+    const players = [...ids(9).filter((id) => id !== "p2"), "p10", "p11"]
+    const start = new Map(players.map((id) => [id, countGamesPlayed(ids(9), kept).get(id) ?? 3]))
+    const rounds = continueSchedule(kept, players, start, 2, 8, seededRng(2))
+    for (let r = 1; r <= rounds.length; r++) {
+      const played = countGamesPlayed(players, rounds.slice(0, r))
+      const counts = players.map((id) => start.get(id)! + played.get(id)!)
+      expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it("leaves the kept rounds as they are", () => {
+    const kept = generateSchedule(ids(8), 2, 3, seededRng(1))
+    const copy = structuredClone(kept)
+    continueSchedule(kept, ids(8), countGamesPlayed(ids(8), kept), 2, 4, seededRng(2))
+    expect(kept).toEqual(copy)
   })
 })
