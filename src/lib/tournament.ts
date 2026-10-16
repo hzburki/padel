@@ -1,7 +1,7 @@
-import { generateSchedule } from "./americano"
-import type { Rng } from "./bench"
+import { continueSchedule, generateSchedule, sameMatchesRounds } from "./americano"
+import { courtsInPlay, gamesCounted, type Rng } from "./bench"
 import { isValidTarget, MAX_TARGET, MIN_TARGET } from "./scoring"
-import type { SavedEvent, Score, ScoringMode, Tournament } from "./types"
+import type { Player, PlayerId, SavedEvent, Score, ScoringMode, Tournament } from "./types"
 
 export const MIN_PLAYERS = 4
 export const MAX_ROUNDS = 99
@@ -98,7 +98,7 @@ export interface CreateDeps {
 export function createTournament(input: SetupInput, { now, newId, rng }: CreateDeps): Tournament {
   const players = cleanPlayerNames(input.playerNames).map((name) => ({ id: newId(), name }))
   return {
-    version: 2,
+    version: 3,
     kind: "americano",
     id: newId(),
     name: input.name.trim(),
@@ -118,7 +118,7 @@ export function createTournament(input: SetupInput, { now, newId, rng }: CreateD
 }
 
 // What a new tournament starts from when the same group plays again: the
-// people and the settings, not the schedule or the scores.
+// people still in and the settings, not the schedule or the scores.
 export interface PreviousSetup {
   playerNames: string[]
   courts: number
@@ -128,7 +128,7 @@ export interface PreviousSetup {
 
 export function previousSetup(tournament: Tournament): PreviousSetup {
   return {
-    playerNames: tournament.players.map((p) => p.name),
+    playerNames: tournament.players.filter((p) => !p.left).map((p) => p.name),
     courts: tournament.courts,
     target: tournament.target,
     scoringMode: tournament.scoringMode,
@@ -188,6 +188,128 @@ export function renameTournament(tournament: Tournament, name: string, playerNam
       ? tournament.players
       : tournament.players.map((p, i) => ({ ...p, name: cleanPlayerName(playerNames[i] ?? "") || p.name })),
   }
+}
+
+// After a player joins or leaves: keep the rounds left as they are, or
+// change them so everyone plays about the games they were due.
+export type HowLong = "sameTime" | "sameMatches"
+
+// The first round a player change can rebuild: the one after the last round
+// with any score. Rounds before it are kept as they are.
+export function firstOpenRound(tournament: Tournament): number {
+  const lastScored = tournament.rounds.findLastIndex((r) => r.matches.some((m) => m.score !== null))
+  return lastScored + 1
+}
+
+const stillIn = (players: Player[]) => players.filter((p) => !p.left)
+
+// How many rounds are left after the change to `players` (the whole new
+// list, players who left included).
+function roundsLeft(tournament: Tournament, players: Player[], howLong: HowLong): number {
+  const from = firstOpenRound(tournament)
+  const maxRounds = MAX_ROUNDS - from
+  const left = tournament.rounds.length - from
+  if (howLong === "sameTime") return Math.min(left, maxRounds)
+  const before = stillIn(tournament.players).length
+  const after = stillIn(players).length
+  return sameMatchesRounds({
+    games: [...gamesCounted(players, tournament.rounds.slice(0, from)).values()],
+    places: 4 * courtsInPlay(after, tournament.courts),
+    before: { rounds: left, places: 4 * courtsInPlay(before, tournament.courts), players: before },
+    maxRounds,
+  })
+}
+
+// The tournament with the new player list and every round after the kept
+// ones made again, for the players still in.
+function rebuild(tournament: Tournament, players: Player[], howLong: HowLong, rng?: Rng): Tournament {
+  const from = firstOpenRound(tournament)
+  const kept = tournament.rounds.slice(0, from)
+  const rounds = continueSchedule(
+    kept,
+    stillIn(players).map((p) => p.id),
+    gamesCounted(players, kept),
+    tournament.courts,
+    roundsLeft(tournament, players, howLong),
+    rng,
+  )
+  return { ...tournament, players, rounds: [...kept, ...rounds] }
+}
+
+// Why no player can join or leave right now, or null if they can.
+export function cannotChangePlayers(tournament: Tournament): string | null {
+  if (tournament.finished) return "The tournament is finished."
+  if (firstOpenRound(tournament) === tournament.rounds.length) return "All rounds are played. Finish the tournament."
+  return null
+}
+
+// What stops a player from being added, worded for the organiser.
+export function addPlayerProblems(tournament: Tournament, name: string): string[] {
+  const stop = cannotChangePlayers(tournament)
+  if (stop) return [stop]
+  const clean = cleanPlayerName(name)
+  if (clean === "") return ["Type a name."]
+  if (tournament.players.some((p) => p.name.toLowerCase() === clean.toLowerCase())) {
+    return [`${clean} is taken in this tournament. Pick another name.`]
+  }
+  return []
+}
+
+// Rounds left after adding a player, for the organiser to see before confirming.
+export function roundsLeftAfterAdd(tournament: Tournament, howLong: HowLong): number {
+  return roundsLeft(tournament, [...tournament.players, newPlayer(tournament, "", "")], howLong)
+}
+
+function newPlayer(tournament: Tournament, id: PlayerId, name: string): Player {
+  return { id, name: cleanPlayerName(name), joinedAt: firstOpenRound(tournament) }
+}
+
+// A copy with one more player, who plays from the round after the last one
+// with a score. The rounds up to it are kept; the rest are made again. Call
+// only once addPlayerProblems() is empty.
+export function addPlayer(
+  tournament: Tournament,
+  name: string,
+  howLong: HowLong,
+  { newId, rng }: { newId: () => string; rng?: Rng },
+): Tournament {
+  return rebuild(tournament, [...tournament.players, newPlayer(tournament, newId(), name)], howLong, rng)
+}
+
+// What stops a player from being removed, worded for the organiser.
+export function removePlayerProblems(tournament: Tournament, id: PlayerId): string[] {
+  const stop = cannotChangePlayers(tournament)
+  if (stop) return [stop]
+  if (stillIn(tournament.players).length <= MIN_PLAYERS) return [`At least ${MIN_PLAYERS} players must stay in.`]
+  const kept = tournament.rounds.slice(0, firstOpenRound(tournament))
+  const unscored = kept.some((r) =>
+    r.matches.some((m) => m.score === null && [...m.teamA, ...m.teamB].includes(id)),
+  )
+  if (unscored) return ["Score their match in this round first."]
+  return []
+}
+
+function withLeaver(tournament: Tournament, id: PlayerId, scaleUp: boolean): Player[] {
+  return tournament.players.map((p) => (p.id === id ? { ...p, left: { scaleUp } } : p))
+}
+
+// Rounds left after removing a player, for the organiser to see before confirming.
+export function roundsLeftAfterRemove(tournament: Tournament, id: PlayerId, howLong: HowLong): number {
+  return roundsLeft(tournament, withLeaver(tournament, id, true), howLong)
+}
+
+// A copy where the player has left: their scored games stay, they play no
+// more rounds and can't come back. The rounds up to the last one with a
+// score are kept; the rest are made again without them. Call only once
+// removePlayerProblems() is empty.
+export function removePlayer(
+  tournament: Tournament,
+  id: PlayerId,
+  howLong: HowLong,
+  scaleUp: boolean,
+  rng?: Rng,
+): Tournament {
+  return rebuild(tournament, withLeaver(tournament, id, scaleUp), howLong, rng)
 }
 
 // The pre-filled name: what kind of game it is and the day it's played,

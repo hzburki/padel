@@ -45,7 +45,7 @@ export function matchSetupProblems(input: MatchSetupInput): string[] {
 // matchSetupProblems() is empty.
 export function createSetMatch(input: MatchSetupInput, { now, newId }: { now: number; newId: () => string }): SetMatch {
   return {
-    version: 2,
+    version: 3,
     kind: "match",
     id: newId(),
     name: input.name.trim(),

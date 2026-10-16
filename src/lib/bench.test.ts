@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { countGamesPlayed, courtsInPlay, pickBench, type Rng } from "./bench"
-import type { PlayerId, Round } from "./types"
+import { countGamesPlayed, courtsInPlay, gamesCounted, pickBench, type Rng } from "./bench"
+import type { Player, PlayerId, Round } from "./types"
 
 const ids = (n: number): PlayerId[] => Array.from({ length: n }, (_, i) => `p${i + 1}`)
 
@@ -37,6 +37,45 @@ describe("countGamesPlayed", () => {
     const games = countGamesPlayed(players, [roundWith(players, ["p5"])])
     expect(games.get("p1")).toBe(1)
     expect(games.get("p5")).toBe(0)
+  })
+})
+
+describe("gamesCounted", () => {
+  const people = (n: number): Player[] => ids(n).map((id) => ({ id, name: id }))
+  // p1 to p5 on 1 court: p5 sits round 1, p4 round 2, so after 2 rounds
+  // p1 to p3 have 2 games and p4 and p5 have 1.
+  const twoRounds = [roundWith(ids(5), ["p5"]), roundWith(ids(5), ["p4"])]
+
+  it("counts the real games of players there from the start", () => {
+    expect([...gamesCounted(people(5), twoRounds).values()]).toEqual([2, 2, 2, 1, 1])
+  })
+
+  it("leaves out players who have left", () => {
+    const players = people(5).map((p) => (p.id === "p2" ? { ...p, left: { scaleUp: true } } : p))
+    expect([...gamesCounted(players, twoRounds).keys()]).toEqual(["p1", "p3", "p4", "p5"])
+  })
+
+  it("counts a joiner as having the fewest games of anyone in when they joined", () => {
+    const players = [...people(5), { id: "p6", name: "p6", joinedAt: 2 }]
+    expect(gamesCounted(players, twoRounds).get("p6")).toBe(1)
+  })
+
+  it("adds the games a joiner played after joining", () => {
+    const players = [...people(5), { id: "p6", name: "p6", joinedAt: 2 }]
+    const rounds = [...twoRounds, roundWith(ids(6), ["p1", "p2"])]
+    expect(gamesCounted(players, rounds).get("p6")).toBe(1 + 1)
+  })
+
+  it("counts a later joiner from what an earlier joiner counts as having", () => {
+    // After 3 rounds p6 has played 1 game and started with 1, so the fewest is 2, not 1.
+    const players = [...people(5), { id: "p6", name: "p6", joinedAt: 2 }, { id: "p7", name: "p7", joinedAt: 3 }]
+    const rounds = [...twoRounds, roundWith(ids(6), ["p1", "p2"])]
+    expect(gamesCounted(players, rounds).get("p7")).toBe(2)
+  })
+
+  it("starts a joiner at 0 when nobody was in before them", () => {
+    const players = people(4).map((p) => ({ ...p, joinedAt: 0 }))
+    expect([...gamesCounted(players, []).values()]).toEqual([0, 0, 0, 0])
   })
 })
 

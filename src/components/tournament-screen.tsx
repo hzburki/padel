@@ -1,4 +1,4 @@
-import { ChevronDown, Ellipsis, LoaderCircle, Pencil, Radio, Repeat, Scale, Share, Trash2, UserPlus, WifiOff } from "lucide-react"
+import { ChevronDown, Ellipsis, LoaderCircle, Pencil, Radio, Repeat, Scale, Share, Trash2, UserPlus, Users, WifiOff } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
@@ -18,9 +18,20 @@ import {
   scoreLockOn,
   sendChange,
 } from "@/lib/live"
-import { computeStandings, placesMovedByScaling, winners } from "@/lib/standings"
+import { computeStandings, keptAsScored, placesMovedByScaling, winners } from "@/lib/standings"
 import { deleteTournament, saveTournament } from "@/lib/storage"
-import { currentRoundIndex, previousSetup, renameTournament, setScore, unscoredMatchCount } from "@/lib/tournament"
+import { randomId } from "@/lib/ids"
+import {
+  addPlayer,
+  cleanPlayerName,
+  removePlayer,
+  currentRoundIndex,
+  previousSetup,
+  renameTournament,
+  setScore,
+  unscoredMatchCount,
+  type HowLong,
+} from "@/lib/tournament"
 import type { Match, PlayerId, Score, Tournament } from "@/lib/types"
 import { Screen } from "./screen"
 import { ScoreEntry } from "./score-entry"
@@ -29,6 +40,7 @@ import { copyLink } from "./copy-link"
 import { LiveBadge } from "./live-badge"
 import { NewBadge } from "./new-badge"
 import { useOnline } from "./online"
+import { PlayersForm } from "./players-form"
 import { RenameForm } from "./rename-form"
 import { renderShareCard, shareOrDownload } from "./share-card"
 import { Sheet } from "./sheet"
@@ -50,9 +62,9 @@ export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; 
   const [saveError, setSaveError] = useState(false)
   const [tab, setTab] = useState<Tab>("rounds")
   // Which sheet (other than score entry) is open.
-  const [confirm, setConfirm] = useState<"menu" | "rename" | "broadcast" | "finish" | "delete" | "congrats" | "scaling" | null>(
-    null,
-  )
+  const [confirm, setConfirm] = useState<
+    "menu" | "rename" | "players" | "broadcast" | "finish" | "delete" | "congrats" | "scaling" | null
+  >(null)
   // The full card to share, and a top-three preview for the screen.
   const [image, setImage] = useState<{ blob: Blob; previewUrl: string } | null>(null)
   // The last opened match, kept after closing so the sheet still has
@@ -105,7 +117,7 @@ export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; 
     const rows = computeStandings(
       tournament.players.map((p) => p.id),
       tournament.rounds,
-      { final: true },
+      { final: true, notScaled: keptAsScored(tournament.players) },
     )
     Promise.all([renderShareCard(tournament, rows), renderShareCard(tournament, rows, { podiumOnly: true })]).then(
       ([blob, preview]) => {
@@ -160,9 +172,10 @@ export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; 
   const showLive = live && !tournament.finished
   const playerIds = tournament.players.map((p) => p.id)
   const final = tournament.finished || unscored === 0
-  const standings = computeStandings(playerIds, tournament.rounds, { final })
+  const notScaled = keptAsScored(tournament.players)
+  const standings = computeStandings(playerIds, tournament.rounds, { final, notScaled })
   // Who the scaling for fewer games moved up or down; nobody before the end.
-  const moved = final ? placesMovedByScaling(playerIds, tournament.rounds) : undefined
+  const moved = final ? placesMovedByScaling(playerIds, tournament.rounds, notScaled) : undefined
   // Not everyone has played the same number of games, or might not have by
   // the end: worth explaining how that is evened out.
   const unevenGames = unscored > 0 || new Set(standings.map((r) => r.played)).size > 1
@@ -236,6 +249,17 @@ export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; 
   }
 
   const shownMatch = shown && tournament.rounds[shown.round]?.matches.find((m) => m.court === shown.court)
+
+  const add = (name: string, howLong: HowLong) => {
+    setConfirm(null)
+    update((t) => addPlayer(t, name, howLong, { newId: randomId }))
+    setToast({ text: `${cleanPlayerName(name)} is in` })
+  }
+
+  const leave = (playerId: PlayerId, howLong: HowLong, scaleUp: boolean) => {
+    setConfirm(null)
+    update((t) => removePlayer(t, playerId, howLong, scaleUp))
+  }
 
   const playAgain = () => {
     setConfirm(null)
@@ -341,7 +365,12 @@ export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; 
           </div>
           <div className="relative">
             {showLive && <LiveBadge />}
-            <StandingsTable rows={standings} nameOf={nameOf} moved={moved} />
+            <StandingsTable
+              rows={standings}
+              nameOf={nameOf}
+              moved={moved}
+              left={new Set(tournament.players.filter((p) => p.left).map((p) => p.id))}
+            />
           </div>
         </div>
       )}
@@ -384,6 +413,20 @@ export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; 
                 Edit names
                 {offline && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
               </button>
+              {!tournament.finished && (
+                <button
+                  type="button"
+                  // Players are changed online once there are other organisers: not offline.
+                  disabled={offline}
+                  onClick={() => setConfirm("players")}
+                  className="flex w-full items-center gap-3 px-4 py-4 text-left font-medium active:bg-muted disabled:text-muted-foreground"
+                >
+                  <Users className={`size-5 ${offline ? "" : "text-primary"}`} />
+                  Players
+                  <NewBadge until="2026-10-30" />
+                  {offline && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
+                </button>
+              )}
               {canShareLive && canShare(tournament) && (
                 <>
                   <button
@@ -407,7 +450,7 @@ export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; 
                     >
                       <UserPlus className={`size-5 ${online ? "text-primary" : ""}`} />
                       Add an organiser
-                      <NewBadge />
+                      <NewBadge until="2026-10-21" />
                       {!online && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
                     </button>
                   )}
@@ -447,6 +490,10 @@ export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; 
             }}
           />
         )}
+      </Sheet>
+
+      <Sheet open={confirm === "players"} onClose={() => setConfirm(null)}>
+        {confirm === "players" && <PlayersForm tournament={tournament} onAdd={add} onRemove={leave} />}
       </Sheet>
 
       <Sheet open={confirm === "finish"} onClose={() => setConfirm(null)}>
@@ -507,7 +554,7 @@ export function TournamentScreen({ id, watch = false, scoreKey }: { id: string; 
             computeStandings(
               tournament.players.map((p) => p.id),
               tournament.rounds,
-              { final: true },
+              { final: true, notScaled: keptAsScored(tournament.players) },
             ),
           ).map((id) => nameOf.get(id) ?? "")}
           canShare={image !== null}

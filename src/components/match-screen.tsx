@@ -368,7 +368,7 @@ export function MatchScreen({ id, watch = false, scoreKey }: { id: string; watch
                 >
                   <UserPlus className={`size-5 ${online ? "text-primary" : ""}`} />
                   Add an organiser
-                  <NewBadge />
+                  <NewBadge until="2026-10-21" />
                   {!online && <WifiOff className="ml-auto size-4.5" aria-label="Offline" />}
                 </button>
               )}

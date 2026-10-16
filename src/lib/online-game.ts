@@ -20,8 +20,17 @@ const americano = z.object({
   scoringMode: z.enum(["total", "firstTo"]),
   target: count,
   courts: count,
-  // By player id. `order` is the player's place in the list.
-  players: z.record(z.string(), z.object({ name: z.string(), order: count })),
+  // By player id. `order` is the player's place in the list. `left` and
+  // `joinedAt` only for players who left or joined mid game.
+  players: z.record(
+    z.string(),
+    z.object({
+      name: z.string(),
+      order: count,
+      left: z.object({ scaleUp: z.boolean() }).optional(),
+      joinedAt: count.optional(),
+    }),
+  ),
   rounds: z.array(
     z.object({
       matches: z.array(z.object({ court: count, teamA: pair, teamB: pair })),
@@ -82,7 +91,13 @@ export function toOnline(event: SavedEvent): OnlineGame {
     scoringMode,
     target,
     courts,
-    players: Object.fromEntries(players.map((player, order) => [player.id, { name: player.name, order }])),
+    // Firestore refuses a field set to undefined, so these are left out.
+    players: Object.fromEntries(
+      players.map(({ id, name, left, joinedAt }, order) => [
+        id,
+        { name, order, ...(left && { left }), ...(joinedAt !== undefined && { joinedAt }) },
+      ]),
+    ),
     rounds: rounds.map((round) => ({
       matches: round.matches.map(({ court, teamA, teamB }) => ({ court, teamA, teamB })),
       benched: round.benched,
@@ -109,16 +124,21 @@ export function fromOnline(id: string, document: { game?: unknown; json?: unknow
     // Firestore hands a map back in any order. A number missing in the
     // middle leaves no gap: the points after it move up.
     const numbers = Object.keys(points).sort((a, b) => Number(a) - Number(b))
-    return { version: 2, id, ...rest, teams: [teams[0], teams[1]], points: numbers.map((number) => points[number]) }
+    return { version: 3, id, ...rest, teams: [teams[0], teams[1]], points: numbers.map((number) => points[number]) }
   }
   const { players, rounds, scores, ...rest } = game
   return {
-    version: 2,
+    version: 3,
     id,
     ...rest,
     players: Object.entries(players)
       .sort(([, a], [, b]) => a.order - b.order)
-      .map(([playerId, player]) => ({ id: playerId, name: player.name })),
+      .map(([playerId, { name, left, joinedAt }]) => ({
+        id: playerId,
+        name,
+        ...(left && { left }),
+        ...(joinedAt !== undefined && { joinedAt }),
+      })),
     rounds: rounds.map((round, r) => ({
       matches: round.matches.map((m) => ({ ...m, score: scores[scoreName(r, m.court)] ?? null })),
       benched: round.benched,

@@ -13,9 +13,22 @@
       "ClaudeInChromeDomain(192.168.18.55:5173)",
       "mcp__claude-in-chrome__browser_batch",
       "Bash(lsof -iTCP -sTCP:LISTEN -P)"
+    ],
+    "deny": [
+      "Bash(git commit:*)",
+      "Bash(git * commit:*)",
+      "Bash(git checkout -b:*)",
+      "Bash(git switch -c:*)",
+      "Bash(git branch:*)"
     ]
   },
+  "extraKnownMarketplaces": {
+    "addy-agent-skills": {
+      "source": { "source": "github", "repo": "addyosmani/agent-skills" }
+    }
+  },
   "enabledPlugins": {
-    "frontend-design@claude-plugins-official": true
+    "frontend-design@claude-plugins-official": true,
+    "agent-skills@addy-agent-skills": true
   }
 }

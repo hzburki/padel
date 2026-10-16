@@ -141,7 +141,7 @@ import { saveTournament } from "./storage"
 // A whole game, since its online copy holds every field.
 const game = (id: string, fields: Partial<SavedEvent> = {}) =>
   ({
-    version: 2,
+    version: 3,
     kind: "americano",
     id,
     name: id,
@@ -156,7 +156,7 @@ const game = (id: string, fields: Partial<SavedEvent> = {}) =>
   }) as SavedEvent
 
 const match = (id: string): SavedEvent => ({
-  version: 2,
+  version: 3,
   kind: "match",
   id,
   name: id,

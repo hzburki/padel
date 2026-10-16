@@ -1,261 +1,218 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## How to answer in chat
 
-## Writing style
+- **Short answer first.** No build-up, no restating the question.
+- **Plain words.** "I thought of", not "I conceived". Avoid leverage, utilize, facilitate, robust,
+  comprehensive, delve, ensure that.
+- **Explain only when asked.** If something is risky or surprising, one sentence is enough.
+- No filler at the start, no summary at the end.
 
-This is about answers to the user in chat, not code or comments.
+## The app
 
-- **Short answer first.** Lead with the result or the direct answer. Don't build up to it, don't restate
-  the question, don't preview what you're about to say.
-- **Plain words only.** Use the simplest word that does the job: "I thought of", not "I conceived". Avoid
-  leverage, utilize, facilitate, robust, comprehensive, delve, ensure that.
-- **Explain only when asked.** No reasoning walkthrough, no step-by-step account of how the solution was
-  reached, unless the user asks for it. If something is genuinely risky or surprising, one sentence is
-  enough.
-- No filler openers or closing summaries.
+A phone-first PWA for casual padel among friends. Two kinds of game, picked on the New game screen:
 
-## Project
+- **Americano**: a tournament for 4 or more players, partners change every round.
+- **Match**: one 2 v 2 match, scored in points, games and sets.
 
-A mobile-first PWA for casual padel among friends. Two kinds of game, picked on the New game screen:
+No other format (no Mexicano, no draws, no box leagues).
 
-- **Americano** — a tournament for 4 or more players with rotating partners.
-- **Match** — one 2 v 2 match scored point by point: points, games, sets.
+- **Works offline, always.** Every game lives in the browser (IndexedDB; `localStorage` only for small UI
+  settings). No accounts, no sync. The app must work with no connection, even on a cold start.
+- **Made for one hand, courtside.** Big tap targets within thumb reach, standings you can read at a glance.
+  Desktop just gets the same layout.
+- **Few words, more pictures.** Show an icon, a number, a badge or a worked example instead of text. If a
+  sentence is needed, write one short one.
 
-No other padel format (no Mexicano, no classic draws, no box leagues) is in scope.
+## Broadcasting a game
 
-**Local-first.** All tournament and match state lives in the browser (IndexedDB for the games;
-`localStorage` is fine for small UI prefs). There are no user accounts and no sync. The app must fully work
-offline, including a cold start with no connection — this is a hard constraint, not a v1 shortcut.
+The only time anything goes online. All network code is in `src/lib/live.ts`. The rules are in
+`src/lib/broadcast.ts` (pure, tested) and `firestore.rules` (tested in `shots/rules.shots.ts`).
 
-**One exception: broadcasting a game.** When the organiser taps "Broadcast live", a copy of that game goes to
-Firestore and friends with the link follow it live. Nothing is sent before that tap, and tapping it is the
-organiser's consent to store that game online. The copy on the organiser's phone stays the real one; the
-online copy is only ever overwritten from it. The organiser's browser signs in anonymously, which is what
-lets only them update or delete the copy (`firestore.rules`). All of it lives in `src/lib/live.ts`: the dev
-server uses the local emulators (`npm run emulators`), a build uses the project in the `VITE_FIREBASE_*`
-values, and without them the broadcast button is hidden. Do not add any other network call, server or hosted
-database, and never make a screen depend on the connection.
-
-**The exception inside the exception: a game with more than one organiser.** "Add an organiser" gives a
-second link (`/t/<id>/<key>`) that makes a friend an organiser too: they score, undo, edit names, hand out
-both links and finish the game. Only the person who made it can delete it for everyone. From the moment that
-link exists, the online copy is the real one: every organiser's phone, the first one's included, sends only
-the fields it changed (`sendChange`) and follows the online copy, and no phone ever sends its whole copy over
-the top, because that wipes another organiser's score. The screen shows and saves a change at once and never
-waits for the send; when two organisers change the same score, point or name, the later write stays. The
-online copy is a map of fields (`src/lib/online-game.ts`), not the stored game: scores, players and points
-are maps there, so each can be written by itself. So changing that game needs a connection: with none,
-the screen says so and greys out what the phone may do. What a phone may never do is not shown at all. If
-the first organiser goes live with another game, a game with another organiser passes to one of them. A
-game with no organiser link is untouched by all of this and still works fully offline. In the code the
-link's key is the score key and the added organisers are `scorers`. The rules are in `src/lib/broadcast.ts`
-(pure, tested) and `firestore.rules` (tested in `shots/rules.shots.ts`).
-
-**A broadcast game finishes by itself 6 hours after it was made** (`followTimeLeft`). Nothing runs on a
-server: each phone works it out from `createdAt` when it opens the game, and an organiser's phone finishes
-it online for everyone. A game that was never broadcast never ends by itself.
-
-**Local Firebase only, unless told otherwise.** When coding or testing on localhost, use the local emulators
-and nothing else. Do not point the app at the hosted Firebase project, and do not read, write or deploy to it
-(rules, data, config), unless the user explicitly says to for that task. A go-ahead covers that one task, not
-the ones after it.
-
-**Mobile-first.** The primary surface is a phone held one-handed, courtside, by someone entering scores
-between games. Design for thumb reach, large tap targets, and glanceable standings. Desktop is a
-nice-to-have that falls out of a responsive layout.
-
-**Few words, more visuals.** Keep the text on every screen to the minimum. Nobody reads a paragraph
-courtside. Show it instead: an icon, a number, a badge, a worked example set out like one in a textbook.
-If something needs a sentence, write one short one, not three.
+- **Broadcast live** sends a copy of the game to Firestore, so friends with the link (`/t/<id>` or `/m/<id>`)
+  can follow it. Nothing is sent before that tap, and the tap is the organiser's OK to store it online. The
+  phone's copy is the real one; the online copy is only ever overwritten from it. The organiser signs in
+  anonymously, which is what lets only them change or delete it.
+- **Add an organiser** gives a second link (the watch link plus a key) that makes a friend an organiser too:
+  they score, undo, rename, share both links and finish the game. Only the person who made the game can
+  delete it for everyone. In the code the key is the score key and the added organisers are `scorers`.
+  - From then on the online copy is the real one. Every organiser's phone, the first one's too, sends only
+    the fields it changed (`sendChange`) and follows the online copy. No phone ever sends its whole copy:
+    that wipes another organiser's score. When two change the same thing, the later write stays.
+  - The online copy is a map of fields (`src/lib/online-game.ts`), not the stored game, so each score,
+    player and point can be written on its own.
+  - The screen shows and saves a change at once and never waits for the send. With no connection it says
+    so and greys out what that phone may do. What a phone may never do is not shown at all.
+  - If the first organiser goes live with another game, this one passes to another organiser.
+  - A game with no organiser link is untouched by any of this and works fully offline.
+- **A broadcast game finishes by itself 6 hours after `createdAt`** (`followTimeLeft`). No server: each phone
+  works it out when it opens the game, and an organiser's phone finishes it online for everyone. A game
+  that was never broadcast never ends by itself.
+- The dev server uses the local emulators (`npm run emulators`). A build uses the `VITE_FIREBASE_*` values;
+  without them the broadcast button is hidden.
 
 ## Stack
 
-- React 19 + Vite 8 + TypeScript 6
-- **Tailwind v4** — CSS-first. There is no `tailwind.config.js`; theme tokens live in `src/index.css`
-  under `@theme`. Don't reach for a config file that isn't there.
-- **shadcn/ui**, `radix-nova` preset, Lucide icons, Geist font. Components are copied into
-  `src/components/ui/` — they are project source, not a dependency. Edit them directly rather than
-  wrapping them to change a style. Add more with `npx shadcn@latest add <name>`.
-- **oxlint**, not ESLint — that is what the Vite template ships now.
-- **Vitest** for the pure logic in `src/lib/`.
-- **Firebase** (anonymous Auth + Firestore), only for sharing a game by link. The site itself is hosted on
-  Cloudflare Pages, not Firebase Hosting.
+- React 19, Vite 8, TypeScript 6. `zod` checks what is read back from online.
+- **Tailwind v4**, set up in CSS only: there is no `tailwind.config.js`. Theme tokens are in `src/index.css`
+  under `@theme`.
+- **shadcn/ui** (`radix-nova`), Lucide icons, Archivo font (the only one). `src/components/ui/` is our own code: edit it
+  directly, don't wrap it. Add a component with `npx shadcn@latest add <name>`.
+- **oxlint**, not ESLint. **Vitest** for `src/lib/`.
+- **Firebase** (anonymous Auth + Firestore) for broadcasting only. The site is hosted on Cloudflare Pages.
 - `vite-plugin-pwa` (autoUpdate) for the service worker and manifest.
-- **Playwright** (`@playwright/test`) only for `npm run shots`, which runs in Chrome's engine and Safari's.
-  The walk that compares screens with stored images is `shots/screens.shots.ts`, the games it starts from
-  `shots/seed.ts`. The games played by tapping are the `shots/flows-*.shots.ts` files, with their shared
-  steps in `shots/taps.ts`; a new feature or game variant gets a flow there. The images in `shots/images`
-  stay on this machine (gitignored). Never replace one without the user's yes.
-- Path alias `@/` → `src/`. TypeScript 6 dropped `baseUrl`, so `paths` are relative to the tsconfig; the
-  same alias is repeated in `vite.config.ts`.
+- **Playwright**, only for `npm run shots`, in Chrome and Safari. `shots/screens.shots.ts` compares each
+  screen with a stored image, starting from the games in `shots/seed.ts`. `shots/flows-*.shots.ts` play whole
+  games by tapping, with shared steps in `shots/taps.ts`; a new feature or game variant gets a flow there.
+  `shots/images` stays on this machine (gitignored).
+- `@/` means `src/`. It is set in the tsconfig `paths` (TypeScript 6 has no `baseUrl`) and again in
+  `vite.config.ts`.
 
 ## Commands
 
 ```bash
 npm run dev          # dev server
 npm run build        # tsc -b && vite build
-npm run preview      # serve the build — the only way to exercise the service worker
+npm run preview      # serve the build: the only way to try the service worker
 npm run lint         # oxlint
 npm test             # vitest run
 npm run test:watch
 npm run shots        # Chrome and Safari: compare every screen with its image, and play whole games
+npm run emulators    # local Firebase, needed to broadcast in dev
 
 npx vitest run src/lib/americano.test.ts           # one file
 npx vitest run -t "benches the player"             # one test by name
 ```
 
+## Where things live
+
+| Path                 | What it holds                                                                  |
+| -------------------- | ------------------------------------------------------------------------------ |
+| `src/lib/`           | All the rules, pure and tested: each `x.ts` sits next to its `x.test.ts`.      |
+| `src/lib/types.ts`   | The stored shapes: `Tournament`, `SetMatch`, `SavedEvent`.                     |
+| `src/lib/storage.ts` | IndexedDB, the stored version (`CURRENT_VERSION`) and `migrate`.               |
+| `src/components/`    | Screens (`*-screen.tsx`) and the parts they share. No router: `stack-navigator.tsx` and `nav.ts`. |
+| `src/components/ui/` | shadcn components.                                                             |
+| `shots/`             | Playwright: screen images, played games, Firestore rules tests.                |
+| `public/`            | Icons, the link preview image, and `_headers` for Cloudflare Pages.            |
+| `firestore.rules`    | Who may write a broadcast game online.                                         |
+
+## Never do these
+
+- Never use port 5173: it is the user's own dev server.
+- Never broadcast on 5301: a build reads `.env`, which points at the real Firebase project.
+- Never read, write or deploy to the real Firebase project (rules, data, config) unless the user says so for
+  that task. A yes covers that one task only.
+- Never add a network call, server or database outside `src/lib/live.ts`, or make a screen wait for the
+  connection.
+- Never apply `teamA + teamB === target` outside total-points mode: it is wrong in first-to mode.
+- Never store a second copy of a match's score.
+- Never send a game's whole online copy once it has a second organiser.
+- Never change a stored shape without bumping `version` and adding a step to `migrate`.
+- Never replace an image in `shots/images` without the user's yes.
+- Never add a dependency, folder layer or state library, or change a stored shape, without asking first.
+
 ## Testing in the browser
 
-Three app ports, and no others. Port 5173 is the user's own dev server — never start, stop or test on it.
+Only these ports:
 
-| Port | Start it with                                  | Use it for                                          |
-| ---- | ---------------------------------------------- | --------------------------------------------------- |
-| 5199 | `npm run dev -- --port 5199 --strictPort`      | The organiser: every feature, start to finish       |
-| 5198 | `npm run dev -- --port 5198 --strictPort`      | A friend following a broadcast from 5199            |
-| 5301 | `npm run preview -- --port 5301 --strictPort`  | The build: service worker, offline, install         |
+| Port | Start it with                                 | Use it for                                  |
+| ---- | --------------------------------------------- | ------------------------------------------- |
+| 5199 | `npm run dev -- --port 5199 --strictPort`     | The organiser: every feature, start to end  |
+| 5198 | `npm run dev -- --port 5198 --strictPort`     | A friend following a broadcast from 5199    |
+| 5301 | `npm run preview -- --port 5301 --strictPort` | The build: service worker, offline, install |
 
-- Always pass `--strictPort`. Without it Vite quietly moves to the next free port. If a port is taken, find
-  what holds it and reuse or stop it; don't pick a new number.
-- Each port is its own origin, so it has its own IndexedDB and its own anonymous sign-in. That is why the
-  friend needs 5198: on 5199 they would be the organiser. It also means games from an earlier session are
-  still there — clear the site data, or start a new game, before trusting what is on screen.
-- Broadcasting needs `npm run emulators` running (Auth 9099, Firestore 8080, both fixed in `firebase.json`
-  and `src/lib/live.ts`).
-- **Never broadcast on 5301.** A build reads `.env`, which holds the hosted project, so a broadcast there
-  goes to real Firebase. Test broadcasting on 5199 and 5198 only.
+- Always pass `--strictPort`, or Vite quietly moves to another port. If a port is taken, find what holds it
+  and reuse or stop it.
+- Each port has its own IndexedDB and its own sign-in, so the friend must be on 5198. Old games stay there
+  too: clear the site data or start a new game before trusting the screen.
+- Broadcasting needs `npm run emulators` (Auth 9099, Firestore 8080, both fixed in `firebase.json` and
+  `src/lib/live.ts`).
 - Test at phone size (390 × 844) first.
 - Stop the servers you started when you are done.
 
-## Domain: Americano
+## Americano
 
-This is the core of the app and the part that is easy to get wrong. Americano scores **individual
-players**, not teams — teams exist only for the duration of one round.
+The core of the app and the easiest part to get wrong. It scores **players**, not teams: a team lasts one
+round.
 
-- Players are paired into doubles teams each round; a player's score for a round is the number of points
-  *their team* scored.
-- Games are played to a **point target**, not to games/sets. The organiser picks any target from 8 to 32 at
-  setup. Two scoring modes, both required:
-  - **Total points** — the two scores always sum to the target. In an 8-point game, 4–4 and 6–2 are both
-    valid. Invariant: `teamA + teamB === target`.
-  - **First to** — a team wins by reaching the target. Scores do not sum to anything fixed; the winner's
-    score equals the target. Invariant: `max(teamA, teamB) === target && min(teamA, teamB) < target`.
+- A player's score for a round is the points their team scored.
+- Games go to a point target, 8 to 32, set at the start. Two modes, both needed, fixed for the tournament:
+  - **Total points**: the two scores add up to the target (8-point game: 4–4 or 6–2).
+  - **First to**: the winner's score is the target, the loser's is below it.
+- Standings: points, then point difference, then head-to-head, then wins.
+- In the **final** standings only, a player with fewer games has points and difference scaled up to the most
+  games played: `points × most games ÷ their games`.
+- 4 players or more, no top limit. A match is always 4 players. Courts used each round:
+  `min(courts, floor(players / 4))`. 9 players on 2 courts: 1 sits. 12 on 2 courts: 4 sit. Never assume the
+  player count divides by 4.
+- Only the players who don't fit sit out: those with the most games so far, ties picked at random. After
+  every round, `max(games) - min(games) <= 1`.
+- The whole schedule is made before round 1 and never changes with results. Partners rotate so that, as far
+  as the count allows, everyone partners and faces everyone once.
+- A player joining or leaving (`addPlayer`, `removePlayer` in `tournament.ts`) keeps every round up to the
+  last one with a score and makes the rest again with the same rules. A leaver stays in `players` with
+  `left`; a joiner has `joinedAt`.
+- The schedule is made in `src/lib/americano.ts` (sitting out in `bench.ts`). React only shows it.
 
-  The mode is one tournament-level setting, fixed for the whole tournament. Do not hardcode the
-  total-points invariant into score entry or validation — it is wrong in first-to mode, and that is the
-  easiest bug to ship here.
-- Standings rank by total points scored. Tiebreakers in order: point difference (scored − conceded), then
-  head-to-head, then wins.
-- Any number of players from 4 up, no upper bound. A match is always 4 players. The organiser sets the
-  **number of courts** available at setup (1 or more). Courts in play per round is
-  `min(courts, floor(playerCount / 4))`; everyone else sits out that round. 9 players on 2 courts: two
-  matches at once, one player sits. 12 players on 2 courts: four sit. 4 players is the minimum tournament:
-  one court, nobody sits. Never assume `playerCount % 4 === 0` or that every player fits on a court.
-- **Nobody sits out unless the maths forces it** — players beyond `4 × courts in play` sit, nobody else.
-  Bench the players with the **most** games played so far, ties broken randomly. The rule to hold after
-  every round is `max(gamesPlayed) - min(gamesPlayed) <= 1`. This is a game between friends: everyone gets
-  the same court time and the same chance to enjoy it.
-- Pairings are *fixed up front*. The full schedule is generated before round 1, rotating partners so that,
-  as far as the player count allows, everyone partners with everyone else once and faces everyone. The
-  schedule does not react to results.
+## Match
 
-Keep the scheduling logic in a pure, framework-free module (`src/lib/americano.ts`) that takes players and
-returns pairings. It is the highest-value thing to unit test; the React layer should only read and render
-its output.
+Two fixed pairs, tennis scoring. The rules are in `src/lib/set-match.ts`. The stored type is `SetMatch`,
+because `Match` already means one Americano game.
 
-## Domain: Match
+- Only who won each point is stored, in order. Games, sets, winner and stats come from replaying it
+  (`replay`). Undo drops the last point.
+- `scoreBy`: **points** (default) or **games**. By games, each entry is one game (the tie-break too), and
+  there are no points or 40–40 to show. Don't assume a game has points.
+- Game: 0, 15, 30, 40. At 40–40: **advantage** (default) or **golden point**.
+- Set: first to N games, two clear, N from 2 to 9 (default 6). At N–N a tie-break: first to 7 points, two
+  clear, counts as 7–6. No golden point in a tie-break.
+- Length: 1, 3 or 5 sets, worded as "best of" or "first to" (`setsAs`). Only the wording changes. The last
+  set has the same tie-break.
+- The rules are locked once the match starts.
+- A won match isn't finished until the organiser confirms it, so the last point can still be undone.
+- Not tracked: who serves, how long it took.
 
-One match between two fixed pairs, with ordinary tennis-style scoring. The rules live in
-`src/lib/set-match.ts`; the stored type is `SetMatch`, because `Match` already means one Americano game.
+## Saving
 
-- A match stores only **who won each point**, in order. Games, sets, the winner and the stats are worked
-  out by replaying that log (`replay`). Undo drops the last point. Never store a second copy of the score.
-- The organiser picks how the score is entered (`scoreBy`), fixed for the match: **points** (every point,
-  the default) or **games** (only who won each game). Scored by games, the same log holds one entry per
-  game, the tie-break is one entry like any other game, and there are no points, deuce games or 40–40 rule
-  to show. Don't assume a game has points.
-- Game: 0, 15, 30, 40. The organiser picks what happens at 40–40, fixed for the match: **advantage** (two
-  points in a row, the default) or **golden point** (the next point wins).
-- Set: first to N games with two clear, N from 2 to 9 (default 6). At N–N a **tie-break** decides it: first
-  to 7 points, two clear, counted as one game (7–6). The golden point never applies inside a tie-break.
-- Match: 1 set, best of 3 or best of 5. The organiser can pick the same lengths as "first to" 1, 2 or 3
-  sets; that changes only the wording (`setsAs`), never the rules. The final set uses the same tie-break.
-- The rules are fixed once the match starts — changing them would re-read every point already played.
-- A decided match is not finished until the organiser confirms it, so the last point can still be undone.
-- Not tracked: who serves, and how long the match took.
+Each game is one saved record, `kind` `"americano"` or `"match"`, in the same IndexedDB store. Save after
+every score or point: the phone will be locked and reloaded mid-game, and losing scores is the worst thing
+that can happen. Games already saved in a browser must still load after any change.
+
+## Result image
+
+When a game ends the app makes a PNG of the standings or the match score, for WhatsApp. It must be a real
+file: `navigator.share` with a `File`, or a download when sharing isn't there. It is drawn on a canvas
+(`share-card.ts`, `match-share-card.ts`), apart from the on-screen standings, and must stay readable as a
+chat thumbnail.
 
 ## Writing code
 
-These hold for every change, however small.
+- Easy to read: clear names, short functions, no tricks.
+- The simplest thing that works. Nothing "for later".
+- No dead code: delete whatever a change leaves unused, in the same change.
+- Rules live in pure functions in `src/lib/`. Components only read and show them.
+- No wrapper or helper until the third use.
+- When you change a rule in `src/lib/`, update its tests in the same change. Test names are plain
+  sentences that state the rule ("benches the player with the most games when 6 players are entered"), so
+  the names alone explain the code.
+- Before saying it is done, run `npm test` and `npm run lint`. Report a failure as a failure.
+- When a feature is done, update `README.md` for anything a player or developer would notice. Update this
+  file only if a rule in it is now wrong or missing.
 
-- **Easy to read.** Write for the person reading it later: clear names, short functions, no clever tricks.
-- **The simplest thing that works.** Solve the problem asked, not the ones it might grow into. No extra
-  options, layers or settings "for later".
-- **Leave no dead code.** If a change leaves a function, component, type, prop, import, style or test with
-  nothing using it, delete it in the same change. Don't comment it out or keep it "just in case".
-- **Test new and changed code.** When you change a rule in `src/lib/`, add or update its tests in the same
-  change. See "Tests are the explanation" below for how to name them.
-- **Run the tests yourself.** After changing anything that already exists, run `npm test` and
-  `npm run lint` before saying it is done. Report a failure as a failure.
-- **Document when the feature is done.** Once the code is written, update `README.md` for anything a
-  player or a developer would notice. Update `CLAUDE.md`, or any other doc, only if a rule or instruction
-  in it is now wrong or missing.
+## Delivering work
 
-## Delivering code the user can review
+The user wants to understand every change.
 
-The user wants to understand every change. Big mixed diffs make that impossible. These rules keep review
-cheap; none of them cost time at write time, so they are not a reason to deliver slower or in smaller
-scope than asked.
-
-**Ship one slice at a time.** A slice is one thing the user can open the app and try, or one pure module
-plus its tests. Finish it, commit it, write the change brief, then start the next. Don't stack three
-features into one delivery and hand over 800 lines at once.
-
-**Never mix kinds of change in one commit.** A rename, a reformat, a refactor and a feature are four
-commits. Mixed diffs are where understanding dies — the five lines that matter get buried in four hundred
-that don't. In particular, don't reformat or rename things you happen to be passing through.
-
-**One commit, one idea.** The message says *why*; the diff already says what.
-
-**After every slice, post a change brief** in chat — plain words, short, this shape:
-
-- **Works now:** one line, what the user can do that they couldn't before.
-- **Read this first:** the one file carrying the idea. Everything else is named as wiring.
-- **Files:** one line each, why it changed.
-- **Watch out:** anything guessed at, stubbed, hardcoded, or that you'd do differently. If this is empty,
-  you didn't look hard enough.
-
-**Tests are the explanation.** Every pure module in `src/lib/` gets a test file whose test names are plain
-sentences stating the rule — "benches the player with the most games when 6 players are entered". The user
-should be able to read the test names alone and know what the code does, without reading the code.
-
-**Keep the rules out of the components.** Tournament logic lives in pure functions in `src/lib/`; React
-reads them and renders. A pure function can be checked against a worked example in your head; a rule
-tangled into a component can only be checked by running the app.
-
-**No abstraction until the third use.** A wrapper with one caller is a layer the reviewer has to hold in
-their head for nothing.
-
-**Stop and ask before anything structural** — a new dependency, a new folder layer, a state library, or a
-change to the shape of a stored tournament. These are the changes that are expensive to undo later.
-
-## Persistence
-
-A tournament or a match is the unit of persistence, told apart by `kind` (`"americano"` or `"match"`) and
-kept in the same IndexedDB store. A tournament holds its players, number of courts, point target, scoring
-mode, the rounds played so far, their scores, and the sit-out history; a match holds its two teams, its
-rules and its point log. Persist after every score entry or point — the phone will be backgrounded, locked, and
-reloaded mid-tournament, and losing a round's scores is the worst failure mode this app has. Schema changes
-need a migration path for tournaments already saved in a user's browser; version the stored shape from the
-start.
-
-## Shareable result image
-
-When a tournament ends the app produces a PNG of the final standings, and when a match ends a PNG of its
-score, both meant for WhatsApp and social feeds.
-It has to be a real image file the user can share or save — `navigator.share` with a `File`, falling back
-to a download when the Web Share API is unavailable — not something the user has to screenshot.
-
-Render it client-side (canvas, or DOM-to-canvas over a hidden fixed-width node). Keep the share layout as
-its own component, separate from the on-screen standings: the screen is a scrollable phone-width list,
-while the image is a fixed-aspect card that still has to be readable as a chat thumbnail.
+- Never commit and never make a branch. The user reviews and commits. Leave the work uncommitted on the
+  current branch.
+- One slice at a time: one thing to try in the app, or one pure module with its tests. Finish it, post the
+  brief, then start the next.
+- Keep each slice to one idea. A rename, a reformat, a refactor and a feature are four slices. Don't
+  reformat or rename code you are only passing through.
+- After each slice, post a change brief:
+  - **Works now:** one line, what the user can do now.
+  - **Read this first:** the one file with the idea. The rest is wiring.
+  - **Files:** one line each, why it changed.
+  - **Watch out:** anything guessed, stubbed, hardcoded, or that you'd do differently. If this is empty,
+    you didn't look hard enough.
