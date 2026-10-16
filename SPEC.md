@@ -67,8 +67,9 @@ The rule stays: points and difference scaled up to the most matches played. A le
 ### Rules
 
 - At least 4 players must still be in. Remove is not offered at 4.
-- A player can't be removed while they are in an unscored match of a round that is kept (the current,
-  partly scored round). The screen says to score that match first.
+- A player in an unscored match of the partly scored round can be removed. The player sitting out with the
+  fewest games takes their place, so the other 3 keep their match. With nobody sitting out, that match is
+  dropped and the other 3 sit out the round.
 - A new name can't match a player still in, ignoring case. A player who left can be added again by name, as a new player.
 - Not possible once the tournament is finished, or once the last round has any score (nothing is left to
   rebuild). The screen says "All rounds are played. Finish the tournament."
@@ -172,7 +173,7 @@ export function addPlayer(tournament: Tournament, name: string, length: "sameTim
   - "takes rounds away for a leaver with Same matches"
   - "adds rounds when a leave drops to 1 court with Same matches"
   - "won't remove a player below 4 still in"
-  - "won't remove a player with an unscored match in a kept round"
+  - "puts the player sitting out in their place, so the other 3 keep their match"
   - "leaves a Keep as scored leaver out of the final scaling"
   - online copy round trip with a left player and a joiner; `changedFields` sends only the new player and
     `rounds`
