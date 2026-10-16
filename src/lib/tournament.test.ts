@@ -478,29 +478,83 @@ describe("removing a player", () => {
   it("won't remove a player below 4 still in", () => {
     const t = playing(5, 1, 5, 1)
     const once = removePlayer(t, t.players[0].id, "sameTime", true)
-    expect(removePlayerProblems(once, once.players[1].id)).toEqual(["At least 4 players must stay in."])
+    expect(removePlayerProblems(once)).toEqual(["At least 4 players must stay in."])
   })
 
-  it("won't remove a player with an unscored match in a kept round", () => {
-    const t = playing(8, 2, 7, 3)
-    t.rounds[3].matches[0].score = { a: 10, b: 6 }
-    const waiting = t.rounds[3].matches[1].teamA[0]
-    expect(removePlayerProblems(t, waiting)).toEqual(["Score their match in this round first."])
+  describe("from an unscored match in the partly scored round", () => {
+    // 9 players, 2 courts: round 4 has one match scored, one waiting, and one
+    // player sitting out.
+    function waitingRound() {
+      const t = playing(9, 2, 9, 3)
+      t.rounds[3].matches[0].score = { a: 10, b: 6 }
+      return t
+    }
+
+    it("removes them", () => {
+      const t = waitingRound()
+      expect(removePlayerProblems(t)).toEqual([])
+    })
+
+    it("puts the player sitting out in their place, so the other 3 keep their match", () => {
+      const t = waitingRound()
+      const match = t.rounds[3].matches[1]
+      const leaver = match.teamA[0]
+      const sub = t.rounds[3].benched[0]
+      const after = removePlayer(t, leaver, "sameTime", true).rounds[3]
+      expect(after.matches[1]).toEqual({ ...match, teamA: [sub, match.teamA[1]] })
+      expect(after.benched).toEqual([])
+    })
+
+    it("leaves the scored match in that round as it was", () => {
+      const t = waitingRound()
+      const after = removePlayer(t, t.rounds[3].matches[1].teamA[0], "sameTime", true)
+      expect(after.rounds[3].matches[0]).toEqual(t.rounds[3].matches[0])
+    })
+
+    it("puts in the player sitting out with the fewest games", () => {
+      // 10 players, 2 courts: two sit out round 4. Give one of them, `fewer`,
+      // a game less by swapping them out of an earlier match.
+      const t = playing(10, 2, 9, 3)
+      t.rounds[3].matches[0].score = { a: 10, b: 6 }
+      const games = (id: string) => t.rounds.slice(0, 3).filter((r) => placed({ ...t, rounds: [r] }, 0).includes(id)).length
+      const [fewer, more] = [...t.rounds[3].benched].sort((x, y) => games(x) - games(y))
+      const earlier = t.rounds.slice(0, 3).find((r) => placed({ ...t, rounds: [r] }, 0).includes(fewer) && r.benched.some((id) => id !== more))!
+      const swapIn = earlier.benched.find((id) => id !== more)!
+      for (const m of earlier.matches) {
+        m.teamA = m.teamA.map((id) => (id === fewer ? swapIn : id)) as typeof m.teamA
+        m.teamB = m.teamB.map((id) => (id === fewer ? swapIn : id)) as typeof m.teamB
+      }
+      earlier.benched = earlier.benched.map((id) => (id === swapIn ? fewer : id))
+
+      const after = removePlayer(t, t.rounds[3].matches[1].teamB[0], "sameTime", true).rounds[3]
+      expect(placed({ ...t, rounds: [after] }, 0)).toContain(fewer)
+      expect(after.benched).toEqual([more])
+    })
+
+    it("drops the match when nobody sits out, and the other 3 sit out instead", () => {
+      const t = playing(8, 2, 7, 3)
+      t.rounds[3].matches[0].score = { a: 10, b: 6 }
+      const match = t.rounds[3].matches[1]
+      const [leaver, ...others] = [...match.teamA, ...match.teamB]
+      const after = removePlayer(t, leaver, "sameTime", true).rounds[3]
+      expect(after.matches).toEqual([t.rounds[3].matches[0]])
+      expect([...after.benched].sort()).toEqual([...others].sort())
+    })
   })
 
   it("removes a player who sat out the partly scored round", () => {
     const t = playing(9, 2, 9, 3)
     t.rounds[3].matches[0].score = { a: 10, b: 6 }
-    expect(removePlayerProblems(t, t.rounds[3].benched[0])).toEqual([])
+    expect(removePlayerProblems(t)).toEqual([])
   })
 
   it("won't remove a player once every round is scored", () => {
     const t = playing(8, 2, 7, 7)
-    expect(removePlayerProblems(t, t.players[0].id)).toEqual(["All rounds are played. Finish the tournament."])
+    expect(removePlayerProblems(t)).toEqual(["All rounds are played. Finish the tournament."])
   })
 
   it("won't remove a player once the tournament is finished", () => {
     const t = { ...playing(8, 2, 7, 7), finished: true }
-    expect(removePlayerProblems(t, t.players[0].id)).toEqual(["The tournament is finished."])
+    expect(removePlayerProblems(t)).toEqual(["The tournament is finished."])
   })
 })

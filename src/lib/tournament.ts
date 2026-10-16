@@ -1,5 +1,5 @@
 import { continueSchedule, generateSchedule, sameMatchesRounds } from "./americano"
-import { courtsInPlay, gamesCounted, type Rng } from "./bench"
+import { courtsInPlay, gamesCounted, shuffle, type Rng } from "./bench"
 import { isValidTarget, MAX_TARGET, MIN_TARGET } from "./scoring"
 import type { Player, PlayerId, SavedEvent, Score, ScoringMode, Tournament } from "./types"
 
@@ -280,15 +280,10 @@ export function addPlayer(
 }
 
 // What stops a player from being removed, worded for the organiser.
-export function removePlayerProblems(tournament: Tournament, id: PlayerId): string[] {
+export function removePlayerProblems(tournament: Tournament): string[] {
   const stop = cannotChangePlayers(tournament)
   if (stop) return [stop]
   if (stillIn(tournament.players).length <= MIN_PLAYERS) return [`At least ${MIN_PLAYERS} players must stay in.`]
-  const kept = tournament.rounds.slice(0, firstOpenRound(tournament))
-  const unscored = kept.some((r) =>
-    r.matches.some((m) => m.score === null && [...m.teamA, ...m.teamB].includes(id)),
-  )
-  if (unscored) return ["Score their match in this round first."]
   return []
 }
 
@@ -296,15 +291,41 @@ function withLeaver(tournament: Tournament, id: PlayerId, scaleUp: boolean): Pla
   return tournament.players.map((p) => (p.id === id ? { ...p, left: { scaleUp } } : p))
 }
 
-// Rounds left after removing a player, for the organiser to see before confirming.
-export function roundsLeftAfterRemove(tournament: Tournament, id: PlayerId, howLong: HowLong): number {
-  return roundsLeft(tournament, withLeaver(tournament, id, true), howLong)
+// The leaver taken out of any unscored match in the kept rounds (the partly
+// scored one). The player sitting out with the fewest games takes their
+// place, ties picked at random, so the other 3 keep their match. With nobody
+// sitting out, the match is dropped and the other 3 sit out instead.
+function withoutLeaverInKeptRounds(tournament: Tournament, id: PlayerId, rng: Rng = Math.random): Tournament {
+  const from = firstOpenRound(tournament)
+  const rounds = tournament.rounds.map((round, r) => {
+    const match = round.matches.find((m) => m.score === null && [...m.teamA, ...m.teamB].includes(id))
+    if (r >= from || !match) return round
+    const games = gamesCounted(tournament.players, tournament.rounds.slice(0, r))
+    const sub = shuffle(round.benched, rng).sort((x, y) => (games.get(x) ?? 0) - (games.get(y) ?? 0))[0]
+    if (sub === undefined) {
+      return {
+        matches: round.matches.filter((m) => m !== match),
+        benched: [...round.benched, ...match.teamA, ...match.teamB].filter((p) => p !== id),
+      }
+    }
+    const swap = (team: [PlayerId, PlayerId]) => team.map((p) => (p === id ? sub : p)) as [PlayerId, PlayerId]
+    return {
+      matches: round.matches.map((m) => (m === match ? { ...m, teamA: swap(m.teamA), teamB: swap(m.teamB) } : m)),
+      benched: round.benched.filter((p) => p !== sub),
+    }
+  })
+  return { ...tournament, rounds }
 }
 
-// A copy where the player has left: their scored games stay, they play no
-// more rounds and can't come back. The rounds up to the last one with a
-// score are kept; the rest are made again without them. Call only once
-// removePlayerProblems() is empty.
+// Rounds left after removing a player, for the organiser to see before confirming.
+export function roundsLeftAfterRemove(tournament: Tournament, id: PlayerId, howLong: HowLong): number {
+  return roundsLeft(withoutLeaverInKeptRounds(tournament, id), withLeaver(tournament, id, true), howLong)
+}
+
+// A copy where the player has left: their scored games stay and they play
+// no more. The rounds up to the last one with a score are kept, with someone
+// else in their unscored match there; the rest are made again without them.
+// Call only once removePlayerProblems() is empty.
 export function removePlayer(
   tournament: Tournament,
   id: PlayerId,
@@ -312,7 +333,7 @@ export function removePlayer(
   scaleUp: boolean,
   rng?: Rng,
 ): Tournament {
-  return rebuild(tournament, withLeaver(tournament, id, scaleUp), howLong, rng)
+  return rebuild(withoutLeaverInKeptRounds(tournament, id, rng), withLeaver(tournament, id, scaleUp), howLong, rng)
 }
 
 // The pre-filled name: what kind of game it is and the day it's played,

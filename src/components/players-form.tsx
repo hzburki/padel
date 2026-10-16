@@ -146,7 +146,7 @@ function RemoveStep({
 }) {
   const [howLong, setHowLong] = useState<HowLong>("sameMatches")
   const [scaleUp, setScaleUp] = useState(true)
-  const problems = removePlayerProblems(tournament, player.id)
+  const problems = removePlayerProblems(tournament)
 
   return (
     <div>
