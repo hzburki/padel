@@ -196,3 +196,4 @@ address, which is how `/privacy` and `/terms` open and how the app shows its own
 ## License
 
 Free and open source under the [MIT License](LICENSE).
+
