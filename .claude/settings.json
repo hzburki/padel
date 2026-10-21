@@ -22,13 +22,7 @@
       "Bash(git branch:*)"
     ]
   },
-  "extraKnownMarketplaces": {
-    "addy-agent-skills": {
-      "source": { "source": "github", "repo": "addyosmani/agent-skills" }
-    }
-  },
   "enabledPlugins": {
-    "frontend-design@claude-plugins-official": true,
-    "agent-skills@addy-agent-skills": true
+    "frontend-design@claude-plugins-official": true
   }
 }
