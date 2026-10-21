@@ -1,4 +1,4 @@
-import { formatDiff, formatPoints, winners, type StandingRow } from "@/lib/standings"
+import { formatDiff, formatPoints, playerNames, winners, type StandingRow } from "@/lib/standings"
 import type { Tournament } from "@/lib/types"
 
 // The shareable result image: a fixed 4:5 card (fits WhatsApp and feeds),
@@ -73,7 +73,7 @@ export async function renderShareCard(
   canvas.width = W
   canvas.height = H
   const ctx = canvas.getContext("2d")!
-  const nameOf = new Map(tournament.players.map((p) => [p.id, p.name]))
+  const nameOf = playerNames(tournament.players)
 
   ctx.fillStyle = BLUE
   ctx.fillRect(0, 0, W, H)

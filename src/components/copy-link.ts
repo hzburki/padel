@@ -1,7 +1,7 @@
 import { shareText } from "@/lib/broadcast"
 import { shareLive, shareScoreLink } from "@/lib/live"
 import type { SavedEvent } from "@/lib/types"
-import type { ToastMessage } from "./toast"
+import type { ToastMessage } from "@/components/ui/toast"
 
 // Put a game online and copy the message with its link, for the organiser
 // to paste wherever they like: the watch link, or the one that makes a

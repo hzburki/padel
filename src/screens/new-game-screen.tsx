@@ -3,7 +3,7 @@ import { useState, type ComponentType, type SVGProps } from "react"
 import type { PreviousMatchSetup } from "@/lib/set-match-setup"
 import type { PreviousSetup } from "@/lib/tournament"
 import type { SavedEvent } from "@/lib/types"
-import { CourtIcon } from "./court-icon"
+import { CourtIcon } from "@/components/court-icon"
 import { NewMatchScreen } from "./new-match-screen"
 import { NewTournamentScreen } from "./new-tournament-screen"
 

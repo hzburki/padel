@@ -13,6 +13,7 @@ import {
   type HowLong,
 } from "@/lib/tournament"
 import type { Player, PlayerId, Tournament } from "@/lib/types"
+import { LeftBadge } from "./left-badge"
 
 // The players of a running tournament, shown in a sheet: remove on each
 // player still in, a field to add one. Before either, the organiser picks
@@ -238,14 +239,5 @@ function Choice<T extends string>({
         ))}
       </div>
     </>
-  )
-}
-
-// Marks a player who was removed mid game.
-export function LeftBadge() {
-  return (
-    <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[0.6875rem] leading-none font-semibold text-muted-foreground">
-      left
-    </span>
   )
 }

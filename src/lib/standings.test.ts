@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest"
-import { computeStandings, formatDiff, formatPoints, joinNames, keptAsScored, placesMovedByScaling, winners } from "./standings"
+import {
+  computeStandings,
+  finalStandings,
+  formatDiff,
+  formatPoints,
+  joinNames,
+  keptAsScored,
+  placesMovedByScaling,
+  playerNames,
+  winners,
+} from "./standings"
 import type { Match, PlayerId, Round } from "./types"
 
 const ids = (n: number): PlayerId[] => Array.from({ length: n }, (_, i) => `p${i + 1}`)
@@ -242,5 +252,31 @@ describe("keptAsScored", () => {
       { id: "p4", name: "Dee", joinedAt: 2 },
     ]
     expect(keptAsScored(players)).toEqual(["p3"])
+  })
+})
+
+describe("finalStandings", () => {
+  it("scales up a player with fewer games but not a leaver who keeps their points as scored", () => {
+    const players = [
+      { id: "p1", name: "Ana" },
+      { id: "p2", name: "Ben" },
+      { id: "p3", name: "Cai" },
+      { id: "p4", name: "Dee" },
+      { id: "p5", name: "Eve", left: { scaleUp: false } },
+    ]
+    const rounds = [round(match("p1 p2", 6, 2, "p3 p4")), round(match("p1 p3", 5, 3, "p2 p5"))]
+    const points = new Map(finalStandings({ players, rounds }).map((r) => [r.playerId, r.points]))
+    expect(points.get("p4")).toBe(4) // 2 points from 1 game, when others played 2
+    expect(points.get("p5")).toBe(3) // 3 points from 1 game, kept as scored
+  })
+})
+
+describe("playerNames", () => {
+  it("looks up each player's name by id", () => {
+    const names = playerNames([
+      { id: "p1", name: "Ana" },
+      { id: "p2", name: "Ben" },
+    ])
+    expect(names.get("p2")).toBe("Ben")
   })
 })

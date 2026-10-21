@@ -8,11 +8,13 @@ import { createSetMatch, matchSetupProblems, type PreviousMatchSetup } from "@/l
 import { requestPersistentStorage, saveTournament } from "@/lib/storage"
 import { capitaliseFirst, defaultGameName, repeatedNames } from "@/lib/tournament"
 import type { DeuceRule, ScoreBy, SetMatch, Side } from "@/lib/types"
-import { Hint, NameTaken, Section, Stepper } from "./new-tournament-screen"
-import { Screen } from "./screen"
-import { Segmented } from "./segmented"
-import { Sheet } from "./sheet"
-import { useBackHandler, useNav } from "./nav"
+import { Hint, Section } from "@/components/ui/section"
+import { NameTaken } from "@/components/name-taken"
+import { ConfirmSheet } from "@/components/ui/confirm-sheet"
+import { Screen } from "@/components/screen"
+import { Segmented } from "@/components/ui/segmented"
+import { Stepper } from "@/components/ui/stepper"
+import { useBackHandler, useNav } from "@/components/nav"
 
 const NO_NAMES: SetMatch["teams"] = [
   ["", ""],
@@ -214,26 +216,20 @@ export function NewMatchScreen({
         </Section>
       )}
 
-      <Sheet open={confirmDiscard} onClose={() => setConfirmDiscard(false)}>
-        <p className="text-2xl type-display">Discard this match?</p>
-        <p className="mt-1 text-muted-foreground">The names you typed won't be saved.</p>
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirmDiscard(false)}>
-            Keep editing
-          </Button>
-          <Button
-            variant="destructive"
-            size="lg"
-            className="px-3"
-            onClick={() => {
-              setConfirmDiscard(false)
-              nav.back({ force: true })
-            }}
-          >
-            Discard
-          </Button>
-        </div>
-      </Sheet>
+      <ConfirmSheet
+        open={confirmDiscard}
+        onClose={() => setConfirmDiscard(false)}
+        title="Discard this match?"
+        cancelLabel="Keep editing"
+        confirmLabel="Discard"
+        onConfirm={() => {
+          setConfirmDiscard(false)
+          nav.back({ force: true })
+        }}
+        destructive
+      >
+        The names you typed won't be saved.
+      </ConfirmSheet>
     </Screen>
   )
 }

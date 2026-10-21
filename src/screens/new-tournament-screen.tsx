@@ -1,4 +1,4 @@
-import { ChevronDown, Minus, Plus, TriangleAlert, X } from "lucide-react"
+import { Plus, TriangleAlert, X } from "lucide-react"
 import { useRef, useState, type ReactNode } from "react"
 import type { Route } from "@/App"
 import { Button } from "@/components/ui/button"
@@ -21,10 +21,14 @@ import {
   setupProblems,
 } from "@/lib/tournament"
 import type { ScoringMode } from "@/lib/types"
-import { Screen } from "./screen"
-import { Segmented } from "./segmented"
-import { Sheet } from "./sheet"
-import { useBackHandler, useNav } from "./nav"
+import { Hint, Section } from "@/components/ui/section"
+import { NameTaken } from "@/components/name-taken"
+import { ConfirmSheet } from "@/components/ui/confirm-sheet"
+import { Screen } from "@/components/screen"
+import { Stepper } from "@/components/ui/stepper"
+import { Segmented } from "@/components/ui/segmented"
+import { Sheet } from "@/components/ui/sheet"
+import { useBackHandler, useNav } from "@/components/nav"
 
 
 export function NewTournamentScreen({
@@ -306,28 +310,20 @@ export function NewTournamentScreen({
         </div>
       </Sheet>
 
-      <Sheet open={confirmDiscard} onClose={() => setConfirmDiscard(false)}>
-        <p className="text-2xl type-display">Discard this tournament?</p>
-        <p className="mt-1 text-muted-foreground">
-          The {names.length} {names.length === 1 ? "player" : "players"} you added won't be saved.
-        </p>
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          <Button variant="ghost" size="lg" className="px-3" onClick={() => setConfirmDiscard(false)}>
-            Keep editing
-          </Button>
-          <Button
-            variant="destructive"
-            size="lg"
-            className="px-3"
-            onClick={() => {
-              setConfirmDiscard(false)
-              nav.back({ force: true })
-            }}
-          >
-            Discard
-          </Button>
-        </div>
-      </Sheet>
+      <ConfirmSheet
+        open={confirmDiscard}
+        onClose={() => setConfirmDiscard(false)}
+        title="Discard this tournament?"
+        cancelLabel="Keep editing"
+        confirmLabel="Discard"
+        onConfirm={() => {
+          setConfirmDiscard(false)
+          nav.back({ force: true })
+        }}
+        destructive
+      >
+        The {names.length} {names.length === 1 ? "player" : "players"} you added won't be saved.
+      </ConfirmSheet>
 
       <Sheet open={warnRounds !== null && roundsOff !== null} onClose={() => setWarnRounds(null)}>
         {roundsOff && (
@@ -452,92 +448,6 @@ function RoundsWarning({
           See details
         </button>
       )}
-    </div>
-  )
-}
-
-export function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
-  return (
-    <section className="mt-8 first:mt-3">
-      <h2 className="mb-3 flex items-baseline gap-2 px-1 text-[1.375rem] type-display">
-        {title}
-        {count !== undefined && <span className="text-primary">{count}</span>}
-      </h2>
-      {children}
-    </section>
-  )
-}
-
-// Sits under a name field holding a name another player already has.
-// `name` is as typed.
-export function NameTaken({ name }: { name: string }) {
-  return (
-    <p role="alert" className="mt-1.5 px-1 text-sm font-medium text-destructive">
-      {cleanPlayerName(name)} is already playing
-    </p>
-  )
-}
-
-export function Hint({ children }: { children: ReactNode }) {
-  return <p className="mt-2 px-1 text-sm text-muted-foreground">{children}</p>
-}
-
-// A setting with a big number in the middle: minus on the left, plus (the
-// usual move) filled on the right.
-export function Stepper({
-  value,
-  min,
-  max,
-  onChange,
-  unit,
-  onValueTap,
-}: {
-  value: number
-  min: number
-  max: number
-  onChange: (n: number) => void
-  unit: (n: number) => string
-  onValueTap?: () => void // makes the value itself a button (e.g. to open a picker)
-}) {
-  const step =
-    "flex size-14 shrink-0 items-center justify-center rounded-2xl transition-transform active:scale-90 disabled:bg-transparent disabled:text-muted-foreground/30 disabled:shadow-[inset_0_0_0_1.5px_var(--border)]"
-  const Value = onValueTap ? "button" : "div"
-  return (
-    <div className="flex items-center gap-2 rounded-3xl bg-card p-2 shadow-[inset_0_0_0_1.5px_var(--border)]">
-      <button
-        type="button"
-        aria-label="Fewer"
-        className={`${step} bg-secondary text-primary`}
-        disabled={value <= min}
-        onClick={() => onChange(value - 1)}
-      >
-        <Minus className="size-6" strokeWidth={2.75} />
-      </button>
-      <Value
-        {...(onValueTap ? { type: "button" as const, onClick: onValueTap } : {})}
-        className={`flex min-w-0 flex-1 flex-col items-center rounded-2xl py-1 ${onValueTap ? "active:bg-muted" : ""}`}
-      >
-        {/* Re-keyed so each change gives the number a small kick. */}
-        <span
-          key={value}
-          className="text-[3.5rem] leading-[0.9] type-display animate-in duration-200 zoom-in-90 motion-reduce:animate-none"
-        >
-          {value}
-        </span>
-        <span className="mt-0.5 flex items-center gap-0.5 text-sm font-medium text-muted-foreground">
-          {unit(value)}
-          {onValueTap && <ChevronDown className="size-3.5" strokeWidth={2.75} />}
-        </span>
-      </Value>
-      <button
-        type="button"
-        aria-label="More"
-        className={`${step} bg-primary text-primary-foreground`}
-        disabled={value >= max}
-        onClick={() => onChange(value + 1)}
-      >
-        <Plus className="size-6" strokeWidth={2.75} />
-      </button>
     </div>
   )
 }

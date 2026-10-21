@@ -103,6 +103,21 @@ export function keptAsScored(players: Player[]): PlayerId[] {
   return players.filter((p) => p.left && !p.left.scaleUp).map((p) => p.id)
 }
 
+// The standings once the tournament is over: fewer games scaled up, except
+// for leavers who keep their points as scored.
+export function finalStandings({ players, rounds }: { players: Player[]; rounds: Round[] }): StandingRow[] {
+  return computeStandings(
+    players.map((p) => p.id),
+    rounds,
+    { final: true, notScaled: keptAsScored(players) },
+  )
+}
+
+// Each player's name, by id.
+export function playerNames(players: Player[]): Map<PlayerId, string> {
+  return new Map(players.map((p) => [p.id, p.name]))
+}
+
 // How many places each player moved in the final standings because points
 // were scaled up for those with fewer games: 1 is one place up, -1 one
 // place down. Players whose place did not change are left out.

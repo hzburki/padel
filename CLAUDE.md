@@ -94,8 +94,9 @@ npx vitest run -t "benches the player"             # one test by name
 | `src/lib/`           | All the rules, pure and tested: each `x.ts` sits next to its `x.test.ts`.      |
 | `src/lib/types.ts`   | The stored shapes: `Tournament`, `SetMatch`, `SavedEvent`.                     |
 | `src/lib/storage.ts` | IndexedDB, the stored version (`CURRENT_VERSION`) and `migrate`.               |
-| `src/components/`    | Screens (`*-screen.tsx`) and the parts they share. No router: `stack-navigator.tsx` and `nav.ts`. |
-| `src/components/ui/` | shadcn components.                                                             |
+| `src/screens/`       | One file per screen (`*-screen.tsx`).                                          |
+| `src/components/`    | The parts screens share. No router: `stack-navigator.tsx` and `nav.ts`.        |
+| `src/components/ui/` | Building blocks that know nothing about padel: shadcn's and our own (sheet, menu, tabs, select…). |
 | `shots/`             | Playwright: screen images, played games, Firestore rules tests.                |
 | `public/`            | Icons, the link preview image, and `_headers` for Cloudflare Pages.            |
 | `firestore.rules`    | Who may write a broadcast game online.                                         |

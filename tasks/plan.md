@@ -1,82 +1,87 @@
-# Plan: Players join and leave a running Americano
+# Plan: Less repeated code in `src/components/`
 
-Spec: `SPEC.md`. Tasks: `tasks/todo.md`.
+Source: the code review of 2026-10-21. Tasks: `tasks/todo.md`. The old plan is in `tasks/done/`.
 
 ## Overview
 
-Every running Americano gets **Players** in its menu. The organiser can add or remove a player. Rounds with
-a score stay as they are. The rounds after them are rebuilt. At the moment of the change the organiser
-picks how long to play (Same time or Same matches), and for a leaver whether their points are scaled up.
-All the rules are pure functions in `src/lib/`. The screens only show them.
+`src/lib/` stays as it is. The work is in `src/components/`:
 
-## What changed from the first plan
+- The tournament and match screens share about 150 lines word for word.
+- The confirm sheet is pasted 8 times and the menu row 10 times.
+- Shared form parts live inside a screen file.
 
-The first plan put the choices on the New game screen behind a switch, with a catch-up mode for joiners.
-That is gone:
-
-- T2 (the switch) is undone: the form goes back to how it was, `lateChanges` is removed.
-- T3 (`roundsToLevel`) is redone for Same matches.
-- T4 (rebuild) stays, minus the catch-up flag.
-
-## What depends on what
-
-```
-T1 stored shape v3 + migrate                      (done)
- └── T2 take out the switch; left = { scaleUp }
-      ├── T3 rounds left for Same matches         (americano.ts)
-      │    └── T4 rebuild rounds from kept rounds (americano.ts, bench.ts)
-      │         └── T5 addPlayer / removePlayer   (tournament.ts)
-      │              ├── T7 Add a player          (screen)
-      │              └── T8 Remove a player       (screen, "left" badge)
-      ├── T6 final scaling leaves Keep as scored leavers out (standings.ts + call sites)
-      └── T9 online copy carries the new fields   (online-game.ts)
-           └── T10 rules let organisers rebuild rounds (firestore.rules)
-                └── T11 played game in shots + README + CLAUDE.md
-```
+Every task is a refactor: **nothing a player sees changes.** The proof is that every stored screen image
+in `npm run shots` still matches and the played-game flows still pass.
 
 ## Decisions
 
-- **Version 3 for both kinds.** `CURRENT_VERSION` is shared, so `SetMatch` goes to 3 too. The v2 → v3 step
-  only changes the number. Already done in T1.
-- **Stored fields:** `Player.left?: { scaleUp: boolean }`, `Player.joinedAt?: number` (the round index
-  they joined at). No field on `Tournament`. T1 stored `left?: true` and `lateChanges`; T2 changes both.
-  The branch hasn't shipped, so no further version.
-- **Same time / Same matches is not stored.** It only decides how many rounds are made.
-- **Which rounds are kept:** every round up to and including the last round with any score.
-- **Rounds left, Same time:** the rounds left before the change.
-- **Rounds left, Same matches:** each player still in was due `rounds left × places before ÷ players
-  before` more matches. The target is that many matches for each player still in: `due × players after ÷
-  places after` rounds. Then the rounds are played out as the bench plays them (fewest matches first, one a
-  round), and of the counts from 1 to the round limit, the one closest to the target where everyone ends
-  level wins (ties to more rounds); failing that, the closest within one match; failing that, the limit.
-  `places` is `4 × courts in play`.
-- **A joiner's starting count:** for who sits out, a joiner counts as having the fewest matches of anyone
-  still in who was there before them, counted up to the round they joined (plus that player's own starting
-  count if they joined too). Not stored, worked out from the rounds. Known gap in the spec.
-- **Rebuilding reuses `buildSchedule`** through `continueSchedule`: kept rounds count as partners and
-  opponents already had, and each player starts from their count.
-- **Scaling.** `computeStandings` gets an option listing players who are not scaled: leavers with
-  `scaleUp: false`. Called the same way wherever final standings are drawn (tournament screen, list screen).
-- **Online copy.** Each player entry gets `left` and `joinedAt` when set. A rebuild sends `game.rounds`
-  whole (it is a list) and one entry per changed player, through `changedFields` as now.
-- **Rules.** `firestore.rules` today stops an added organiser from changing `rounds`. On an Americano they
-  may change `rounds` too. The rules deploy to the real project is the user's.
-- **New badge.** `NewBadge` has one date for all its uses (2026-10-21). T7 gives it an `until` date:
-  "Add an organiser" keeps 2026-10-21, "Players" gets the day 2 weeks after T7 is done.
+- **Few new pieces, each with one job.** Two small components (`ConfirmSheet`, `MenuItem`), one hook
+  (`useGame`), two lib functions (`nameOf`, `finalStandings`). No context, no state library, no new
+  dependency, no stored shape change.
+- **One component per file, named after it**, like `live-badge.tsx` and `new-badge.tsx` today. `Section`
+  and `Hint` share a file because they are always used together.
+- **`useGame` is shared by only two screens.** CLAUDE.md says no helper before the third use. This is an
+  exception because about 150 lines are the same in both screens. If you'd rather not, skip T5–T7.
+- **The hook knows nothing about either kind of game.** What differs is passed in:
+  - `render`: how to draw the share image
+  - `check(before, after)`: an optional toast when a copy comes in from online. The tournament uses it
+    for "That match was made again".
+  - `kind`: which saved games this screen opens
+
+  No `if (kind === "americano")` inside the hook.
+- **Taps keep doing their work during the tap.** iOS refuses a share or a clipboard write that starts
+  after a wait. So:
+  - `copyLink` is still called before any `await` in `shareLink`.
+  - The share image is still made ahead of time.
+- **The rename** (`saveTournament` → `saveGame`, `TournamentListScreen` → `HomeScreen`) is not in this
+  plan. If you want it, it is its own slice later.
+
+## Dependency graph
+
+```
+T1 form parts move ─────────────┐
+T2 ConfirmSheet ────────────────┤ (independent, any order)
+T3 MenuItem ────────────────────┤
+T4 nameOf / finalStandings ─────┘
+                │
+                ▼
+T5 useGame: open + save        (T2, T4 make the screens smaller first)
+                │
+                ▼
+T6 useGame: broadcast + delete
+                │
+                ▼
+T7 shared screen parts: loading, More, finished footer, share image
+                │
+                ▼
+T8 split tournament-screen.tsx    T9 split match-screen.tsx
+                │
+                ▼
+T10–T12 optional, each only on your yes
+```
+
+## Phases
+
+1. **Small shared parts** (T1–T3): moves and two components. Low risk.
+2. **Lib** (T4): two pure functions with tests.
+3. **Game screens** (T5–T7): the hook. This is the risky part, because it touches opening, saving and
+   broadcasting.
+4. **Split files** (T8–T9): plain moves.
+5. **Optional** (T10–T12).
+
+There is a checkpoint after phases 1, 3 and 4.
 
 ## Risks
 
 | Risk | Impact | What we do |
-| --- | --- | --- |
-| Same matches can't come out level within the round limit | Med | Fall back to within one match; tested |
-| A joiner's count can come out one higher after a later leave | Low | Known gap in the spec; final scaling uses real matches |
-| A score lands on a rebuilt match when two organisers race | Low | Left to the organisers, as decided |
-| Rules change not deployed before the app ships | High for added organisers | Rules slice before the UI ships with broadcast; you deploy |
-| The New game screen image changed in T2 and changes back | Low | Run shots after T2; need your yes before replacing any image |
+| ---- | ------ | ---------- |
+| A screen looks different after the refactor | Med | `npm run shots` after every UI task. A changed image means a bug in the refactor; an image is never replaced without your yes. |
+| The hook re-runs `openGame` too often (effect deps, `nav.replace` identity) | High | Keep the same deps as today (`id, watch, scoreKey, toNotFound, links`). Check the flows, then follow a broadcast on 5198. |
+| Share or copy link stops working on iOS | High | Keep the tap rules above. Check Share and Broadcast live in Safari (`npm run shots` runs WebKit). |
+| A score is lost when saving moves into the hook | High | `update` moves over line for line. Check with a reload mid-game on 5199. |
+| `ConfirmSheet` can't express the finish sheet's "no Cancel when all scored" | Low | Leaving out `cancelLabel` hides Cancel. |
 
-## Decided
+## Open questions
 
-- The choices are made at the moment of the change. No switch, no setup choices, no catch-up.
-- "Players" is in the menu under "Edit names", with the New badge like "Add an organiser". It opens a sheet
-  with the player list: remove on each player, an add field at the bottom.
-- Defaults: Same matches; Scale up.
+- Should T5–T7 (the hook) go ahead despite the third-use rule? The plan assumes yes.
+- Do you want T10–T12 at all? They are listed but not started without your yes.

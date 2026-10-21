@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { renameProblems, repeatedNames } from "@/lib/tournament"
 import type { Tournament } from "@/lib/types"
-import { NameTaken } from "./new-tournament-screen"
+import { NameTaken } from "./name-taken"
 
 // Edit the tournament's name and its players' names, shown in a sheet.
 // Once the tournament is finished only its own name can change.

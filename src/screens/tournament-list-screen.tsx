@@ -6,20 +6,21 @@ import { formatSets, replay, teamName } from "@/lib/set-match"
 import { previousMatchSetup } from "@/lib/set-match-setup"
 import { followedFromHome } from "@/lib/broadcast"
 import { openGame } from "@/lib/live"
-import { computeStandings, formatPoints, joinNames, keptAsScored, winners } from "@/lib/standings"
+import { computeStandings, finalStandings, formatPoints, joinNames, playerNames, winners } from "@/lib/standings"
 import { listTournaments, onChangedElsewhere } from "@/lib/storage"
 import { currentRoundIndex, previousSetup, unscoredMatchCount } from "@/lib/tournament"
 import type { SavedEvent, SetMatch, Tournament } from "@/lib/types"
-import { BallIcon } from "./ball-icon"
-import { CourtIcon } from "./court-icon"
-import { CourtLines } from "./court-lines"
-import { InstallBanner, InstallHelp } from "./install-banner"
-import { canInstall, isPhone, useInstallPrompt } from "./install-prompt"
-import { LiveBadge } from "./live-badge"
-import { Screen } from "./screen"
-import { SharedTag } from "./shared-tag"
-import { Sheet } from "./sheet"
-import { useIsTopScreen, useNav } from "./nav"
+import { BallIcon } from "@/components/ball-icon"
+import { CourtIcon } from "@/components/court-icon"
+import { CourtLines } from "@/components/court-lines"
+import { InstallBanner, InstallHelp } from "@/components/install-banner"
+import { canInstall, isPhone, useInstallPrompt } from "@/components/install-prompt"
+import { LiveBadge } from "@/components/live-badge"
+import { Screen } from "@/components/screen"
+import { SharedTag } from "@/components/shared-tag"
+import { Select } from "@/components/ui/select"
+import { Sheet } from "@/components/ui/sheet"
+import { useIsTopScreen, useNav } from "@/components/nav"
 
 export function TournamentListScreen() {
   const nav = useNav<Route>()
@@ -135,25 +136,16 @@ export function TournamentListScreen() {
           {/* Room under the filter for a Live badge on the first row. */}
           <div className="mb-5 flex items-center gap-3 px-1">
             <h2 className="flex-1 text-[1.375rem] type-display">History</h2>
-            {/* The phone's own picker behind a pill: nothing to build or to
-                get wrong on a small screen. */}
-            <span className="relative">
-              <select
-                aria-label="Show"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value as typeof filter)}
-                className="h-11 appearance-none rounded-full bg-secondary pr-8 pl-3.5 text-sm text-primary outline-none type-label focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
-              >
-                <option value="all">All</option>
-                <option value="americano">Americano</option>
-                <option value="match">Matches</option>
-              </select>
-              <ChevronDown
-                className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-primary"
-                strokeWidth={2.5}
-                aria-hidden
-              />
-            </span>
+            <Select
+              label="Show"
+              options={[
+                ["all", "All"],
+                ["americano", "Americano"],
+                ["match", "Matches"],
+              ]}
+              value={filter}
+              onChange={setFilter}
+            />
           </div>
           {listed.length === 0 && (
             <p className="px-1 text-muted-foreground">
@@ -291,7 +283,7 @@ function PlayingNow({ tournament, onOpen }: { tournament: Tournament; onOpen: ()
     tournament.players.map((p) => p.id),
     tournament.rounds,
   )
-  const nameOf = new Map(tournament.players.map((p) => [p.id, p.name]))
+  const nameOf = playerNames(tournament.players)
   const leaders = winners(rows)
   const leaderPoints = rows[0]?.points ?? 0
 
@@ -478,13 +470,8 @@ function MatchStatus({ match }: { match: SetMatch }) {
 
 function Status({ tournament }: { tournament: Tournament }) {
   if (tournament.finished) {
-    const rows = computeStandings(
-      tournament.players.map((p) => p.id),
-      tournament.rounds,
-      { final: true, notScaled: keptAsScored(tournament.players) },
-    )
-    const nameOf = new Map(tournament.players.map((p) => [p.id, p.name]))
-    const won = winners(rows)
+    const nameOf = playerNames(tournament.players)
+    const won = winners(finalStandings(tournament))
     return won.length > 0 ? <>🏆 {joinNames(won.map((id) => nameOf.get(id) ?? ""))}</> : <>Finished</>
   }
   const current = currentRoundIndex(tournament)

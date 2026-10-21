@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUp } from "lucide-react"
 import { formatDiff, formatPoints, type StandingRow } from "@/lib/standings"
 import type { PlayerId } from "@/lib/types"
-import { LeftBadge } from "./players-form"
+import { LeftBadge } from "./left-badge"
 
 // The on-screen standings: a phone-width list, readable at a glance.
 // (The shareable image has its own layout in share-card.ts.)

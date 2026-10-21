@@ -1,4 +1,4 @@
-import { Screen } from "./screen";
+import { Screen } from "@/components/screen";
 
 const PAGES = {
   privacy: {
